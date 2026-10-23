@@ -1,0 +1,48 @@
+{
+  "author": "eniallator",
+  "description": "Colony builder",
+  "devEngines": {
+    "packageManager": {
+      "name": "pnpm",
+      "version": "12.15.0",
+      "onFail": "download"
+    }
+  },
+  "engines": {
+    "node": ">=25.4.0"
+  },
+  "license": "MIT",
+  "name": "colony-builder",
+  "packageManager": "pnpm@12.15.0",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "claudeLibDocs": [
+    "deep-guards",
+    "method-monitor",
+    "niall-utils",
+    "seriform",
+    "vectyped"
+  ],
+  "devDependencies": {
+    "@ianvs/prettier-plugin-sort-imports": "^4.7.1",
+    "oxlint": "^1.87.0",
+    "oxlint-tsgolint": "^7.0.2003",
+    "prettier": "^3.9.9",
+    "typescript": "^7.0.2",
+    "vitest": "^5.0.3"
+  },
+  "scripts": {
+    "build": "pnpm --filter @colony-builder/client build",
+    "watch": "pnpm --filter @colony-builder/client watch",
+    "typecheck": "pnpm -r typecheck",
+    "lint": "oxlint client/src server/src shared/src",
+    "format": "prettier --write .",
+    "format:check": "prettier --check .",
+    "findissues": "pnpm typecheck && pnpm lint && pnpm format:check",
+    "lib-docs": "node scripts/lib-docs.mjs",
+    "postinstall": "pnpm lib-docs",
+    "prepublish": "pnpm build && pnpm findissues",
+    "test": "vitest run --config vitest.config.js"
+  }
+}

@@ -1,0 +1,20 @@
+{
+  "name": "@colony-builder/shared",
+  "private": true,
+  "type": "module",
+  "version": "1.0.0",
+  "exports": {
+    ".": "./src/index.ts"
+  },
+  "dependencies": {
+    "deep-guards": "^1.4.0",
+    "niall-utils": "^4.0.0",
+    "vectyped": "^1.2.1"
+  },
+  "devDependencies": {
+    "jsdom": "^30.1.2"
+  },
+  "scripts": {
+    "typecheck": "tsc"
+  }
+}

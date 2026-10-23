@@ -1,0 +1,14 @@
+{
+  "editor.defaultFormatter": "esbenp.prettier-vscode",
+  "editor.formatOnSave": true,
+  "editor.codeActionsOnSave": {
+    "source.organizeImports": "never",
+    "source.fixAll.oxc": "explicit"
+  },
+  "sonarlint.analysisExcludesStandalone": "**/node_modules/**,**/dist/**,**/.claude/**,**/scripts/**",
+  "files.watcherExclude": {
+    "**/node_modules/**": true,
+    "**/dist/**": true,
+    "**/.claude/lib-docs/**": true
+  }
+}

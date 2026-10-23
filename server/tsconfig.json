@@ -1,0 +1,12 @@
+{
+  "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "lib": ["esnext"],
+    "module": "nodenext",
+    "moduleResolution": "nodenext",
+    "noEmit": true,
+    "types": ["node"]
+  },
+  "extends": "../tsconfig.common.json",
+  "include": ["src"]
+}

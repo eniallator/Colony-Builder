@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["esnext"],
+    "noEmit": true,
+    "types": []
+  },
+  "extends": "../tsconfig.common.json",
+  "include": ["src"]
+}
