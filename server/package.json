@@ -5,7 +5,7 @@
   "version": "1.0.0",
   "dependencies": {
     "@colony-builder/shared": "workspace:*",
-    "deep-guards": "^1.4.0",
+    "deep-guards": "^2.0.0",
     "niall-utils": "^4.0.0",
     "vectyped": "^1.2.1",
     "ws": "^8.22.0"

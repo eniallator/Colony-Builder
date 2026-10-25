@@ -9,7 +9,7 @@ const mode = process.env.NODE_ENV ?? "development";
 export default {
   mode,
 
-  entry: "./src/index.ts",
+  entry: "./src/init.ts",
 
   resolve: { extensions: [".ts", ".js"] },
 
