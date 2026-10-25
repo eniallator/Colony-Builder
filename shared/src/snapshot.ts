@@ -1,7 +1,7 @@
 import { Vector } from "vectyped";
 
 import type { EntityId } from "./entity/index.ts";
-import type { WorldSnapshot } from "./protocol/message.ts";
+import type { WorldSnapshot } from "./protocol/index.ts";
 import type { World } from "./world.ts";
 
 export const takeSnapshot = (world: World): WorldSnapshot => ({

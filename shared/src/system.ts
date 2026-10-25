@@ -8,7 +8,7 @@ export interface SystemContext {
 export type System = (ctx: SystemContext) => void;
 
 export const movementSystem: System = ({ world, dt }) => {
-  for (const id of world.query("position", "destination")) {
+  for (const id of world.query("position", "destination", "speed")) {
     const pos = world.get(id, "position");
     const des = world.get(id, "destination");
     const speed = world.get(id, "speed");

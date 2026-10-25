@@ -1,10 +1,10 @@
 import {
-  createInitMessage,
+  clientMessage,
   createPlayer,
-  createSnapshotMessage,
   DEFAULT_PORT,
-  isClientMessage,
-  parseJson,
+  initMessage,
+  serverMessage,
+  snapshotMessage,
   takeSnapshot,
   TPS,
   World,
@@ -29,12 +29,12 @@ server.on("connection", socket => {
   const playerId = createPlayer(world);
   players.set(socket, playerId);
 
-  send(socket, createInitMessage(playerId));
+  send(socket, initMessage.create(playerId));
   socket.on("message", (data, isBinary) => {
     // Our client only ever sends text, which ws delivers as a Buffer.
     if (isBinary || !Buffer.isBuffer(data)) return;
 
-    const message = parseJson(data.toString(), isClientMessage);
+    const message = clientMessage.decode(data.toString());
     if (message === undefined) return;
 
     world.get(playerId, "controller").destination.setHead(...message.position);
@@ -57,9 +57,11 @@ setInterval(() => {
 
   for (const system of serverSystems) system(systemCtx);
 
-  const snapshot = JSON.stringify(createSnapshotMessage(takeSnapshot(world)));
+  const snapshot = serverMessage.create(
+    snapshotMessage.create(takeSnapshot(world))
+  );
 
   for (const socket of players.keys()) {
-    if (socket.readyState === socket.OPEN) socket.send(snapshot);
+    if (socket.readyState === socket.OPEN) send(socket, snapshot);
   }
 }, 1000 / TPS);

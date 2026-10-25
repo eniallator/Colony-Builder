@@ -1,9 +1,8 @@
 import {
-  createDestinationMessage,
+  clientMessage,
   DEFAULT_PORT,
-  formatClientMessage,
-  isServerMessage,
-  parseJson,
+  destinationMessage,
+  serverMessage,
   TPS,
   World,
 } from "@colony-builder/shared";
@@ -28,9 +27,7 @@ export const app = appMethods<State>({
     );
 
     socket.addEventListener("message", ({ data }) => {
-      const message = isString(data)
-        ? parseJson(data, isServerMessage)
-        : undefined;
+      const message = isString(data) ? serverMessage.decode(data) : undefined;
 
       if (message != null) messageHandler(state, message);
     });
@@ -38,7 +35,7 @@ export const app = appMethods<State>({
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
       socket.send(
-        formatClientMessage(createDestinationMessage(mouseWorldPos.toArray()))
+        clientMessage.encode(destinationMessage.create(mouseWorldPos.toArray()))
       );
     });
 

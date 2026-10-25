@@ -49,8 +49,8 @@ export class World {
   }
 
   query(...[first, ...rest]: ReadonlyNonEmptyArray<ComponentName>): EntityId[] {
-    return [...this.stores[first].keys()].filter(entity =>
-      rest.every(name => this.stores[name].has(entity))
+    return [...this.stores[first].keys()].filter(id =>
+      rest.every(name => this.stores[name].has(id))
     );
   }
 }
