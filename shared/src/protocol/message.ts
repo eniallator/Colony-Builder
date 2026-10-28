@@ -1,64 +1,61 @@
+import { isNumber } from "deep-guards";
+
+import { entityId, entityType, type EntityId } from "../entity/index.ts";
+import { f32 } from "./codec.ts";
 import {
-  isArrayOf,
-  isDiscriminatedObjectOf,
-  isExactObjectOf,
-  isNumber,
-  isOptional,
-  isTupleOf,
-  isUnionOf,
-  type Guard,
-  type TypeFromGuard,
-} from "deep-guards";
+  arrayOf,
+  constant,
+  encodable,
+  object,
+  optional,
+  tupled,
+  union,
+  type EncodableType,
+} from "./encodable.ts";
 
-import { isEntityId, type EntityId } from "../entity/index.ts";
-import { encodable } from "./encodable.ts";
-
-const isFiniteNumber: Guard<number> = (value): value is number =>
-  isNumber(value) && Number.isFinite(value);
-
-const isVec2 = isTupleOf(isFiniteNumber, isFiniteNumber);
-type Vec2 = TypeFromGuard<typeof isVec2>;
-export const entitySnapshot = encodable(
-  isExactObjectOf({
-    id: isEntityId,
-    position: isVec2,
-    destination: isOptional(isVec2),
-    speed: isFiniteNumber,
-  })
+const finiteNumber = encodable(
+  (value): value is number => isNumber(value) && Number.isFinite(value),
+  f32
 );
-export type EntitySnapshot = TypeFromGuard<typeof entitySnapshot.guard>;
 
-export const worldSnapshot = encodable(
-  isExactObjectOf({ entities: isArrayOf(entitySnapshot.guard) }),
+const vec2 = tupled(finiteNumber, finiteNumber);
+export type Vec2 = EncodableType<typeof vec2>;
+
+export const entitySnapshot = object({
+  id: entityId,
+  type: entityType,
+  position: vec2,
+  destination: optional(vec2),
+  speed: optional(finiteNumber),
+});
+export type EntitySnapshot = EncodableType<typeof entitySnapshot>;
+
+export const worldSnapshot = object(
+  { entities: arrayOf(entitySnapshot) },
   (entities: EntitySnapshot[]) => ({ entities })
 );
-export type WorldSnapshot = TypeFromGuard<typeof worldSnapshot.guard>;
+export type WorldSnapshot = EncodableType<typeof worldSnapshot>;
 
-export const destinationMessage = encodable(
-  isDiscriminatedObjectOf("destination", isExactObjectOf({ position: isVec2 })),
+export const destinationMessage = object(
+  { type: constant("destination"), position: vec2 },
   (position: Vec2) => ({ type: "destination", position })
 );
-export type DestinationMessage = TypeFromGuard<typeof destinationMessage.guard>;
+export type DestinationMessage = EncodableType<typeof destinationMessage>;
 
-export const initMessage = encodable(
-  isDiscriminatedObjectOf("init", isExactObjectOf({ id: isEntityId })),
+export const initMessage = object(
+  { type: constant("init"), id: entityId },
   (id: EntityId) => ({ type: "init", id })
 );
-export type InitMessage = TypeFromGuard<typeof initMessage.guard>;
+export type InitMessage = EncodableType<typeof initMessage>;
 
-export const snapshotMessage = encodable(
-  isDiscriminatedObjectOf(
-    "snapshot",
-    isExactObjectOf({ snapshot: worldSnapshot.guard })
-  ),
+export const snapshotMessage = object(
+  { type: constant("snapshot"), snapshot: worldSnapshot },
   (snapshot: WorldSnapshot) => ({ type: "snapshot", snapshot })
 );
-export type SnapshotMessage = TypeFromGuard<typeof snapshotMessage.guard>;
+export type SnapshotMessage = EncodableType<typeof snapshotMessage>;
 
-export const clientMessage = encodable(isUnionOf(destinationMessage.guard));
-export type ClientMessage = TypeFromGuard<typeof clientMessage.guard>;
+export const clientMessage = union(destinationMessage);
+export type ClientMessage = EncodableType<typeof clientMessage>;
 
-export const serverMessage = encodable(
-  isUnionOf(initMessage.guard, snapshotMessage.guard)
-);
-export type ServerMessage = TypeFromGuard<typeof serverMessage.guard>;
+export const serverMessage = union(initMessage, snapshotMessage);
+export type ServerMessage = EncodableType<typeof serverMessage>;

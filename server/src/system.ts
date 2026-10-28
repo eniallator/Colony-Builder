@@ -1,9 +1,6 @@
-import { predictionSystems, type SystemContext } from "@colony-builder/shared";
+import { predictionSystems, type System } from "@colony-builder/shared";
 
-// export interface ServerSystemContext extends SystemContext {}
-export type ServerSystemContext = SystemContext;
-
-export type ServerSystem = (ctx: ServerSystemContext) => void;
+export type ServerSystem = System;
 
 export const controlSystem: ServerSystem = ({ world }) => {
   for (const id of world.query("position", "controller")) {

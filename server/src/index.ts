@@ -1,5 +1,6 @@
 import {
   clientMessage,
+  createItem,
   createPlayer,
   DEFAULT_PORT,
   initMessage,
@@ -11,14 +12,18 @@ import {
   type EntityId,
   type ServerMessage,
 } from "@colony-builder/shared";
+import { Vector } from "vectyped";
 import { WebSocketServer, type WebSocket } from "ws";
 
+import { messageHandler } from "./message/handler.ts";
 import { serverSystems, type ServerSystemContext } from "./system.ts";
 
 const world = new World();
 
+createItem(world, Vector.UP.multiply(5));
+
 const send = (socket: WebSocket, message: ServerMessage) => {
-  socket.send(JSON.stringify(message));
+  socket.send(serverMessage.encode(message));
 };
 
 const port = Number(process.env["PORT"] ?? DEFAULT_PORT);
@@ -30,14 +35,13 @@ server.on("connection", socket => {
   players.set(socket, playerId);
 
   send(socket, initMessage.create(playerId));
-  socket.on("message", (data, isBinary) => {
-    // Our client only ever sends text, which ws delivers as a Buffer.
-    if (isBinary || !Buffer.isBuffer(data)) return;
-
-    const message = clientMessage.decode(data.toString());
+  socket.on("message", data => {
+    const message = clientMessage.decode(
+      Array.isArray(data) ? Buffer.concat(data) : new Uint8Array(data)
+    );
     if (message === undefined) return;
 
-    world.get(playerId, "controller").destination.setHead(...message.position);
+    messageHandler(world, playerId, message);
   });
 
   socket.on("close", () => {

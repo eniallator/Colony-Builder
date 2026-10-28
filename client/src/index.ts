@@ -6,13 +6,15 @@ import {
   TPS,
   World,
 } from "@colony-builder/shared";
-import { isString } from "deep-guards";
+import { isInstance } from "deep-guards";
 import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { clientSystems, type ClientSystemContext } from "./system.ts";
 import { appMethods, fromCanvasCoords } from "./ui/index.ts";
+
+const isArrayBuffer = isInstance(ArrayBuffer);
 
 export const app = appMethods<State>({
   init: ({ canvas, mouse }) => {
@@ -26,8 +28,12 @@ export const app = appMethods<State>({
       `${protocol}://${location.hostname}:${DEFAULT_PORT}`
     );
 
+    socket.binaryType = "arraybuffer";
+
     socket.addEventListener("message", ({ data }) => {
-      const message = isString(data) ? serverMessage.decode(data) : undefined;
+      const message = isArrayBuffer(data)
+        ? serverMessage.decode(new Uint8Array(data))
+        : undefined;
 
       if (message != null) messageHandler(state, message);
     });

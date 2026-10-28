@@ -5,7 +5,7 @@ export interface SystemContext {
   dt: number;
 }
 
-export type System = (ctx: SystemContext) => void;
+export type System<Ctx = unknown> = (ctx: SystemContext & Ctx) => void;
 
 export const movementSystem: System = ({ world, dt }) => {
   for (const id of world.query("position", "destination", "speed")) {

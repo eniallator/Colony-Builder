@@ -1,7 +1,10 @@
 import { tuple } from "niall-utils/core";
 import type { Vector } from "vectyped";
 
+import type { EntityType } from "./entity/types.ts";
+
 export interface Components {
+  entityType: EntityType;
   position: Vector<2>;
   destination: Vector<2>;
   controller: { destination: Vector<2> };
@@ -9,6 +12,7 @@ export interface Components {
 }
 
 export const componentNames = tuple(
+  "entityType",
   "position",
   "destination",
   "controller",
