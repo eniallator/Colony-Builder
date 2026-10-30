@@ -2,16 +2,16 @@ import {
   clientMessage,
   DEFAULT_PORT,
   destinationMessage,
+  EntityStore,
   serverMessage,
   TPS,
-  World,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
 import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
-import { clientSystems, type ClientSystemContext } from "./system.ts";
+import { clientSystems, type ClientSystem } from "./system.ts";
 import { appMethods, fromCanvasCoords } from "./ui/index.ts";
 
 const isArrayBuffer = isInstance(ArrayBuffer);
@@ -20,7 +20,7 @@ export const app = appMethods<State>({
   init: ({ canvas, mouse }) => {
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 0 },
-      world: new World(),
+      store: new EntityStore(),
     };
 
     const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -41,7 +41,9 @@ export const app = appMethods<State>({
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
       socket.send(
-        clientMessage.encode(destinationMessage.create(mouseWorldPos.toArray()))
+        clientMessage.encode(
+          destinationMessage.create(...mouseWorldPos.toArray())
+        )
       );
     });
 
@@ -49,16 +51,16 @@ export const app = appMethods<State>({
   },
 
   animationFrame: ({ getState, canvas, ctx, time }) => {
-    const { playerId, world, camera } = getState();
+    const { playerId, store, camera } = getState();
     const dt = Math.min(time.delta, 2 / TPS);
 
-    const systemCtx: ClientSystemContext = {
+    const systemCtx: Parameters<ClientSystem>[0] = {
       camera,
       playerId,
       time,
       canvas,
       ctx,
-      world,
+      store,
       dt,
     };
 

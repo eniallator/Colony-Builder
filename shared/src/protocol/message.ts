@@ -1,7 +1,9 @@
-import { isNumber } from "deep-guards";
+import { isExact, isNumber } from "deep-guards";
+import { Vector } from "vectyped";
 
+import type { Components } from "../component.ts";
 import { entityId, entityType, type EntityId } from "../entity/index.ts";
-import { f32 } from "./codec.ts";
+import { f32, mapCodec, u8 } from "./codec.ts";
 import {
   arrayOf,
   constant,
@@ -18,15 +20,36 @@ const finiteNumber = encodable(
   f32
 );
 
-const vec2 = tupled(finiteNumber, finiteNumber);
-export type Vec2 = EncodableType<typeof vec2>;
+const trueEncodable = encodable(
+  isExact(true),
+  mapCodec(
+    u8,
+    () => 0,
+    () => true
+  )
+);
 
-export const entitySnapshot = object({
+const tup2 = tupled(finiteNumber, finiteNumber);
+
+const isVec2 = (value: unknown): value is Vector<2> =>
+  value instanceof Vector && value.isSize(2) && value.every(Number.isFinite);
+
+const vec2 = encodable(
+  isVec2,
+  mapCodec(
+    tup2.codec,
+    vec => vec.toArray(),
+    tup => Vector.create(...tup)
+  )
+);
+
+export const entitySnapshot = object<{ id: EntityId } & Components>({
   id: entityId,
   type: entityType,
   position: vec2,
   destination: optional(vec2),
   speed: optional(finiteNumber),
+  conveyable: optional(trueEncodable),
 });
 export type EntitySnapshot = EncodableType<typeof entitySnapshot>;
 
@@ -38,7 +61,10 @@ export type WorldSnapshot = EncodableType<typeof worldSnapshot>;
 
 export const destinationMessage = object(
   { type: constant("destination"), position: vec2 },
-  (position: Vec2) => ({ type: "destination", position })
+  (x: number, y: number) => ({
+    type: "destination",
+    position: Vector.create(x, y),
+  })
 );
 export type DestinationMessage = EncodableType<typeof destinationMessage>;
 

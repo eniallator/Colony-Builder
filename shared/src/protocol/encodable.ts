@@ -6,7 +6,7 @@ import {
   isOptional,
   type Guard,
 } from "deep-guards";
-import { typedToEntries } from "niall-utils";
+import { mapFind, typedToEntries } from "niall-utils";
 import { attempt, raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
 
 import { u8, u32, type Codec } from "./codec.ts";
@@ -139,7 +139,7 @@ export const object = <
 >(
   shape: { [K in keyof T]: Encodable<T[K]> },
   create?: (...args: Args) => T
-) => {
+): Encodable<T, Args> => {
   const fields = typedToEntries(shape);
 
   return encodable<T, Args>(
@@ -172,22 +172,20 @@ export const object = <
 export const union = <const T extends ReadonlyNonEmptyArray<unknown>>(
   ...encodables: { [K in keyof T]: Encodable<T[K]> }
 ): Encodable<T[number]> => {
-  const indexOf = (value: T[number]) => {
-    const index = encodables.findIndex(({ guard }) => guard(value));
-    return index === -1
-      ? raise(new TypeError("Value matches no union variant"))
-      : index;
-  };
+  const matchEncodable = (value: T[number]) =>
+    mapFind(encodables, (encodable, index) =>
+      encodable.guard(value) ? { index, encodable } : null
+    ) ?? raise(new TypeError("Value matches no union variant"));
 
   /** Prefixes each value with the index of the first variant whose guard accepts it. */
   return encodable(
     (value): value is T[number] => encodables.some(({ guard }) => guard(value)),
     {
-      size: value => 1 + (encodables[indexOf(value)]?.codec.size(value) ?? 0),
+      size: value => 1 + matchEncodable(value).encodable.codec.size(value),
       write: (cursor, value) => {
-        const index = indexOf(value);
+        const { index, encodable } = matchEncodable(value);
         u8.write(cursor, index);
-        encodables[index]?.codec.write(cursor, value);
+        encodable.codec.write(cursor, value);
       },
       read: cursor => {
         const variant = encodables[u8.read(cursor)];

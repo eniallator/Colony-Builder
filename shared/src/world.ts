@@ -1,56 +1,39 @@
-import { raise, tuple, type ReadonlyNonEmptyArray } from "niall-utils/core";
-import { typedFromEntries } from "niall-utils/data";
+import { raise, typedToEntries } from "niall-utils";
 
-import {
-  componentNames,
-  type ComponentName,
-  type Components,
-} from "./component.ts";
+import { componentNames, type Components } from "./component.ts";
 import { unsafeEntityId, type EntityId } from "./entity/index.ts";
+import { EntityStore } from "./entityStore.ts";
+import type { EntitySnapshot, WorldSnapshot } from "./protocol/index.ts";
 
-export class World {
+export class World extends EntityStore {
   private entityCount: number = 0;
-  private readonly stores: {
-    [C in ComponentName]: Map<EntityId, Components[C]>;
-  } = typedFromEntries(componentNames.map(name => tuple(name, new Map())));
 
-  spawn(): EntityId {
-    return unsafeEntityId(this.entityCount++);
+  spawn(components: Partial<Components> = {}): EntityId {
+    const id = unsafeEntityId(this.entityCount++);
+    for (const [name, value] of typedToEntries(components)) {
+      if (value !== undefined) this.add(id, name, value);
+    }
+    return id;
   }
 
   despawn(id: EntityId) {
-    for (const store of Object.values(this.stores)) store.delete(id);
+    for (const name of componentNames) this.delete(id, name);
   }
 
-  delete(id: EntityId, name: ComponentName): boolean {
-    return this.stores[name].delete(id);
-  }
-
-  add<C extends ComponentName>(
-    entity: EntityId,
-    name: C,
-    component: Components[C]
-  ) {
-    this.stores[name].set(entity, component);
-  }
-
-  optGet<C extends ComponentName>(
-    id: EntityId,
-    name: C
-  ): Components[C] | undefined {
-    return this.stores[name].get(id);
-  }
-
-  get<C extends ComponentName>(id: EntityId, name: C): Components[C] {
-    return (
-      this.optGet(id, name) ??
-      raise(new Error(`Entity ${id} has no "${name}" component`))
-    );
-  }
-
-  query(...[first, ...rest]: ReadonlyNonEmptyArray<ComponentName>): EntityId[] {
-    return [...this.stores[first].keys()].filter(id =>
-      rest.every(name => this.stores[name].has(id))
-    );
+  takeSnapshot(): WorldSnapshot {
+    return {
+      entities: [...this.stores.position].map(
+        ([id, position]): EntitySnapshot => ({
+          id,
+          type:
+            this.stores.type.get(id) ??
+            raise(new Error(`Entity ${id} has no "type" component`)),
+          position,
+          destination: this.stores.destination.get(id),
+          speed: this.stores.speed.get(id),
+          conveyable: this.stores.conveyable.get(id) ?? undefined,
+        })
+      ),
+    };
   }
 }

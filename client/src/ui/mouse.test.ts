@@ -1,6 +1,6 @@
 import { describe, expect, it, vi } from "vitest";
 
-import { Mouse } from "./mouse";
+import { Mouse } from "./mouse.ts";
 
 const createElementWithRect = (): HTMLDivElement => {
   const div = document.createElement("div");
@@ -115,5 +115,16 @@ describe("Mouse", () => {
 
     expect(onUp).toHaveBeenCalledOnce();
     expect(mouse.down).toBe(false);
+  });
+
+  it("keeps the last position when a touch event has no touches", () => {
+    const element = createElementWithRect();
+    const mouse = new Mouse(element);
+
+    element.ontouchmove?.(createTouchEvent("touchmove", 30, 40));
+    element.ontouchend?.(new TouchEvent("touchend"));
+
+    expect(mouse.pos.toArray()).toEqual([30, 40]);
+    expect(mouse.relativePos.toArray()).toEqual([0.3, 0.2]);
   });
 });

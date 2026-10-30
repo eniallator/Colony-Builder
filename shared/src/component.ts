@@ -4,19 +4,21 @@ import type { Vector } from "vectyped";
 import type { EntityType } from "./entity/types.ts";
 
 export interface Components {
-  entityType: EntityType;
+  type: EntityType;
   position: Vector<2>;
-  destination: Vector<2>;
-  controller: { destination: Vector<2> };
-  speed: number;
+  destination?: Vector<2>;
+  speed?: number;
+  conveyable?: true;
 }
 
+export type StoreComponents = Required<Components>;
+
 export const componentNames = tuple(
-  "entityType",
+  "type",
   "position",
   "destination",
-  "controller",
-  "speed"
+  "speed",
+  "conveyable"
 );
 export type ComponentName = (typeof componentNames)[number];
 

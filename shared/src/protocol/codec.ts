@@ -1,4 +1,4 @@
-import type { Tagged, Untag } from "niall-utils";
+import { type Tagged, type Untag } from "niall-utils/core";
 
 export interface Cursor {
   view: DataView;
@@ -17,6 +17,18 @@ export interface Codec<T> {
 // oxlint-disable-next-line typescript/no-explicit-any
 export type CodecType<C extends Codec<any>> =
   C extends Codec<infer T> ? T : never;
+
+export const mapCodec = <const A, const B>(
+  codec: Codec<B>,
+  encode: (value: A) => B,
+  decode: (value: B) => A
+): Codec<A> => ({
+  size: value => codec.size(encode(value)),
+  write: (cursor, value) => {
+    codec.write(cursor, encode(value));
+  },
+  read: cursor => decode(codec.read(cursor)),
+});
 
 export const taggedCodec = <T extends Tagged<unknown, string>>(
   codec: Codec<Untag<T>>
@@ -64,6 +76,8 @@ export const f32 = fixed(
   },
   (view, pos) => view.getFloat32(pos, LITTLE_ENDIAN)
 );
+
+export const bool = mapCodec<boolean, number>(u8, Number, v => !!v);
 
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder("utf-8", { fatal: true });

@@ -1,17 +1,17 @@
-import type { World } from "./world.ts";
+import type { EntityStore } from "./entityStore.ts";
 
 export interface SystemContext {
-  world: World;
+  store: EntityStore;
   dt: number;
 }
 
 export type System<Ctx = unknown> = (ctx: SystemContext & Ctx) => void;
 
-export const movementSystem: System = ({ world, dt }) => {
-  for (const id of world.query("position", "destination", "speed")) {
-    const pos = world.get(id, "position");
-    const des = world.get(id, "destination");
-    const speed = world.get(id, "speed");
+export const movementSystem: System = ({ store, dt }) => {
+  for (const id of store.query("position", "destination", "speed")) {
+    const pos = store.get(id, "position");
+    const des = store.get(id, "destination");
+    const speed = store.get(id, "speed");
 
     const targetMag = speed * dt;
     const diff = des.copy().sub(pos);
@@ -20,7 +20,7 @@ export const movementSystem: System = ({ world, dt }) => {
       pos.add(diff.setMagnitude(targetMag));
     } else {
       pos.setHead(des);
-      world.delete(id, "destination");
+      store.delete(id, "destination");
     }
   }
 };

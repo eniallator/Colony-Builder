@@ -1,13 +1,17 @@
-import type { ClientMessage, EntityId, World } from "@colony-builder/shared";
+import type {
+  ClientMessage,
+  EntityId,
+  EntityStore,
+} from "@colony-builder/shared";
 
 export const messageHandler = (
-  world: World,
+  store: EntityStore,
   playerId: EntityId,
   message: ClientMessage
 ): void => {
   // switch (message.type) {
   //   case "destination":
-  //     world
+  //     store
   //       .get(playerId, "controller")
   //       .destination.setHead(...message.position);
   //     break;
@@ -15,5 +19,7 @@ export const messageHandler = (
   //   default:
   //     return checkExhausted(message);
   // }
-  world.get(playerId, "controller").destination.setHead(...message.position);
+  // store.get(playerId, "controller").destination.setHead(...message.position);
+  // store.get(playerId, "controller").destination.setHead(message.position);
+  store.add(playerId, "destination", message.position);
 };

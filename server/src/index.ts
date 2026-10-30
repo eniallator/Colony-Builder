@@ -6,7 +6,6 @@ import {
   initMessage,
   serverMessage,
   snapshotMessage,
-  takeSnapshot,
   TPS,
   World,
   type EntityId,
@@ -16,7 +15,7 @@ import { Vector } from "vectyped";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { messageHandler } from "./message/handler.ts";
-import { serverSystems, type ServerSystemContext } from "./system.ts";
+import { serverSystems, type ServerSystem } from "./system.ts";
 
 const world = new World();
 
@@ -57,12 +56,12 @@ setInterval(() => {
   const dt = Math.min((now - lastTick) / 1000, 2 / TPS);
   lastTick = now;
 
-  const systemCtx: ServerSystemContext = { world, dt };
+  const ctx: Parameters<ServerSystem>[0] = { store: world, dt };
 
-  for (const system of serverSystems) system(systemCtx);
+  for (const system of serverSystems) system(ctx);
 
   const snapshot = serverMessage.create(
-    snapshotMessage.create(takeSnapshot(world))
+    snapshotMessage.create(world.takeSnapshot())
   );
 
   for (const socket of players.keys()) {
