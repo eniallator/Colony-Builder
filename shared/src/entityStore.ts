@@ -69,4 +69,4 @@ export class EntityStore {
 
 const _snapshotCheck: Components["position"] extends undefined
   ? never
-  : unknown = true;
+  : unknown = null;

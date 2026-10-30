@@ -6,7 +6,7 @@ import { componentNames } from "./component.ts";
 import { PLAYER_SPEED } from "./constants.ts";
 import { unsafeEntityId, type EntityId } from "./entity/index.ts";
 import { EntityStore } from "./entityStore.ts";
-import { worldSnapshot, type EntitySnapshot } from "./protocol/index.ts";
+import { encWorldSnapshot, type EntitySnapshot } from "./protocol/index.ts";
 
 const a = unsafeEntityId(0);
 const b = unsafeEntityId(1);
@@ -208,8 +208,8 @@ describe("EntityStore", () => {
 
       it("clears components omitted from a decoded snapshot", () => {
         const store = populated();
-        const decoded = worldSnapshot.decode(
-          worldSnapshot.encode({ entities: [entity(a)] })
+        const decoded = encWorldSnapshot.decode(
+          encWorldSnapshot.encode({ entities: [entity(a)] })
         );
 
         store.applySnapshot(decoded ?? raise(new Error("Did not decode")));

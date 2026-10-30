@@ -22,7 +22,7 @@ export const componentNames = tuple(
 );
 export type ComponentName = (typeof componentNames)[number];
 
-const _check: keyof Components extends ComponentName
+const _componentCheck: keyof Components extends ComponentName
   ? ComponentName extends keyof Components
     ? unknown
     : never

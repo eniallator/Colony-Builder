@@ -1,10 +1,10 @@
 import { EventEmitter } from "node:events";
 import {
-  clientMessage,
   DEFAULT_PORT,
-  destinationMessage,
+  encClientMessage,
+  encDestinationMessage,
+  encServerMessage,
   PLAYER_SPEED,
-  serverMessage,
   TPS,
 } from "@colony-builder/shared";
 import { mapFilter, mapFind, partition, raise } from "niall-utils";
@@ -56,11 +56,11 @@ const connect = (server: FakeServer) => {
 const requestDestination = (socket: FakeSocket, position: [number, number]) =>
   socket.emit(
     "message",
-    clientMessage.encode(destinationMessage.create(...position))
+    encClientMessage.encode(encDestinationMessage.create(...position))
   );
 
 const received = (socket: FakeSocket) =>
-  socket.send.mock.calls.map(([data]) => serverMessage.decode(data));
+  socket.send.mock.calls.map(([data]) => encServerMessage.decode(data));
 
 const playerIdOf = (socket: FakeSocket) =>
   mapFind(received(socket), message =>
@@ -197,7 +197,7 @@ describe("client messages", () => {
 
   it("accepts a message split across buffers", async () => {
     const socket = connect(await load());
-    const bytes = clientMessage.encode(destinationMessage.create(100, 0));
+    const bytes = encClientMessage.encode(encDestinationMessage.create(100, 0));
 
     socket.emit("message", [
       Buffer.from(bytes.subarray(0, 3)),

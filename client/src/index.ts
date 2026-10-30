@@ -1,9 +1,9 @@
 import {
-  clientMessage,
   DEFAULT_PORT,
-  destinationMessage,
+  encClientMessage,
+  encDestinationMessage,
+  encServerMessage,
   EntityStore,
-  serverMessage,
   TPS,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
@@ -32,7 +32,7 @@ export const app = appMethods<State>({
 
     socket.addEventListener("message", ({ data }) => {
       const message = isArrayBuffer(data)
-        ? serverMessage.decode(new Uint8Array(data))
+        ? encServerMessage.decode(new Uint8Array(data))
         : undefined;
 
       if (message != null) messageHandler(state, message);
@@ -41,8 +41,8 @@ export const app = appMethods<State>({
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
       socket.send(
-        clientMessage.encode(
-          destinationMessage.create(...mouseWorldPos.toArray())
+        encClientMessage.encode(
+          encDestinationMessage.create(...mouseWorldPos.toArray())
         )
       );
     });

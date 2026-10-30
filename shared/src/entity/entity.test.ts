@@ -7,8 +7,8 @@ import { createItem } from "./item.ts";
 import { createPlayer } from "./player.ts";
 import {
   allEntityTypes,
-  entityId,
-  entityType,
+  encEntityId,
+  encEntityType,
   unsafeEntityId,
 } from "./types.ts";
 
@@ -50,33 +50,33 @@ describe("createItem", () => {
   });
 });
 
-describe("entityId", () => {
+describe("encEntityId", () => {
   it("accepts non-negative integers", () => {
-    expect(entityId.guard(0)).toBe(true);
-    expect(entityId.guard(12)).toBe(true);
+    expect(encEntityId.guard(0)).toBe(true);
+    expect(encEntityId.guard(12)).toBe(true);
   });
 
   it("rejects negatives, fractions, non-finite values and non-numbers", () => {
-    expect(entityId.guard(-1)).toBe(false);
-    expect(entityId.guard(1.5)).toBe(false);
-    expect(entityId.guard(Infinity)).toBe(false);
-    expect(entityId.guard("1")).toBe(false);
+    expect(encEntityId.guard(-1)).toBe(false);
+    expect(encEntityId.guard(1.5)).toBe(false);
+    expect(encEntityId.guard(Infinity)).toBe(false);
+    expect(encEntityId.guard("1")).toBe(false);
   });
 
   it("round-trips through four bytes", () => {
     const id = unsafeEntityId(70000);
 
-    expect(entityId.encode(id)).toHaveLength(4);
-    expect(entityId.decode(entityId.encode(id))).toBe(70000);
+    expect(encEntityId.encode(id)).toHaveLength(4);
+    expect(encEntityId.decode(encEntityId.encode(id))).toBe(70000);
   });
 });
 
-describe("entityType", () => {
+describe("encEntityType", () => {
   it("lists every entity type", () => {
     expect(allEntityTypes).toEqual(["player", "item"]);
   });
 
   it.each(allEntityTypes)("round-trips %s", type => {
-    expect(entityType.decode(entityType.encode(type))).toBe(type);
+    expect(encEntityType.decode(encEntityType.encode(type))).toBe(type);
   });
 });

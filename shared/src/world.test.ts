@@ -5,7 +5,7 @@ import { componentNames } from "./component.ts";
 import { PLAYER_SPEED } from "./constants.ts";
 import { createItem, createPlayer } from "./entity/index.ts";
 import { EntityStore } from "./entityStore.ts";
-import { worldSnapshot } from "./protocol/index.ts";
+import { encWorldSnapshot } from "./protocol/index.ts";
 import { World } from "./world.ts";
 
 describe("World", () => {
@@ -130,9 +130,9 @@ describe("World", () => {
 
       const snapshot = world.takeSnapshot();
 
-      expect(worldSnapshot.decode(worldSnapshot.encode(snapshot))).toEqual(
-        snapshot
-      );
+      expect(
+        encWorldSnapshot.decode(encWorldSnapshot.encode(snapshot))
+      ).toEqual(snapshot);
     });
 
     it("can be applied to an EntityStore", () => {

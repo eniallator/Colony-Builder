@@ -1,9 +1,9 @@
 import {
   createItem,
   createPlayer,
+  encInitMessage,
+  encSnapshotMessage,
   EntityStore,
-  initMessage,
-  snapshotMessage,
   unsafeEntityId,
   World,
 } from "@colony-builder/shared";
@@ -22,7 +22,7 @@ describe("messageHandler", () => {
   it("stores the player id from an init message", () => {
     const state = createState();
 
-    messageHandler(state, initMessage.create(unsafeEntityId(3)));
+    messageHandler(state, encInitMessage.create(unsafeEntityId(3)));
 
     expect(state.playerId).toBe(3);
   });
@@ -33,7 +33,7 @@ describe("messageHandler", () => {
     const item = createItem(server, Vector.create(3, 4));
     const state = createState();
 
-    messageHandler(state, snapshotMessage.create(server.takeSnapshot()));
+    messageHandler(state, encSnapshotMessage.create(server.takeSnapshot()));
 
     expect(state.store.get(player, "position").toArray()).toEqual([1, 2]);
     expect(state.store.get(item, "position").toArray()).toEqual([3, 4]);

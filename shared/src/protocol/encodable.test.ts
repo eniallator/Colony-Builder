@@ -1,20 +1,20 @@
 import { isNumber, isString } from "deep-guards";
 import { describe, expect, it } from "vitest";
 
-import { u8, utf8 } from "./codec.ts";
+import { codString, codU8 } from "./codec.ts";
 import {
-  arrayOf,
-  constant,
+  encArrayOf,
+  encExact,
+  encObjectOf,
   encodable,
-  object,
-  oneOf,
-  optional,
-  tupled,
-  union,
+  encOneOf,
+  encOptional,
+  encTupleOf,
+  encUnionOf,
 } from "./encodable.ts";
 
-const byte = encodable(isNumber, u8);
-const text = encodable(isString, utf8);
+const byte = encodable(isNumber, codU8);
+const text = encodable(isString, codString);
 
 describe("encodable", () => {
   it("encodes and decodes through the codec", () => {
@@ -35,7 +35,7 @@ describe("encodable", () => {
   });
 
   it("returns undefined when the decoded value fails the guard", () => {
-    const small = encodable((v): v is number => isNumber(v) && v < 10, u8);
+    const small = encodable((v): v is number => isNumber(v) && v < 10, codU8);
 
     expect(small.decode(Uint8Array.of(9))).toBe(9);
     expect(small.decode(Uint8Array.of(10))).toBeUndefined();
@@ -46,14 +46,14 @@ describe("encodable", () => {
   });
 
   it("uses a custom create when given", () => {
-    const doubled = encodable(isNumber, u8, (n: number) => n * 2);
+    const doubled = encodable(isNumber, codU8, (n: number) => n * 2);
 
     expect(doubled.create(5)).toBe(10);
   });
 });
 
-describe("constant", () => {
-  const tag = constant("tag");
+describe("encExact", () => {
+  const tag = encExact("tag");
 
   it("occupies no bytes", () => {
     expect(tag.encode("tag")).toEqual(Uint8Array.of());
@@ -70,8 +70,8 @@ describe("constant", () => {
   });
 });
 
-describe("oneOf", () => {
-  const colour = oneOf("red", "green", "blue");
+describe("encOneOf", () => {
+  const colour = encOneOf("red", "green", "blue");
 
   it("encodes as the index of the value", () => {
     expect(colour.encode("red")).toEqual(Uint8Array.of(0));
@@ -92,8 +92,8 @@ describe("oneOf", () => {
   });
 });
 
-describe("tupled", () => {
-  const pair = tupled(byte, text);
+describe("encTupleOf", () => {
+  const pair = encTupleOf(byte, text);
 
   it("writes each element in order", () => {
     expect(pair.encode([7, "hi"])).toEqual(
@@ -114,8 +114,8 @@ describe("tupled", () => {
   });
 });
 
-describe("optional", () => {
-  const maybeByte = optional(byte);
+describe("encOptional", () => {
+  const maybeByte = encOptional(byte);
 
   it("encodes a missing value as a single zero byte", () => {
     expect(maybeByte.encode(undefined)).toEqual(Uint8Array.of(0));
@@ -134,8 +134,8 @@ describe("optional", () => {
   });
 });
 
-describe("arrayOf", () => {
-  const bytesArray = arrayOf(byte);
+describe("encArrayOf", () => {
+  const bytesArray = encArrayOf(byte);
 
   it("prefixes the items with a u32 length", () => {
     expect(bytesArray.encode([5, 6])).toEqual(Uint8Array.of(2, 0, 0, 0, 5, 6));
@@ -159,11 +159,11 @@ describe("arrayOf", () => {
   });
 });
 
-describe("object", () => {
-  const entity = object({
+describe("encExactObjectOf", () => {
+  const entity = encObjectOf({
     id: byte,
-    nickname: optional(text),
-    tag: constant("e"),
+    nickname: encOptional(text),
+    tag: encExact("e"),
   });
 
   it("writes fields in the shape's key order", () => {
@@ -195,14 +195,14 @@ describe("object", () => {
   });
 
   it("uses the custom create when given", () => {
-    const wrapped = object({ id: byte }, (id: number) => ({ id }));
+    const wrapped = encObjectOf({ id: byte }, (id: number) => ({ id }));
 
     expect(wrapped.create(4)).toEqual({ id: 4 });
   });
 });
 
-describe("union", () => {
-  const either = union(byte, text);
+describe("encUnionOf", () => {
+  const either = encUnionOf(byte, text);
 
   it("prefixes the value with the index of the matching variant", () => {
     expect(either.encode(5)).toEqual(Uint8Array.of(0, 5));
@@ -217,7 +217,7 @@ describe("union", () => {
   });
 
   it("uses the first variant whose guard accepts the value", () => {
-    const first = union(byte, encodable(isNumber, u8));
+    const first = encUnionOf(byte, encodable(isNumber, codU8));
 
     expect(first.encode(1)).toEqual(Uint8Array.of(0, 1));
   });

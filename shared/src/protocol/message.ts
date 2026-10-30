@@ -1,87 +1,80 @@
-import { isExact, isNumber } from "deep-guards";
+import { isNumber, type Guard } from "deep-guards";
 import { Vector } from "vectyped";
 
 import type { Components } from "../component.ts";
-import { entityId, entityType, type EntityId } from "../entity/index.ts";
-import { f32, mapCodec, u8 } from "./codec.ts";
+import { encEntityId, encEntityType, type EntityId } from "../entity/index.ts";
+import { codF32, codMap, codTupleOf } from "./codec.ts";
 import {
-  arrayOf,
-  constant,
+  encArrayOf,
+  encExact,
+  encObjectOf,
   encodable,
-  object,
-  optional,
-  tupled,
-  union,
+  encOneOf,
+  encOptional,
+  encUnionOf,
   type EncodableType,
 } from "./encodable.ts";
 
-const finiteNumber = encodable(
+const encFiniteNumber = encodable(
   (value): value is number => isNumber(value) && Number.isFinite(value),
-  f32
+  codF32
 );
 
-const trueEncodable = encodable(
-  isExact(true),
-  mapCodec(
-    u8,
-    () => 0,
-    () => true
-  )
-);
+const isVec =
+  <const N extends number>(size: N): Guard<Vector<N>> =>
+  (value): value is Vector<N> =>
+    value instanceof Vector &&
+    value.isSize(size) &&
+    value.every(Number.isFinite);
 
-const tup2 = tupled(finiteNumber, finiteNumber);
-
-const isVec2 = (value: unknown): value is Vector<2> =>
-  value instanceof Vector && value.isSize(2) && value.every(Number.isFinite);
-
-const vec2 = encodable(
-  isVec2,
-  mapCodec(
-    tup2.codec,
+const encVec2 = encodable<Vector<2>>(
+  isVec(2),
+  codMap(
+    codTupleOf(codF32, codF32),
     vec => vec.toArray(),
     tup => Vector.create(...tup)
   )
 );
 
-export const entitySnapshot = object<{ id: EntityId } & Components>({
-  id: entityId,
-  type: entityType,
-  position: vec2,
-  destination: optional(vec2),
-  speed: optional(finiteNumber),
-  conveyable: optional(trueEncodable),
+export const encEntitySnapshot = encObjectOf<{ id: EntityId } & Components>({
+  id: encEntityId,
+  type: encEntityType,
+  position: encVec2,
+  destination: encOptional(encVec2),
+  speed: encOptional(encFiniteNumber),
+  conveyable: encOptional(encOneOf(true)),
 });
-export type EntitySnapshot = EncodableType<typeof entitySnapshot>;
+export type EntitySnapshot = EncodableType<typeof encEntitySnapshot>;
 
-export const worldSnapshot = object(
-  { entities: arrayOf(entitySnapshot) },
+export const encWorldSnapshot = encObjectOf(
+  { entities: encArrayOf(encEntitySnapshot) },
   (entities: EntitySnapshot[]) => ({ entities })
 );
-export type WorldSnapshot = EncodableType<typeof worldSnapshot>;
+export type WorldSnapshot = EncodableType<typeof encWorldSnapshot>;
 
-export const destinationMessage = object(
-  { type: constant("destination"), position: vec2 },
+export const encDestinationMessage = encObjectOf(
+  { type: encExact("destination"), position: encVec2 },
   (x: number, y: number) => ({
     type: "destination",
     position: Vector.create(x, y),
   })
 );
-export type DestinationMessage = EncodableType<typeof destinationMessage>;
+export type DestinationMessage = EncodableType<typeof encDestinationMessage>;
 
-export const initMessage = object(
-  { type: constant("init"), id: entityId },
+export const encInitMessage = encObjectOf(
+  { type: encExact("init"), id: encEntityId },
   (id: EntityId) => ({ type: "init", id })
 );
-export type InitMessage = EncodableType<typeof initMessage>;
+export type InitMessage = EncodableType<typeof encInitMessage>;
 
-export const snapshotMessage = object(
-  { type: constant("snapshot"), snapshot: worldSnapshot },
+export const encSnapshotMessage = encObjectOf(
+  { type: encExact("snapshot"), snapshot: encWorldSnapshot },
   (snapshot: WorldSnapshot) => ({ type: "snapshot", snapshot })
 );
-export type SnapshotMessage = EncodableType<typeof snapshotMessage>;
+export type SnapshotMessage = EncodableType<typeof encSnapshotMessage>;
 
-export const clientMessage = union(destinationMessage);
-export type ClientMessage = EncodableType<typeof clientMessage>;
+export const encClientMessage = encUnionOf(encDestinationMessage);
+export type ClientMessage = EncodableType<typeof encClientMessage>;
 
-export const serverMessage = union(initMessage, snapshotMessage);
-export type ServerMessage = EncodableType<typeof serverMessage>;
+export const encServerMessage = encUnionOf(encInitMessage, encSnapshotMessage);
+export type ServerMessage = EncodableType<typeof encServerMessage>;

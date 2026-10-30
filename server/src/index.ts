@@ -1,11 +1,11 @@
 import {
-  clientMessage,
   createItem,
   createPlayer,
   DEFAULT_PORT,
-  initMessage,
-  serverMessage,
-  snapshotMessage,
+  encClientMessage,
+  encInitMessage,
+  encServerMessage,
+  encSnapshotMessage,
   TPS,
   World,
   type EntityId,
@@ -22,7 +22,7 @@ const world = new World();
 createItem(world, Vector.UP.multiply(5));
 
 const send = (socket: WebSocket, message: ServerMessage) => {
-  socket.send(serverMessage.encode(message));
+  socket.send(encServerMessage.encode(message));
 };
 
 const port = Number(process.env["PORT"] ?? DEFAULT_PORT);
@@ -33,9 +33,9 @@ server.on("connection", socket => {
   const playerId = createPlayer(world);
   players.set(socket, playerId);
 
-  send(socket, initMessage.create(playerId));
+  send(socket, encInitMessage.create(playerId));
   socket.on("message", data => {
-    const message = clientMessage.decode(
+    const message = encClientMessage.decode(
       Array.isArray(data) ? Buffer.concat(data) : new Uint8Array(data)
     );
     if (message === undefined) return;
@@ -60,8 +60,8 @@ setInterval(() => {
 
   for (const system of serverSystems) system(ctx);
 
-  const snapshot = serverMessage.create(
-    snapshotMessage.create(world.takeSnapshot())
+  const snapshot = encServerMessage.create(
+    encSnapshotMessage.create(world.takeSnapshot())
   );
 
   for (const socket of players.keys()) {

@@ -1,11 +1,11 @@
 import {
-  clientMessage,
   DEFAULT_PORT,
-  destinationMessage,
+  encClientMessage,
+  encDestinationMessage,
+  encInitMessage,
+  encServerMessage,
+  encSnapshotMessage,
   EntityStore,
-  initMessage,
-  serverMessage,
-  snapshotMessage,
   TPS,
   unsafeEntityId,
   type EntitySnapshot,
@@ -113,7 +113,8 @@ describe("app.init", () => {
 
       lastSocket().dispatchEvent(
         message(
-          serverMessage.encode(initMessage.create(unsafeEntityId(4))).buffer
+          encServerMessage.encode(encInitMessage.create(unsafeEntityId(4)))
+            .buffer
         )
       );
 
@@ -133,8 +134,9 @@ describe("app.init", () => {
 
       lastSocket().dispatchEvent(
         message(
-          serverMessage.encode(snapshotMessage.create({ entities: [entity] }))
-            .buffer
+          encServerMessage.encode(
+            encSnapshotMessage.create({ entities: [entity] })
+          ).buffer
         )
       );
 
@@ -169,7 +171,7 @@ describe("app.init", () => {
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        clientMessage.encode(destinationMessage.create(10, 5))
+        encClientMessage.encode(encDestinationMessage.create(10, 5))
       );
     });
 
@@ -184,7 +186,7 @@ describe("app.init", () => {
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        clientMessage.encode(destinationMessage.create(105, 102.5))
+        encClientMessage.encode(encDestinationMessage.create(105, 102.5))
       );
     });
   });

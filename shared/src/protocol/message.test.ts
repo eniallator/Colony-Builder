@@ -3,13 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { unsafeEntityId } from "../entity/index.ts";
 import {
-  clientMessage,
-  destinationMessage,
-  entitySnapshot,
-  initMessage,
-  serverMessage,
-  snapshotMessage,
-  worldSnapshot,
+  encClientMessage,
+  encDestinationMessage,
+  encEntitySnapshot,
+  encInitMessage,
+  encServerMessage,
+  encSnapshotMessage,
+  encWorldSnapshot,
   type EntitySnapshot,
 } from "./message.ts";
 
@@ -31,100 +31,104 @@ const item: EntitySnapshot = {
   conveyable: true,
 };
 
-describe("entitySnapshot", () => {
+describe("encEntitySnapshot", () => {
   it("round-trips an entity with every field", () => {
-    expect(entitySnapshot.decode(entitySnapshot.encode(player))).toEqual(
+    expect(encEntitySnapshot.decode(encEntitySnapshot.encode(player))).toEqual(
       player
     );
   });
 
   it("round-trips an entity without its optional fields", () => {
-    expect(entitySnapshot.decode(entitySnapshot.encode(item))).toEqual(item);
+    expect(encEntitySnapshot.decode(encEntitySnapshot.encode(item))).toEqual(
+      item
+    );
   });
 
   it("rejects non-finite numbers when decoding", () => {
-    const nan = entitySnapshot.encode({
+    const nan = encEntitySnapshot.encode({
       ...item,
       position: Vector.create(Number.NaN, 0),
     });
-    const infinite = entitySnapshot.encode({ ...item, speed: Infinity });
+    const infinite = encEntitySnapshot.encode({ ...item, speed: Infinity });
 
-    expect(entitySnapshot.decode(nan)).toBeUndefined();
-    expect(entitySnapshot.decode(infinite)).toBeUndefined();
+    expect(encEntitySnapshot.decode(nan)).toBeUndefined();
+    expect(encEntitySnapshot.decode(infinite)).toBeUndefined();
   });
 
   it("rejects an invalid entity id", () => {
-    expect(entitySnapshot.guard({ ...item, id: -1 })).toBe(false);
-    expect(entitySnapshot.guard({ ...item, id: 1.5 })).toBe(false);
+    expect(encEntitySnapshot.guard({ ...item, id: -1 })).toBe(false);
+    expect(encEntitySnapshot.guard({ ...item, id: 1.5 })).toBe(false);
   });
 
   it("rejects an unknown entity type", () => {
-    expect(entitySnapshot.guard({ ...item, type: "dragon" })).toBe(false);
+    expect(encEntitySnapshot.guard({ ...item, type: "dragon" })).toBe(false);
   });
 });
 
-describe("worldSnapshot", () => {
+describe("encWorldSnapshot", () => {
   it("round-trips a list of entities", () => {
     const snapshot = { entities: [player, item] };
 
-    expect(worldSnapshot.decode(worldSnapshot.encode(snapshot))).toEqual(
+    expect(encWorldSnapshot.decode(encWorldSnapshot.encode(snapshot))).toEqual(
       snapshot
     );
   });
 
   it("round-trips an empty world", () => {
     expect(
-      worldSnapshot.decode(worldSnapshot.encode({ entities: [] }))
+      encWorldSnapshot.decode(encWorldSnapshot.encode({ entities: [] }))
     ).toEqual({ entities: [] });
   });
 
   it("creates a snapshot from its entities", () => {
-    expect(worldSnapshot.create([item])).toEqual({ entities: [item] });
+    expect(encWorldSnapshot.create([item])).toEqual({ entities: [item] });
   });
 });
 
-describe("clientMessage", () => {
+describe("encClientMessage", () => {
   it("creates and round-trips a destination message", () => {
-    const message = destinationMessage.create(10, 20);
+    const message = encDestinationMessage.create(10, 20);
 
     expect(message).toEqual({
       type: "destination",
       position: Vector.create(10, 20),
     });
-    expect(clientMessage.decode(clientMessage.encode(message))).toEqual(
+    expect(encClientMessage.decode(encClientMessage.encode(message))).toEqual(
       message
     );
   });
 
   it("rejects bytes that are not a client message", () => {
-    expect(clientMessage.decode(new Uint8Array([1]))).toBeUndefined();
-    expect(clientMessage.decode(new Uint8Array())).toBeUndefined();
+    expect(encClientMessage.decode(new Uint8Array([1]))).toBeUndefined();
+    expect(encClientMessage.decode(new Uint8Array())).toBeUndefined();
   });
 });
 
-describe("serverMessage", () => {
+describe("encServerMessage", () => {
   it("creates and round-trips an init message", () => {
-    const message = initMessage.create(unsafeEntityId(7));
+    const message = encInitMessage.create(unsafeEntityId(7));
 
     expect(message).toEqual({ type: "init", id: 7 });
-    expect(serverMessage.decode(serverMessage.encode(message))).toEqual(
+    expect(encServerMessage.decode(encServerMessage.encode(message))).toEqual(
       message
     );
   });
 
   it("creates and round-trips a snapshot message", () => {
-    const message = snapshotMessage.create({ entities: [player, item] });
+    const message = encSnapshotMessage.create({ entities: [player, item] });
 
     expect(message.type).toBe("snapshot");
-    expect(serverMessage.decode(serverMessage.encode(message))).toEqual(
+    expect(encServerMessage.decode(encServerMessage.encode(message))).toEqual(
       message
     );
   });
 
   it("distinguishes message kinds by their tag", () => {
-    const init = serverMessage.encode(initMessage.create(unsafeEntityId(0)));
-    const snapshot = serverMessage.encode(
-      snapshotMessage.create({ entities: [] })
+    const init = encServerMessage.encode(
+      encInitMessage.create(unsafeEntityId(0))
+    );
+    const snapshot = encServerMessage.encode(
+      encSnapshotMessage.create({ entities: [] })
     );
 
     expect(init[0]).toBe(0);
@@ -132,7 +136,7 @@ describe("serverMessage", () => {
   });
 
   it("rejects an unknown tag and truncated messages", () => {
-    expect(serverMessage.decode(new Uint8Array([9]))).toBeUndefined();
-    expect(serverMessage.decode(new Uint8Array([0, 1]))).toBeUndefined();
+    expect(encServerMessage.decode(new Uint8Array([9]))).toBeUndefined();
+    expect(encServerMessage.decode(new Uint8Array([0, 1]))).toBeUndefined();
   });
 });

@@ -1,15 +1,25 @@
 import {
-  isAnyArray,
-  isAnyRecord,
   isArrayOf,
+  isExact,
+  isExactObjectOf,
   isOneOf,
   isOptional,
   type Guard,
 } from "deep-guards";
-import { mapFind, typedToEntries } from "niall-utils";
+import { mapFind } from "niall-utils";
 import { attempt, raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
+import { mapObject } from "niall-utils/data";
 
-import { u8, u32, type Codec } from "./codec.ts";
+import {
+  codArrayOf,
+  codExact,
+  codObjectOf,
+  codOneOf,
+  codOptional,
+  codTupleOf,
+  codU8,
+  type Codec,
+} from "./codec.ts";
 
 // oxlint-disable-next-line typescript/no-explicit-any
 export interface Encodable<T = any, Args extends readonly unknown[] = any> {
@@ -52,124 +62,64 @@ export const encodable = <const T, Args extends readonly unknown[] = [T]>(
   },
 });
 
-/** Occupies no bytes; used for fields whose value is implied (e.g. a message `type`). */
-export const constant = <const T extends string | number | boolean | null>(
+export const encExact = <const T extends string | number | boolean | null>(
   value: T
-) =>
-  encodable<T>((candidate): candidate is T => candidate === value, {
-    size: () => 0,
-    write: () => undefined,
-    read: () => value,
-  });
+) => encodable<T>(isExact(value), codExact(value));
 
-/** An enum-style union of primitives, encoded as a u8 index into `values` (so at most 256). */
-export const oneOf = <
+export const encOneOf = <
   const T extends ReadonlyNonEmptyArray<string | number | boolean | null>,
 >(
   ...values: T
-) =>
-  encodable<T[number]>(isOneOf(...values), {
-    size: () => u8.size(0),
-    write: (cursor, value) => {
-      u8.write(cursor, values.indexOf(value));
-    },
-    read: cursor => {
-      const value = values[u8.read(cursor)];
-      return value === undefined
-        ? raise(new RangeError("Unknown enum index"))
-        : value;
-    },
-  });
+) => encodable<T[number]>(isOneOf(...values), codOneOf(...values));
 
-export const tupled = <const T extends readonly unknown[]>(
-  ...encodables: { [K in keyof T]: Encodable<T[K]> }
+export const encOptional = <const T>(inner: Encodable<T>) =>
+  encodable<T | undefined>(isOptional(inner.guard), codOptional(inner.codec));
+
+export const encArrayOf = <const T>(inner: Encodable<T>) =>
+  encodable<T[]>(isArrayOf(inner.guard), codArrayOf(inner.codec));
+
+export const encTupleOf = <const T extends readonly unknown[]>(
+  ...inners: { [K in keyof T]: Encodable<T[K]> }
 ) =>
   encodable<T>(
     (value): value is T =>
-      isAnyArray(value) &&
-      value.length === encodables.length &&
-      encodables.every(({ guard }, i) => guard(value[i])),
-    {
-      size: values =>
-        encodables.reduce(
-          (acc, { codec }, i) => acc + codec.size(values[i]),
-          0
-        ),
-      write: (cursor, values) => {
-        encodables.forEach(({ codec }, i) => {
-          codec.write(cursor, values[i]);
-        });
-      },
-      read: cursor =>
-        encodables.map(({ codec }) => codec.read(cursor)) as unknown as T,
-    }
+      Array.isArray(value) &&
+      value.length === inners.length &&
+      inners.every((inner, i) => inner.guard(value[i])),
+    codTupleOf<T>(
+      ...(inners.map(({ codec }) => codec) as {
+        [K in keyof T]: Codec<T[K]>;
+      })
+    )
   );
 
-export const optional = <const T>({ guard, codec }: Encodable<T>) =>
-  encodable<T | undefined>(isOptional(guard), {
-    size: value => 1 + (value === undefined ? 0 : codec.size(value)),
-    write: (cursor, value) => {
-      u8.write(cursor, value === undefined ? 0 : 1);
-      if (value !== undefined) codec.write(cursor, value);
-    },
-    read: cursor => (u8.read(cursor) === 0 ? undefined : codec.read(cursor)),
-  });
-
-export const arrayOf = <const T>({ guard, codec }: Encodable<T>) =>
-  encodable<T[]>(isArrayOf(guard), {
-    size: values => values.reduce((sum, v) => sum + codec.size(v), u32.size(0)),
-    write: (cursor, values) => {
-      u32.write(cursor, values.length);
-      for (const value of values) codec.write(cursor, value);
-    },
-    read: cursor => {
-      const length = u32.read(cursor);
-      // Every item takes at least a byte, so this rejects absurd lengths before looping.
-      if (length > cursor.view.byteLength - cursor.pos) {
-        throw new RangeError("Array length exceeds remaining bytes");
-      }
-      return Array.from({ length }, () => codec.read(cursor));
-    },
-  });
-
-/** Fields are written in the shape's key order, which both sides share. */
-export const object = <
+/** Guard and codec are both derived from the shape, so the two can't drift apart. */
+export const encObjectOf = <
   const T extends object,
-  const Args extends readonly unknown[] = [T],
+  Args extends readonly unknown[] = [T],
 >(
-  shape: { [K in keyof T]: Encodable<T[K]> },
+  shape: { [K in keyof T]-?: Encodable<T[K]> },
   create?: (...args: Args) => T
-): Encodable<T, Args> => {
-  const fields = typedToEntries(shape);
-
+) => {
+  const isShape = isExactObjectOf(
+    mapObject<typeof shape, Record<string, Guard<unknown>>>(
+      shape,
+      ([key, { guard }]) => [String(key), guard]
+    )
+  );
   return encodable<T, Args>(
-    (value): value is T =>
-      isAnyRecord(value) &&
-      Object.keys(value).every(key => Object.hasOwn(shape, key)) &&
-      fields.every(([key, { guard }]) => guard(value[key])),
-    {
-      size: value =>
-        fields.reduce(
-          (sum, [key, { codec }]) => sum + codec.size(value[key]),
-          0
-        ),
-      write: (cursor, value) => {
-        for (const [key, { codec }] of fields) codec.write(cursor, value[key]);
-      },
-      read: cursor => {
-        const result: Partial<T> = {};
-        for (const [key, { codec }] of fields) {
-          const value = codec.read(cursor);
-          if (value !== undefined) result[key] = value;
-        }
-        return result as T;
-      },
-    },
+    (value): value is T => isShape(value),
+    codObjectOf<T>(
+      mapObject<typeof shape, { [K in keyof T]: Codec<T[K]> }>(
+        shape,
+        ([key, { codec }]) => [key, codec]
+      )
+    ),
     create
   );
 };
 
-export const union = <const T extends ReadonlyNonEmptyArray<unknown>>(
+export const encUnionOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
   ...encodables: { [K in keyof T]: Encodable<T[K]> }
 ): Encodable<T[number]> => {
   const matchEncodable = (value: T[number]) =>
@@ -184,11 +134,11 @@ export const union = <const T extends ReadonlyNonEmptyArray<unknown>>(
       size: value => 1 + matchEncodable(value).encodable.codec.size(value),
       write: (cursor, value) => {
         const { index, encodable } = matchEncodable(value);
-        u8.write(cursor, index);
+        codU8.write(cursor, index);
         encodable.codec.write(cursor, value);
       },
       read: cursor => {
-        const variant = encodables[u8.read(cursor)];
+        const variant = encodables[codU8.read(cursor)];
         return variant === undefined
           ? raise(new RangeError("Unknown union tag"))
           : variant.codec.read(cursor);
