@@ -1,9 +1,9 @@
 import {
-  DEFAULT_PORT,
   encClientMessage,
   encDestinationMessage,
   encServerMessage,
   EntityStore,
+  SOCKET_PORT,
   TPS,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
@@ -25,7 +25,7 @@ export const app = appMethods<State>({
 
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(
-      `${protocol}://${location.hostname}:${DEFAULT_PORT}`
+      `${protocol}://${location.hostname}:${SOCKET_PORT}`
     );
 
     socket.binaryType = "arraybuffer";

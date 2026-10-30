@@ -4,16 +4,22 @@ import { typedFromEntries } from "niall-utils/data";
 import {
   componentNames,
   type ComponentName,
-  type Components,
+  type OptionalComponentName,
   type StoreComponents,
 } from "./component.ts";
 import type { EntityId } from "./entity/index.ts";
 import type { WorldSnapshot } from "./protocol/index.ts";
 
 export class EntityStore {
-  protected readonly stores: {
+  private readonly stores: {
     [C in ComponentName]: Map<EntityId, StoreComponents[C]>;
   } = typedFromEntries(componentNames.map(name => tuple(name, new Map())));
+
+  get ids(): MapIterator<EntityId> {
+    return this.stores[
+      "position" satisfies Exclude<ComponentName, OptionalComponentName>
+    ].keys();
+  }
 
   delete(id: EntityId, name: ComponentName): boolean {
     return this.stores[name].delete(id);
@@ -23,7 +29,7 @@ export class EntityStore {
     entity: EntityId,
     name: C,
     component: StoreComponents[C]
-  ) {
+  ): void {
     this.stores[name].set(entity, component);
   }
 
@@ -60,13 +66,9 @@ export class EntityStore {
       }
     }
 
-    for (const id of this.stores.position.keys()) {
+    for (const id of this.ids) {
       if (seen.has(id)) continue;
       for (const store of Object.values(this.stores)) store.delete(id);
     }
   }
 }
-
-const _snapshotCheck: Components["position"] extends undefined
-  ? never
-  : unknown = null;

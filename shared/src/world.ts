@@ -1,6 +1,10 @@
-import { raise, typedToEntries } from "niall-utils";
+import { typedFromEntries, typedToEntries } from "niall-utils";
 
-import { componentNames, type Components } from "./component.ts";
+import {
+  componentNames,
+  isOptionalComponentName,
+  type Components,
+} from "./component.ts";
 import { unsafeEntityId, type EntityId } from "./entity/index.ts";
 import { EntityStore } from "./entityStore.ts";
 import type { EntitySnapshot, WorldSnapshot } from "./protocol/index.ts";
@@ -16,24 +20,22 @@ export class World extends EntityStore {
     return id;
   }
 
-  despawn(id: EntityId) {
+  despawn(id: EntityId): void {
     for (const name of componentNames) this.delete(id, name);
   }
 
   takeSnapshot(): WorldSnapshot {
     return {
-      entities: [...this.stores.position].map(
-        ([id, position]): EntitySnapshot => ({
-          id,
-          type:
-            this.stores.type.get(id) ??
-            raise(new Error(`Entity ${id} has no "type" component`)),
-          position,
-          destination: this.stores.destination.get(id),
-          speed: this.stores.speed.get(id),
-          conveyable: this.stores.conveyable.get(id) ?? undefined,
-        })
-      ),
+      entities: this.ids.toArray().map((id): EntitySnapshot => ({
+        id,
+        ...typedFromEntries<Components>(
+          componentNames.map(name =>
+            isOptionalComponentName(name)
+              ? [name, this.optGet(id, name)]
+              : [name, this.get(id, name)]
+          )
+        ),
+      })),
     };
   }
 }

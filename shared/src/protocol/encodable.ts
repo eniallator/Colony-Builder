@@ -93,7 +93,6 @@ export const encTupleOf = <const T extends readonly unknown[]>(
     )
   );
 
-/** Guard and codec are both derived from the shape, so the two can't drift apart. */
 export const encObjectOf = <
   const T extends object,
   Args extends readonly unknown[] = [T],
@@ -127,7 +126,6 @@ export const encUnionOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
       encodable.guard(value) ? { index, encodable } : null
     ) ?? raise(new TypeError("Value matches no union variant"));
 
-  /** Prefixes each value with the index of the first variant whose guard accepts it. */
   return encodable(
     (value): value is T[number] => encodables.some(({ guard }) => guard(value)),
     {

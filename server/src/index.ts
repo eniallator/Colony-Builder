@@ -1,11 +1,11 @@
 import {
   createItem,
   createPlayer,
-  DEFAULT_PORT,
   encClientMessage,
   encInitMessage,
   encServerMessage,
   encSnapshotMessage,
+  SOCKET_PORT,
   TPS,
   World,
   type EntityId,
@@ -25,8 +25,7 @@ const send = (socket: WebSocket, message: ServerMessage) => {
   socket.send(encServerMessage.encode(message));
 };
 
-const port = Number(process.env["PORT"] ?? DEFAULT_PORT);
-const server = new WebSocketServer({ port });
+const server = new WebSocketServer({ port: SOCKET_PORT });
 const players = new Map<WebSocket, EntityId>();
 
 server.on("connection", socket => {
