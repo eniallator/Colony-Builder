@@ -1,0 +1,42 @@
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ci-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  checks:
+    name: ${{ matrix.name }}
+    runs-on: ubuntu-latest
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - name: Typecheck
+            run: pnpm typecheck
+          - name: Lint
+            run: pnpm lint
+          - name: Format check
+            run: pnpm format:check
+          - name: Test
+            run: pnpm test
+          - name: Build
+            run: pnpm build
+    steps:
+      - uses: actions/checkout@v4
+      - uses: pnpm/action-setup@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 25.4.0
+          cache: pnpm
+      - run: pnpm install --frozen-lockfile
+      - run: ${{ matrix.run }}
