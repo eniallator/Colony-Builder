@@ -1,12 +1,16 @@
 import { describe, expect, it } from "vitest";
 
 import {
+  chooseUIntCod,
   codBoolean,
+  codF16,
   codF32,
   codMap,
+  codOneOf,
   codString,
   codTagged,
   codU8,
+  codU16,
   codU32,
   type Codec,
 } from "./codec.ts";
@@ -30,6 +34,82 @@ describe("codU8", () => {
 
   it("reads a byte and advances the cursor", () => {
     expect(read(codU8, [200])).toEqual({ value: 200, pos: 1 });
+  });
+});
+
+describe("codU16", () => {
+  it("is two bytes wide, little-endian", () => {
+    expect(codU16.size(0)).toBe(2);
+    expect(write(codU16, 0x0102)).toEqual([2, 1]);
+  });
+
+  it("reads little-endian and advances the cursor", () => {
+    expect(read(codU16, [2, 1])).toEqual({ value: 0x0102, pos: 2 });
+  });
+
+  it("round-trips the full range", () => {
+    expect(read(codU16, write(codU16, 0xffff)).value).toBe(0xffff);
+    expect(read(codU16, write(codU16, 0)).value).toBe(0);
+  });
+
+  it("throws when reading past the end of the buffer", () => {
+    expect(() => read(codU16, [1])).toThrow(RangeError);
+  });
+});
+
+describe("codF16", () => {
+  it("is two bytes wide, little-endian", () => {
+    expect(codF16.size(0)).toBe(2);
+    expect(write(codF16, 1)).toEqual([0x00, 0x3c]);
+  });
+
+  it("reads little-endian and advances the cursor", () => {
+    expect(read(codF16, [0x00, 0x3e])).toEqual({ value: 1.5, pos: 2 });
+  });
+
+  it("round-trips non-finite values", () => {
+    expect(read(codF16, write(codF16, -Infinity)).value).toBe(-Infinity);
+    expect(read(codF16, write(codF16, Number.NaN)).value).toBeNaN();
+  });
+
+  it("loses precision beyond half-float range", () => {
+    expect(read(codF16, write(codF16, 0.1)).value).not.toBe(0.1);
+    expect(read(codF16, write(codF16, 70000)).value).toBe(Infinity);
+  });
+});
+
+describe("chooseUIntCod", () => {
+  it.each([
+    [0, codU8],
+    [255, codU8],
+    [256, codU16],
+    [65535, codU16],
+    [65536, codU32],
+  ])("picks the narrowest codec for %i", (value, expected) => {
+    expect(chooseUIntCod(value)).toBe(expected);
+  });
+});
+
+describe("codOneOf", () => {
+  it("uses a single byte for up to 256 values", () => {
+    const values = Array.from({ length: 200 }, (_, i) => i);
+    const cod = codOneOf(...(values as [number, ...number[]]));
+
+    expect(write(cod, 199)).toEqual([199]);
+    expect(read(cod, [199]).value).toBe(199);
+  });
+
+  it("widens the index to two bytes past 256 values", () => {
+    const values = Array.from({ length: 300 }, (_, i) => i);
+    const cod = codOneOf(...(values as [number, ...number[]]));
+
+    expect(cod.size(0)).toBe(2);
+    expect(write(cod, 299)).toEqual([0x2b, 0x01]);
+    expect(read(cod, [0x2b, 0x01])).toEqual({ value: 299, pos: 2 });
+  });
+
+  it("throws on an index outside the values", () => {
+    expect(() => read(codOneOf("a", "b"), [2])).toThrow("Unknown enum index");
   });
 });
 

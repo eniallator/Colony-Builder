@@ -67,12 +67,28 @@ export const codU8 = fixed(
   (view, pos) => view.getUint8(pos)
 );
 
+export const codU16 = fixed(
+  2,
+  (view, pos, value) => {
+    view.setUint16(pos, value, LITTLE_ENDIAN);
+  },
+  (view, pos) => view.getUint16(pos, LITTLE_ENDIAN)
+);
+
 export const codU32 = fixed(
   4,
   (view, pos, value) => {
     view.setUint32(pos, value, LITTLE_ENDIAN);
   },
   (view, pos) => view.getUint32(pos, LITTLE_ENDIAN)
+);
+
+export const codF16 = fixed(
+  2,
+  (view, pos, value) => {
+    view.setFloat16(pos, value, LITTLE_ENDIAN);
+  },
+  (view, pos) => view.getFloat16(pos, LITTLE_ENDIAN)
 );
 
 export const codF32 = fixed(
@@ -82,6 +98,11 @@ export const codF32 = fixed(
   },
   (view, pos) => view.getFloat32(pos, LITTLE_ENDIAN)
 );
+
+const U8_MAX = 2 ** 8;
+const U16_MAX = 2 ** 16;
+export const chooseUIntCod = (value: number): Codec<number> =>
+  value < U8_MAX ? codU8 : value < U16_MAX ? codU16 : codU32;
 
 export const codBoolean = codMap<boolean, number>(codU8, Number, v => !!v);
 
@@ -137,18 +158,22 @@ export const codOneOf = <
   const T extends ReadonlyNonEmptyArray<string | number | boolean | null>,
 >(
   ...values: T
-): Codec<T[number]> => ({
-  size: () => codU8.size(0),
-  write: (cursor, value) => {
-    codU8.write(cursor, values.indexOf(value));
-  },
-  read: cursor => {
-    const value = values[codU8.read(cursor)];
-    return value === undefined
-      ? raise(new RangeError("Unknown enum index"))
-      : value;
-  },
-});
+): Codec<T[number]> => {
+  const cod = chooseUIntCod(values.length);
+
+  return {
+    size: () => cod.size(0),
+    write: (cursor, value) => {
+      cod.write(cursor, values.indexOf(value));
+    },
+    read: cursor => {
+      const value = values[cod.read(cursor)];
+      return value === undefined
+        ? raise(new RangeError("Unknown enum index"))
+        : value;
+    },
+  };
+};
 
 export const codTupleOf = <const T extends readonly unknown[]>(
   ...codecs: { [K in keyof T]: Codec<T[K]> }
@@ -172,15 +197,12 @@ export const codArrayOf = <const T>(codec: Codec<T>): Codec<T[]> => ({
   },
   read: cursor => {
     const length = codU32.read(cursor);
-    // Every item takes at least a byte, so this rejects absurd lengths before looping.
-    if (length > cursor.view.byteLength - cursor.pos) {
-      throw new RangeError("Array length exceeds remaining bytes");
-    }
-    return Array.from({ length }, () => codec.read(cursor));
+    return length > cursor.view.byteLength - cursor.pos
+      ? raise(new RangeError("Array length exceeds remaining bytes"))
+      : Array.from({ length }, () => codec.read(cursor));
   },
 });
 
-/** Fields are written in the shape's key order, which both sides share. */
 export const codObjectOf = <const T extends object>(shape: {
   [K in keyof T]: Codec<T[K]>;
 }): Codec<T> => {

@@ -1,6 +1,6 @@
 import {
   encClientMessage,
-  encDestinationMessage,
+  encMoveMessage,
   encServerMessage,
   EntityStore,
   SOCKET_PORT,
@@ -42,7 +42,7 @@ export const app = appMethods<State>({
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
       socket.send(
         encClientMessage.encode(
-          encDestinationMessage.create(...mouseWorldPos.toArray())
+          encMoveMessage.create(...mouseWorldPos.toArray())
         )
       );
     });

@@ -4,9 +4,9 @@ import { describe, expect, it } from "vitest";
 import { unsafeEntityId } from "../entity/index.ts";
 import {
   encClientMessage,
-  encDestinationMessage,
   encEntitySnapshot,
   encInitMessage,
+  encMoveMessage,
   encServerMessage,
   encSnapshotMessage,
   encWorldSnapshot,
@@ -86,11 +86,11 @@ describe("encWorldSnapshot", () => {
 });
 
 describe("encClientMessage", () => {
-  it("creates and round-trips a destination message", () => {
-    const message = encDestinationMessage.create(10, 20);
+  it("creates and round-trips a move message", () => {
+    const message = encMoveMessage.create(10, 20);
 
     expect(message).toEqual({
-      type: "destination",
+      type: "move",
       position: Vector.create(10, 20),
     });
     expect(encClientMessage.decode(encClientMessage.encode(message))).toEqual(

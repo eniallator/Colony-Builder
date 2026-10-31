@@ -52,14 +52,14 @@ export const encWorldSnapshot = encObjectOf(
 );
 export type WorldSnapshot = EncodableType<typeof encWorldSnapshot>;
 
-export const encDestinationMessage = encObjectOf(
-  { type: encExact("destination"), position: encVec2 },
+export const encMoveMessage = encObjectOf(
+  { type: encExact("move"), position: encVec2 },
   (x: number, y: number) => ({
-    type: "destination",
+    type: "move",
     position: Vector.create(x, y),
   })
 );
-export type DestinationMessage = EncodableType<typeof encDestinationMessage>;
+export type MoveMessage = EncodableType<typeof encMoveMessage>;
 
 export const encInitMessage = encObjectOf(
   { type: encExact("init"), id: encEntityId },
@@ -73,7 +73,7 @@ export const encSnapshotMessage = encObjectOf(
 );
 export type SnapshotMessage = EncodableType<typeof encSnapshotMessage>;
 
-export const encClientMessage = encUnionOf(encDestinationMessage);
+export const encClientMessage = encUnionOf(encMoveMessage);
 export type ClientMessage = EncodableType<typeof encClientMessage>;
 
 export const encServerMessage = encUnionOf(encInitMessage, encSnapshotMessage);

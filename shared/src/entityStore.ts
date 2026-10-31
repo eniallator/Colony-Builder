@@ -1,4 +1,4 @@
-import { raise, tuple, type ReadonlyNonEmptyArray } from "niall-utils/core";
+import { raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
 import { typedFromEntries } from "niall-utils/data";
 
 import {
@@ -13,7 +13,7 @@ import type { WorldSnapshot } from "./protocol/index.ts";
 export class EntityStore {
   private readonly stores: {
     [C in ComponentName]: Map<EntityId, StoreComponents[C]>;
-  } = typedFromEntries(componentNames.map(name => tuple(name, new Map())));
+  } = typedFromEntries(componentNames.map(name => [name, new Map()]));
 
   get ids(): MapIterator<EntityId> {
     return this.stores[

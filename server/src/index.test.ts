@@ -1,10 +1,10 @@
 import { EventEmitter } from "node:events";
 import {
-  DEFAULT_PORT,
   encClientMessage,
-  encDestinationMessage,
+  encMoveMessage,
   encServerMessage,
   PLAYER_SPEED,
+  SOCKET_PORT,
   TPS,
 } from "@colony-builder/shared";
 import { mapFilter, mapFind, partition, raise } from "niall-utils";
@@ -56,7 +56,7 @@ const connect = (server: FakeServer) => {
 const requestDestination = (socket: FakeSocket, position: [number, number]) =>
   socket.emit(
     "message",
-    encClientMessage.encode(encDestinationMessage.create(...position))
+    encClientMessage.encode(encMoveMessage.create(...position))
   );
 
 const received = (socket: FakeSocket) =>
@@ -94,15 +94,7 @@ describe("server", () => {
   it("listens on the default port", async () => {
     const server = await load();
 
-    expect(server.options.port).toBe(DEFAULT_PORT);
-  });
-
-  it("listens on the PORT environment variable when set", async () => {
-    vi.stubEnv("PORT", "1234");
-
-    const server = await load();
-
-    expect(server.options.port).toBe(1234);
+    expect(server.options.port).toBe(SOCKET_PORT);
   });
 });
 
@@ -197,7 +189,7 @@ describe("client messages", () => {
 
   it("accepts a message split across buffers", async () => {
     const socket = connect(await load());
-    const bytes = encClientMessage.encode(encDestinationMessage.create(100, 0));
+    const bytes = encClientMessage.encode(encMoveMessage.create(100, 0));
 
     socket.emit("message", [
       Buffer.from(bytes.subarray(0, 3)),

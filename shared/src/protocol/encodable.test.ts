@@ -11,6 +11,7 @@ import {
   encOptional,
   encTupleOf,
   encUnionOf,
+  type Encodable,
 } from "./encodable.ts";
 
 const byte = encodable(isNumber, codU8);
@@ -68,6 +69,16 @@ describe("encExact", () => {
   it("returns undefined when given bytes", () => {
     expect(tag.decode(Uint8Array.of(0))).toBeUndefined();
   });
+
+  it("uses the value as the default create", () => {
+    expect(tag.create("tag")).toBe("tag");
+  });
+
+  it("uses a custom create when given", () => {
+    const made = encExact("tag", () => "tag");
+
+    expect(made.create()).toBe("tag");
+  });
 });
 
 describe("encOneOf", () => {
@@ -89,6 +100,16 @@ describe("encOneOf", () => {
   it("guards on the listed values", () => {
     expect(colour.guard("green")).toBe(true);
     expect(colour.guard("pink")).toBe(false);
+  });
+
+  it("widens the index past 256 values", () => {
+    const many = encOneOf(
+      ...(Array.from({ length: 300 }, (_, i) => i) as [number, ...number[]])
+    );
+
+    expect(many.encode(299)).toEqual(Uint8Array.of(0x2b, 0x01));
+    expect(many.decode(Uint8Array.of(0x2b, 0x01))).toBe(299);
+    expect(many.decode(Uint8Array.of(299 & 0xff))).toBeUndefined();
   });
 });
 
@@ -132,6 +153,13 @@ describe("encOptional", () => {
     expect(maybeByte.guard(3)).toBe(true);
     expect(maybeByte.guard("x")).toBe(false);
   });
+
+  it("uses a custom create when given", () => {
+    const orZero = encOptional(byte, (n?: number) => n);
+
+    expect(orZero.create(4)).toBe(4);
+    expect(orZero.create()).toBeUndefined();
+  });
 });
 
 describe("encArrayOf", () => {
@@ -156,6 +184,12 @@ describe("encArrayOf", () => {
   it("guards every item", () => {
     expect(bytesArray.guard([1, 2])).toBe(true);
     expect(bytesArray.guard([1, "2"])).toBe(false);
+  });
+
+  it("uses a custom create when given", () => {
+    const rest = encArrayOf(byte, (...items: number[]) => items);
+
+    expect(rest.create(1, 2, 3)).toEqual([1, 2, 3]);
   });
 });
 
@@ -230,6 +264,16 @@ describe("encUnionOf", () => {
     expect(either.guard(1)).toBe(true);
     expect(either.guard("a")).toBe(true);
     expect(either.guard(true)).toBe(false);
+  });
+
+  it("widens the tag past 256 variants", () => {
+    const variants = Array.from({ length: 300 }, (_, i) => encExact(i));
+    const many = encUnionOf<[number, ...number[]]>(
+      ...(variants as [Encodable<number>, ...Encodable<number>[]])
+    );
+
+    expect(many.encode(299)).toEqual(Uint8Array.of(0x2b, 0x01));
+    expect(many.decode(Uint8Array.of(0x2b, 0x01))).toBe(299);
   });
 
   it("throws when encoding a value that matches no variant", () => {

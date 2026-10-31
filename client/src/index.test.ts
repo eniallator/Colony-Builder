@@ -1,11 +1,11 @@
 import {
-  DEFAULT_PORT,
   encClientMessage,
-  encDestinationMessage,
   encInitMessage,
+  encMoveMessage,
   encServerMessage,
   encSnapshotMessage,
   EntityStore,
+  SOCKET_PORT,
   TPS,
   unsafeEntityId,
   type EntitySnapshot,
@@ -95,7 +95,7 @@ describe("app.init", () => {
   it("connects to the server on the page's host", () => {
     app.init(createAppContext());
 
-    expect(lastSocket().url).toBe(`ws://${location.hostname}:${DEFAULT_PORT}`);
+    expect(lastSocket().url).toBe(`ws://${location.hostname}:${SOCKET_PORT}`);
     expect(lastSocket().binaryType).toBe("arraybuffer");
   });
 
@@ -104,7 +104,7 @@ describe("app.init", () => {
 
     app.init(createAppContext());
 
-    expect(lastSocket().url).toBe(`wss://example.com:${DEFAULT_PORT}`);
+    expect(lastSocket().url).toBe(`wss://example.com:${SOCKET_PORT}`);
   });
 
   describe("server messages", () => {
@@ -171,7 +171,7 @@ describe("app.init", () => {
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        encClientMessage.encode(encDestinationMessage.create(10, 5))
+        encClientMessage.encode(encMoveMessage.create(10, 5))
       );
     });
 
@@ -186,7 +186,7 @@ describe("app.init", () => {
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        encClientMessage.encode(encDestinationMessage.create(105, 102.5))
+        encClientMessage.encode(encMoveMessage.create(105, 102.5))
       );
     });
   });

@@ -4,20 +4,27 @@ import {
   isExactObjectOf,
   isOneOf,
   isOptional,
+  isTupleOf,
+  isUnionOf,
   type Guard,
 } from "deep-guards";
 import { mapFind } from "niall-utils";
-import { attempt, raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
+import {
+  attempt,
+  raise,
+  type NonEmptyArray,
+  type ReadonlyNonEmptyArray,
+} from "niall-utils/core";
 import { mapObject } from "niall-utils/data";
 
 import {
+  chooseUIntCod,
   codArrayOf,
   codExact,
   codObjectOf,
   codOneOf,
   codOptional,
   codTupleOf,
-  codU8,
   type Codec,
 } from "./codec.ts";
 
@@ -46,50 +53,57 @@ export const encodable = <const T, Args extends readonly unknown[] = [T]>(
     codec.write({ view: new DataView(buffer), pos: 0 }, value);
     return new Uint8Array(buffer);
   },
-  decode: encoded => {
+  decode: enc => {
     const cursor = {
-      view: new DataView(
-        encoded.buffer,
-        encoded.byteOffset,
-        encoded.byteLength
-      ),
+      view: new DataView(enc.buffer, enc.byteOffset, enc.byteLength),
       pos: 0,
     };
     const decoded = attempt((): unknown => codec.read(cursor));
-    return cursor.pos === encoded.byteLength && guard(decoded)
+    return cursor.pos === enc.byteLength && guard(decoded)
       ? decoded
       : undefined;
   },
 });
 
-export const encExact = <const T extends string | number | boolean | null>(
-  value: T
-) => encodable<T>(isExact(value), codExact(value));
+export const encExact = <
+  const T extends string | number | boolean | null,
+  Args extends readonly unknown[] = [T],
+>(
+  value: T,
+  create?: (...args: Args) => T
+): Encodable<T, Args> => encodable(isExact(value), codExact(value), create);
 
 export const encOneOf = <
   const T extends ReadonlyNonEmptyArray<string | number | boolean | null>,
 >(
   ...values: T
-) => encodable<T[number]>(isOneOf(...values), codOneOf(...values));
+): Encodable<T[number], [T[number]]> =>
+  encodable(isOneOf(...values), codOneOf(...values));
 
-export const encOptional = <const T>(inner: Encodable<T>) =>
-  encodable<T | undefined>(isOptional(inner.guard), codOptional(inner.codec));
+export const encOptional = <
+  const T,
+  Args extends readonly unknown[] = [T | undefined],
+>(
+  inner: Encodable<T>,
+  create?: (...args: Args) => T | undefined
+): Encodable<T | undefined, Args> =>
+  encodable(isOptional(inner.guard), codOptional(inner.codec), create);
 
-export const encArrayOf = <const T>(inner: Encodable<T>) =>
-  encodable<T[]>(isArrayOf(inner.guard), codArrayOf(inner.codec));
+export const encArrayOf = <const T, Args extends readonly unknown[] = [T[]]>(
+  inner: Encodable<T>,
+  create?: (...args: Args) => T[]
+): Encodable<T[], Args> =>
+  encodable(isArrayOf(inner.guard), codArrayOf(inner.codec), create);
 
-export const encTupleOf = <const T extends readonly unknown[]>(
+export const encTupleOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
   ...inners: { [K in keyof T]: Encodable<T[K]> }
-) =>
-  encodable<T>(
-    (value): value is T =>
-      Array.isArray(value) &&
-      value.length === inners.length &&
-      inners.every((inner, i) => inner.guard(value[i])),
+): Encodable<T, [T]> =>
+  encodable(
+    isTupleOf(
+      ...(inners.map(enc => enc.guard) as NonEmptyArray<Guard<unknown>>)
+    ) as unknown as Guard<T>,
     codTupleOf<T>(
-      ...(inners.map(({ codec }) => codec) as {
-        [K in keyof T]: Codec<T[K]>;
-      })
+      ...(inners.map(({ codec }) => codec) as { [K in keyof T]: Codec<T[K]> })
     )
   );
 
@@ -99,15 +113,14 @@ export const encObjectOf = <
 >(
   shape: { [K in keyof T]-?: Encodable<T[K]> },
   create?: (...args: Args) => T
-) => {
-  const isShape = isExactObjectOf(
-    mapObject<typeof shape, Record<string, Guard<unknown>>>(
-      shape,
-      ([key, { guard }]) => [String(key), guard]
-    )
-  );
-  return encodable<T, Args>(
-    (value): value is T => isShape(value),
+): Encodable<T, Args> =>
+  encodable(
+    isExactObjectOf(
+      mapObject<typeof shape, Record<string, Guard<unknown>>>(
+        shape,
+        ([key, { guard }]) => [String(key), guard]
+      )
+    ) as Guard<T>,
     codObjectOf<T>(
       mapObject<typeof shape, { [K in keyof T]: Codec<T[K]> }>(
         shape,
@@ -116,31 +129,32 @@ export const encObjectOf = <
     ),
     create
   );
-};
 
 export const encUnionOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
-  ...encodables: { [K in keyof T]: Encodable<T[K]> }
-): Encodable<T[number]> => {
+  ...encs: { [K in keyof T]: Encodable<T[K]> }
+): Encodable<T[number], [T[number]]> => {
+  const cod = chooseUIntCod(encs.length - 1);
   const matchEncodable = (value: T[number]) =>
-    mapFind(encodables, (encodable, index) =>
+    mapFind(encs, (encodable, index) =>
       encodable.guard(value) ? { index, encodable } : null
     ) ?? raise(new TypeError("Value matches no union variant"));
 
   return encodable(
-    (value): value is T[number] => encodables.some(({ guard }) => guard(value)),
+    isUnionOf(
+      ...(encs.map(enc => enc.guard) as NonEmptyArray<Guard<unknown>>)
+    ) as Guard<T[number]>,
     {
-      size: value => 1 + matchEncodable(value).encodable.codec.size(value),
+      size: value =>
+        cod.size(encs.length) +
+        matchEncodable(value).encodable.codec.size(value),
       write: (cursor, value) => {
         const { index, encodable } = matchEncodable(value);
-        codU8.write(cursor, index);
+        cod.write(cursor, index);
         encodable.codec.write(cursor, value);
       },
-      read: cursor => {
-        const variant = encodables[codU8.read(cursor)];
-        return variant === undefined
-          ? raise(new RangeError("Unknown union tag"))
-          : variant.codec.read(cursor);
-      },
+      read: cursor =>
+        encs[cod.read(cursor)]?.codec.read(cursor) ??
+        raise(new RangeError("Unknown union tag")),
     }
   );
 };
