@@ -10,7 +10,7 @@ export const messageHandler = (state: State, message: ServerMessage): void => {
       break;
 
     case "snapshot":
-      state.store.applySnapshot(message.snapshot);
+      state.world.applySnapshot(message.snapshot);
       break;
 
     default:

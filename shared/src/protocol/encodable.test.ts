@@ -9,6 +9,7 @@ import {
   encodable,
   encOneOf,
   encOptional,
+  encRecordOf,
   encTupleOf,
   encUnionOf,
   type Encodable,
@@ -190,6 +191,42 @@ describe("encArrayOf", () => {
     const rest = encArrayOf(byte, (...items: number[]) => items);
 
     expect(rest.create(1, 2, 3)).toEqual([1, 2, 3]);
+  });
+});
+
+describe("encRecordOf", () => {
+  const scores = encRecordOf(text, byte, (rec: Record<string, number>) => rec);
+
+  it("prefixes the entries with a u32 count", () => {
+    expect(scores.encode({})).toEqual(Uint8Array.of(0, 0, 0, 0));
+    expect(scores.encode({ a: 7 })).toEqual(
+      Uint8Array.of(1, 0, 0, 0, 1, 0, 0, 0, 0x61, 7)
+    );
+  });
+
+  it("round-trips", () => {
+    const value = { a: 1, bc: 2 };
+
+    expect(scores.decode(scores.encode(value))).toEqual(value);
+    expect(scores.decode(scores.encode({}))).toEqual({});
+  });
+
+  it("returns undefined when bytes are left over or run out", () => {
+    expect(scores.decode(Uint8Array.of(0, 0, 0, 0, 1))).toBeUndefined();
+    expect(scores.decode(Uint8Array.of(1, 0, 0, 0, 1))).toBeUndefined();
+  });
+
+  it("guards every key and value", () => {
+    expect(scores.guard({ a: 1 })).toBe(true);
+    expect(scores.guard({ a: "1" })).toBe(false);
+    expect(scores.guard("nope")).toBe(false);
+    expect(scores.guard(null)).toBe(false);
+  });
+
+  it("uses the given create", () => {
+    const made = encRecordOf(text, byte, (n: number) => ({ n }));
+
+    expect(made.create(4)).toEqual({ n: 4 });
   });
 });
 

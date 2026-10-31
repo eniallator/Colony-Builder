@@ -1,16 +1,19 @@
-import { raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
-import { typedFromEntries } from "niall-utils/data";
+import { raise, tuple, type ReadonlyNonEmptyArray } from "niall-utils/core";
+import { typedFromEntries, typedToEntries } from "niall-utils/data";
 
 import {
   componentNames,
+  unsafeEntityId,
   type ComponentName,
+  type Components,
+  type EntityId,
   type OptionalComponentName,
   type StoreComponents,
-} from "./component.ts";
-import type { EntityId } from "./entity/index.ts";
-import type { WorldSnapshot } from "./protocol/index.ts";
+} from "../entity/index.ts";
+import type { EntitySnapshot } from "../protocol/message.ts";
 
 export class EntityStore {
+  private entityCount: number = 0;
   private readonly stores: {
     [C in ComponentName]: Map<EntityId, StoreComponents[C]>;
   } = typedFromEntries(componentNames.map(name => [name, new Map()]));
@@ -19,10 +22,6 @@ export class EntityStore {
     return this.stores[
       "position" satisfies Exclude<ComponentName, OptionalComponentName>
     ].keys();
-  }
-
-  delete(id: EntityId, name: ComponentName): boolean {
-    return this.stores[name].delete(id);
   }
 
   add<C extends ComponentName>(
@@ -47,28 +46,60 @@ export class EntityStore {
     );
   }
 
+  delete(id: EntityId, name: ComponentName): boolean {
+    return this.stores[name].delete(id);
+  }
+
   query(...[first, ...rest]: ReadonlyNonEmptyArray<ComponentName>): EntityId[] {
     return [...this.stores[first].keys()].filter(id =>
       rest.every(name => this.stores[name].has(id))
     );
   }
 
-  applySnapshot(snapshot: WorldSnapshot): void {
+  takeSnapshot(): EntitySnapshot {
+    return new Map(
+      this.ids
+        .toArray()
+        .map(id =>
+          tuple(
+            id,
+            typedFromEntries<Components>(
+              componentNames.map(name => tuple(name, this.stores[name].get(id)))
+            )
+          )
+        )
+    );
+  }
+
+  applySnapshot(snapshot: EntitySnapshot): void {
     const seen = new Set<EntityId>();
 
-    for (const { id, ...entity } of snapshot.entities) {
+    for (const [id, components] of snapshot) {
       seen.add(id);
 
       for (const name of componentNames) {
-        const value = entity[name];
+        const value = components[name];
         if (value !== undefined) this.stores[name].set(id, value as never);
         else this.stores[name].delete(id);
       }
     }
 
     for (const id of this.ids) {
-      if (seen.has(id)) continue;
-      for (const store of Object.values(this.stores)) store.delete(id);
+      if (!seen.has(id)) {
+        for (const name of componentNames) this.stores[name].delete(id);
+      }
     }
+  }
+
+  spawn(components: Partial<Components> = {}): EntityId {
+    const id = unsafeEntityId(this.entityCount++);
+    for (const [name, value] of typedToEntries(components)) {
+      if (value !== undefined) this.stores[name].set(id, value as never);
+    }
+    return id;
+  }
+
+  despawn(id: EntityId): void {
+    for (const name of componentNames) this.stores[name].delete(id);
   }
 }

@@ -1,12 +1,15 @@
 import { isNumber, type Guard } from "deep-guards";
 import { Vector } from "vectyped";
 
-import type { Components } from "../component.ts";
+import { REGION_SIDE_LENGTH } from "../constants.ts";
+import type { Components } from "../entity/component.ts";
 import { encEntityId, encEntityType, type EntityId } from "../entity/index.ts";
+import { encRegionId, encTile } from "../terrain/types.ts";
 import { codF32, codMap, codTupleOf } from "./codec.ts";
 import {
-  encArrayOf,
   encExact,
+  encFixedArrayOf,
+  encMapOf,
   encObjectOf,
   encodable,
   encOneOf,
@@ -36,28 +39,41 @@ const encVec2 = encodable<Vector<2>>(
   )
 );
 
-export const encEntitySnapshot = encObjectOf<{ id: EntityId } & Components>({
-  id: encEntityId,
+export const encComponentSnapshot = encObjectOf<Components>({
   type: encEntityType,
   position: encVec2,
   destination: encOptional(encVec2),
   speed: encOptional(encFiniteNumber),
   conveyable: encOptional(encOneOf(true)),
 });
+export type ComponentSnapshot = EncodableType<typeof encComponentSnapshot>;
+
+export const encEntitySnapshot = encMapOf(encEntityId, encComponentSnapshot);
 export type EntitySnapshot = EncodableType<typeof encEntitySnapshot>;
 
+export const encRegionTiles = encObjectOf({
+  tiles: encFixedArrayOf(
+    encFixedArrayOf(encTile, REGION_SIDE_LENGTH),
+    REGION_SIDE_LENGTH
+  ),
+});
+export type RegionTiles = EncodableType<typeof encRegionTiles>;
+
+export const encTerrainSnapshot = encMapOf(encRegionId, encRegionTiles);
+export type TerrainSnapshot = EncodableType<typeof encTerrainSnapshot>;
+
 export const encWorldSnapshot = encObjectOf(
-  { entities: encArrayOf(encEntitySnapshot) },
-  (entities: EntitySnapshot[]) => ({ entities })
+  { entities: encEntitySnapshot, terrain: encTerrainSnapshot },
+  (entities: EntitySnapshot, terrain: TerrainSnapshot) => ({
+    entities,
+    terrain,
+  })
 );
 export type WorldSnapshot = EncodableType<typeof encWorldSnapshot>;
 
 export const encMoveMessage = encObjectOf(
   { type: encExact("move"), position: encVec2 },
-  (x: number, y: number) => ({
-    type: "move",
-    position: Vector.create(x, y),
-  })
+  (x: number, y: number) => ({ type: "move", position: Vector.create(x, y) })
 );
 export type MoveMessage = EncodableType<typeof encMoveMessage>;
 

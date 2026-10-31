@@ -1,20 +1,16 @@
-import type {
-  ClientMessage,
-  EntityId,
-  EntityStore,
-} from "@colony-builder/shared";
+import type { ClientMessage, EntityId, World } from "@colony-builder/shared";
 
 export const messageHandler = (
-  store: EntityStore,
+  world: World,
   playerId: EntityId,
   message: ClientMessage
 ): void => {
   // switch (message.type) {
   //   case "destination":
-  //     store.add(playerId, "destination", message.position);
+  //     world.entities.add(playerId, "destination", message.position);
   //     break;
   //   default:
   //     return checkExhausted(message);
   // }
-  store.add(playerId, "destination", message.position);
+  world.entities.add(playerId, "destination", message.position);
 };

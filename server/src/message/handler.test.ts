@@ -10,7 +10,7 @@ describe("messageHandler", () => {
 
     messageHandler(world, player, encMoveMessage.create(3, 4));
 
-    expect(world.get(player, "destination").toArray()).toEqual([3, 4]);
+    expect(world.entities.get(player, "destination").toArray()).toEqual([3, 4]);
   });
 
   it("only affects the given player", () => {
@@ -20,6 +20,6 @@ describe("messageHandler", () => {
 
     messageHandler(world, player, encMoveMessage.create(3, 4));
 
-    expect(world.optGet(other, "destination")).toBeUndefined();
+    expect(world.entities.optGet(other, "destination")).toBeUndefined();
   });
 });

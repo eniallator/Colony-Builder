@@ -1,4 +1,4 @@
-import { EntityStore } from "@colony-builder/shared";
+import { World } from "@colony-builder/shared";
 import { getElement, raise, toElement } from "niall-utils";
 import { Vector } from "vectyped";
 import {
@@ -36,7 +36,7 @@ const NOW_MS = 1_000_000;
 
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
-  store: new EntityStore(),
+  world: new World(),
 });
 
 const load = async () => {

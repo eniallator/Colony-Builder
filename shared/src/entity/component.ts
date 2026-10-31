@@ -2,7 +2,7 @@ import { isOneOf } from "deep-guards";
 import { tuple, type UnionToTuple } from "niall-utils/core";
 import type { Vector } from "vectyped";
 
-import type { EntityType } from "./entity/types.ts";
+import type { EntityType } from "./types.ts";
 
 export interface Components {
   type: EntityType;

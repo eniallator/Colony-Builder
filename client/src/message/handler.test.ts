@@ -3,7 +3,6 @@ import {
   createPlayer,
   encInitMessage,
   encSnapshotMessage,
-  EntityStore,
   unsafeEntityId,
   World,
 } from "@colony-builder/shared";
@@ -15,7 +14,7 @@ import { messageHandler } from "./handler.ts";
 
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
-  store: new EntityStore(),
+  world: new World(),
 });
 
 describe("messageHandler", () => {
@@ -35,8 +34,12 @@ describe("messageHandler", () => {
 
     messageHandler(state, encSnapshotMessage.create(server.takeSnapshot()));
 
-    expect(state.store.get(player, "position").toArray()).toEqual([1, 2]);
-    expect(state.store.get(item, "position").toArray()).toEqual([3, 4]);
+    expect(state.world.entities.get(player, "position").toArray()).toEqual([
+      1, 2,
+    ]);
+    expect(state.world.entities.get(item, "position").toArray()).toEqual([
+      3, 4,
+    ]);
     expect(state.playerId).toBeUndefined();
   });
 

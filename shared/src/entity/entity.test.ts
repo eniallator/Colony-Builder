@@ -2,7 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../constants.ts";
-import { World } from "../world.ts";
+import { World } from "../stores/world.ts";
 import { createItem } from "./item.ts";
 import { createPlayer } from "./player.ts";
 import {
@@ -17,17 +17,17 @@ describe("createPlayer", () => {
     const world = new World();
     const id = createPlayer(world);
 
-    expect(world.get(id, "type")).toBe("player");
-    expect(world.get(id, "position").toArray()).toEqual([0, 0]);
-    expect(world.get(id, "speed")).toBe(PLAYER_SPEED);
-    expect(world.optGet(id, "conveyable")).toBeUndefined();
+    expect(world.entities.get(id, "type")).toBe("player");
+    expect(world.entities.get(id, "position").toArray()).toEqual([0, 0]);
+    expect(world.entities.get(id, "speed")).toBe(PLAYER_SPEED);
+    expect(world.entities.optGet(id, "conveyable")).toBeUndefined();
   });
 
   it("spawns at the given position", () => {
     const world = new World();
     const id = createPlayer(world, Vector.create(4, 5));
 
-    expect(world.get(id, "position").toArray()).toEqual([4, 5]);
+    expect(world.entities.get(id, "position").toArray()).toEqual([4, 5]);
   });
 });
 
@@ -36,17 +36,17 @@ describe("createItem", () => {
     const world = new World();
     const id = createItem(world);
 
-    expect(world.get(id, "type")).toBe("item");
-    expect(world.get(id, "position").toArray()).toEqual([0, 0]);
-    expect(world.get(id, "conveyable")).toBe(true);
-    expect(world.optGet(id, "speed")).toBeUndefined();
+    expect(world.entities.get(id, "type")).toBe("item");
+    expect(world.entities.get(id, "position").toArray()).toEqual([0, 0]);
+    expect(world.entities.get(id, "conveyable")).toBe(true);
+    expect(world.entities.optGet(id, "speed")).toBeUndefined();
   });
 
   it("spawns at the given position", () => {
     const world = new World();
     const id = createItem(world, Vector.create(-1, 2));
 
-    expect(world.get(id, "position").toArray()).toEqual([-1, 2]);
+    expect(world.entities.get(id, "position").toArray()).toEqual([-1, 2]);
   });
 });
 

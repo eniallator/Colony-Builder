@@ -2,9 +2,9 @@ import {
   encClientMessage,
   encMoveMessage,
   encServerMessage,
-  EntityStore,
   SOCKET_PORT,
   TPS,
+  World,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
 import { Vector } from "vectyped";
@@ -20,7 +20,7 @@ export const app = appMethods<State>({
   init: ({ canvas, mouse }) => {
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 0 },
-      store: new EntityStore(),
+      world: new World(),
     };
 
     const protocol = location.protocol === "https:" ? "wss" : "ws";
@@ -51,7 +51,7 @@ export const app = appMethods<State>({
   },
 
   animationFrame: ({ getState, canvas, ctx, time }) => {
-    const { playerId, store, camera } = getState();
+    const { playerId, world, camera } = getState();
     const dt = Math.min(time.delta, 2 / TPS);
 
     const systemCtx: Parameters<ClientSystem>[0] = {
@@ -60,7 +60,7 @@ export const app = appMethods<State>({
       time,
       canvas,
       ctx,
-      store,
+      world,
       dt,
     };
 

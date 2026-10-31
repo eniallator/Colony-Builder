@@ -44,7 +44,7 @@ server.on("connection", socket => {
 
   socket.on("close", () => {
     players.delete(socket);
-    world.despawn(playerId);
+    world.entities.despawn(playerId);
   });
 });
 
@@ -55,7 +55,7 @@ setInterval(() => {
   const dt = Math.min((now - lastTick) / 1000, 2 / TPS);
   lastTick = now;
 
-  const ctx: Parameters<ServerSystem>[0] = { store: world, dt };
+  const ctx: Parameters<ServerSystem>[0] = { world, dt };
 
   for (const system of serverSystems) system(ctx);
 

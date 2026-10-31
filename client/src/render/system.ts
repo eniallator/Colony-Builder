@@ -3,9 +3,9 @@ import { checkExhausted } from "niall-utils";
 import type { ClientSystem } from "../system.ts";
 import { toCanvasCoords } from "../ui/camera.ts";
 
-export const prepareDraw: ClientSystem = ({ playerId, store, camera }) => {
+export const prepareDraw: ClientSystem = ({ playerId, world, camera }) => {
   const playerPos =
-    playerId != null ? store.optGet(playerId, "position") : undefined;
+    playerId != null ? world.entities.optGet(playerId, "position") : undefined;
   if (playerPos != null) camera.center = playerPos;
 };
 
@@ -14,14 +14,14 @@ export const renderSystem: ClientSystem = ({
   ctx,
   camera,
   playerId,
-  store,
+  world,
 }) => {
   ctx.fillStyle = "white";
   ctx.fillRect(0, 0, canvas.width, canvas.height);
 
-  for (const id of store.query("type", "position")) {
-    const entityType = store.get(id, "type");
-    const pos = store.get(id, "position");
+  for (const id of world.entities.query("type", "position")) {
+    const entityType = world.entities.get(id, "type");
+    const pos = world.entities.get(id, "position");
 
     const drawPos = toCanvasCoords(canvas, camera, pos);
 

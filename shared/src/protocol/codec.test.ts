@@ -5,8 +5,14 @@ import {
   codBoolean,
   codF16,
   codF32,
+  codFixedArrayOf,
+  codI8,
+  codI16,
+  codI32,
   codMap,
+  codMapOf,
   codOneOf,
+  codRecordOf,
   codString,
   codTagged,
   codU8,
@@ -34,6 +40,24 @@ describe("codU8", () => {
 
   it("reads a byte and advances the cursor", () => {
     expect(read(codU8, [200])).toEqual({ value: 200, pos: 1 });
+  });
+});
+
+describe("signed integer codecs", () => {
+  it("are as wide as their name says, little-endian", () => {
+    expect([codI8.size(0), codI16.size(0), codI32.size(0)]).toEqual([1, 2, 4]);
+    expect(write(codI8, -1)).toEqual([0xff]);
+    expect(write(codI16, -2)).toEqual([0xfe, 0xff]);
+    expect(write(codI32, -2)).toEqual([0xfe, 0xff, 0xff, 0xff]);
+  });
+
+  it("reads negative values and advances the cursor", () => {
+    expect(read(codI8, [0x80])).toEqual({ value: -128, pos: 1 });
+    expect(read(codI16, [0x00, 0x80])).toEqual({ value: -32768, pos: 2 });
+    expect(read(codI32, [0, 0, 0, 0x80])).toEqual({
+      value: -(2 ** 31),
+      pos: 4,
+    });
   });
 });
 
@@ -186,6 +210,109 @@ describe("codMap", () => {
 describe("codTagged", () => {
   it("returns the same codec", () => {
     expect(codTagged(codU32)).toBe(codU32);
+  });
+});
+
+describe("codRecordOf", () => {
+  const record = codRecordOf(codString, codU8);
+
+  it("prefixes the entries with a u32 count", () => {
+    expect(write(record, {})).toEqual([0, 0, 0, 0]);
+    expect(write(record, { a: 1 })).toEqual([1, 0, 0, 0, 1, 0, 0, 0, 0x61, 1]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    const value = { a: 1, bc: 2 };
+
+    expect(record.size({})).toBe(4);
+    expect(record.size(value)).toBe(write(record, value).length);
+  });
+
+  it("round-trips, advancing the cursor past every entry", () => {
+    const value = { a: 1, bc: 2, def: 3 };
+    const bytes = write(record, value);
+
+    expect(read(record, bytes)).toEqual({ value, pos: bytes.length });
+    expect(read(record, write(record, {})).value).toEqual({});
+  });
+
+  it("round-trips numeric keys", () => {
+    const byId = codRecordOf(codU8, codU8);
+
+    expect(write(byId, { 5: 9 })).toEqual([1, 0, 0, 0, 5, 9]);
+    expect(read(byId, [1, 0, 0, 0, 5, 9]).value).toEqual({ 5: 9 });
+  });
+
+  it("throws when the entries run past the end of the buffer", () => {
+    expect(() => read(record, [2, 0, 0, 0, 1, 0, 0, 0, 0x61, 1])).toThrow(
+      RangeError
+    );
+  });
+});
+
+describe("codFixedArrayOf", () => {
+  const triple = codFixedArrayOf(codU8, 3);
+
+  it("writes the items with no length prefix", () => {
+    expect(write(triple, [1, 2, 3])).toEqual([1, 2, 3]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(triple.size([1, 2, 3])).toBe(3);
+    expect(codFixedArrayOf(codString, 2).size(["a", "bc"])).toBe(
+      write(codFixedArrayOf(codString, 2), ["a", "bc"]).length
+    );
+  });
+
+  it("round-trips, advancing the cursor past every item", () => {
+    expect(read(triple, [4, 5, 6])).toEqual({ value: [4, 5, 6], pos: 3 });
+  });
+
+  it("throws when writing the wrong number of items", () => {
+    const cursor = { view: new DataView(new ArrayBuffer(8)), pos: 0 };
+
+    expect(() => {
+      // @ts-expect-error the array is too short for the codec's length
+      triple.write(cursor, [1, 2]);
+    }).toThrow("Expected length 3, got 2");
+  });
+
+  it("throws when the items run past the end of the buffer", () => {
+    expect(() => read(triple, [1, 2])).toThrow(
+      "Array length exceeds remaining bytes"
+    );
+  });
+});
+
+describe("codMapOf", () => {
+  const map = codMapOf(codU8, codString);
+
+  it("prefixes the entries with a u32 count", () => {
+    expect(write(map, new Map())).toEqual([0, 0, 0, 0]);
+    expect(write(map, new Map([[7, "a"]]))).toEqual([
+      1, 0, 0, 0, 7, 1, 0, 0, 0, 0x61,
+    ]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    const value = new Map([
+      [1, "a"],
+      [2, "bc"],
+    ]);
+
+    expect(map.size(new Map())).toBe(4);
+    expect(map.size(value)).toBe(write(map, value).length);
+  });
+
+  it("round-trips, keeping insertion order", () => {
+    const value = new Map([
+      [2, "bc"],
+      [1, "a"],
+    ]);
+    const bytes = write(map, value);
+
+    expect(read(map, bytes)).toEqual({ value, pos: bytes.length });
+    expect([...read(map, bytes).value.keys()]).toEqual([2, 1]);
   });
 });
 

@@ -4,11 +4,11 @@ import {
   encMoveMessage,
   encServerMessage,
   encSnapshotMessage,
-  EntityStore,
   SOCKET_PORT,
   TPS,
   unsafeEntityId,
-  type EntitySnapshot,
+  World,
+  type ComponentSnapshot,
 } from "@colony-builder/shared";
 import { raise, toElement } from "niall-utils";
 import { Vector } from "vectyped";
@@ -86,7 +86,7 @@ describe("app.init", () => {
   it("starts with an empty world and a centred camera", () => {
     const state = app.init(createAppContext());
 
-    expect(state.store.query("position")).toEqual([]);
+    expect(state.world.entities.query("position")).toEqual([]);
     expect(state.camera.center.toArray()).toEqual([0, 0]);
     expect(state.camera.zoom).toBe(0);
     expect(state.playerId).toBeUndefined();
@@ -123,8 +123,8 @@ describe("app.init", () => {
 
     it("applies snapshot messages to the world", () => {
       const state = app.init(createAppContext());
-      const entity: EntitySnapshot = {
-        id: unsafeEntityId(2),
+      const id = unsafeEntityId(2);
+      const entity: ComponentSnapshot = {
         type: "item",
         position: Vector.create(3, 4),
         destination: undefined,
@@ -135,12 +135,17 @@ describe("app.init", () => {
       lastSocket().dispatchEvent(
         message(
           encServerMessage.encode(
-            encSnapshotMessage.create({ entities: [entity] })
+            encSnapshotMessage.create({
+              entities: new Map([[id, entity]]),
+              terrain: new Map(),
+            })
           ).buffer
         )
       );
 
-      expect(state.store.get(entity.id, "position").toArray()).toEqual([3, 4]);
+      expect(state.world.entities.get(id, "position").toArray()).toEqual([
+        3, 4,
+      ]);
     });
 
     it("ignores messages that are not binary", () => {
@@ -157,7 +162,7 @@ describe("app.init", () => {
       lastSocket().dispatchEvent(message(Uint8Array.of(9, 9, 9).buffer));
 
       expect(state.playerId).toBeUndefined();
-      expect(state.store.query("position")).toEqual([]);
+      expect(state.world.entities.query("position")).toEqual([]);
     });
   });
 
@@ -207,7 +212,7 @@ describe("app.animationFrame", () => {
 
   const createState = (): State => ({
     camera: { center: Vector.zero(2), zoom: 0 },
-    store: new EntityStore(),
+    world: new World(),
     playerId: unsafeEntityId(1),
   });
 
@@ -233,7 +238,7 @@ describe("app.animationFrame", () => {
     const ctx = frame(state);
 
     const systemCtx = firstCtx(systems[0]);
-    expect(systemCtx.store).toBe(state.store);
+    expect(systemCtx.world).toBe(state.world);
     expect(systemCtx.camera).toBe(state.camera);
     expect(systemCtx.playerId).toBe(state.playerId);
     expect(systemCtx.canvas).toBe(ctx.canvas);

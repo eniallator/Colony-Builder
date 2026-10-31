@@ -122,7 +122,7 @@ describe("connections", () => {
     leaver.emit("close");
     tick();
 
-    expect(latestEntities(stayer).map(({ id }) => id)).not.toContain(leaverId);
+    expect(latestEntities(stayer).has(leaverId)).toBe(false);
     expect(leaver.send).toHaveBeenCalledOnce();
   });
 });
@@ -154,11 +154,11 @@ describe("snapshots", () => {
     tick();
 
     const [players, others] = partition(
-      latestEntities(a),
-      ({ type }) => type === "player"
+      [...latestEntities(a)],
+      ([, { type }]) => type === "player"
     );
-    expect(players.map(({ id }) => id)).toEqual([playerIdOf(a), playerIdOf(b)]);
-    expect(others.map(({ type }) => type)).toEqual(["item"]);
+    expect(players.map(([id]) => id)).toEqual([playerIdOf(a), playerIdOf(b)]);
+    expect(others.map(([, { type }]) => type)).toEqual(["item"]);
   });
 
   it("skips sockets that are not open", async () => {
@@ -173,8 +173,7 @@ describe("snapshots", () => {
 
 describe("client messages", () => {
   const playerX = (socket: FakeSocket) => {
-    const id = playerIdOf(socket);
-    const player = latestEntities(socket).find(entity => entity.id === id);
+    const player = latestEntities(socket).get(playerIdOf(socket));
     return player?.position.x() ?? raise(new Error("Player not in snapshot"));
   };
 
