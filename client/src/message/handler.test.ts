@@ -116,7 +116,7 @@ describe("messageHandler", () => {
     });
 
     expect(state.world.entities.query("position")).toHaveLength(1);
-    expect([...state.world.terrain.ids]).toEqual(["0,0"]);
+    expect([...state.world.terrain.ids]).toEqual([regionPosToId(0, 0)]);
   });
 
   it("throws on a message it does not know", () => {

@@ -4,6 +4,8 @@ import {
   encServerMessage,
   LOADED_SIDE_LENGTH,
   PLAYER_SPEED,
+  REGION_SIDE_LENGTH,
+  regionIdToPos,
   regionPosToId,
   SOCKET_PORT,
   TPS,
@@ -96,6 +98,9 @@ const tick = () => {
   vi.advanceTimersByTime(TICK_MS);
 };
 
+const ticksToTravel = (distance: number) =>
+  Math.ceil((distance * TPS) / PLAYER_SPEED);
+
 beforeEach(() => {
   servers.length = 0;
   vi.resetModules();
@@ -183,9 +188,9 @@ describe("snapshots", () => {
     const [stayer, traveller] = [connect(server), connect(server)];
     requestDestination(traveller, [10_000, 0]);
 
-    // The traveller moves one world unit per tick, so after 160 ticks they are
-    // ten regions away, outside the loaded square around the stayer.
-    for (let i = 0; i < 160; i++) tick();
+    // Walk far enough to leave the loaded square of regions around the stayer.
+    const outside = (LOADED_SIDE_LENGTH / 2 + 1) * REGION_SIDE_LENGTH;
+    for (let i = 0; i < ticksToTravel(outside); i++) tick();
 
     const nearStayer = [...latestEntities(stayer).keys()];
     const nearTraveller = [...latestEntities(traveller).keys()];
@@ -263,15 +268,15 @@ describe("terrain", () => {
     const socket = connect(await load());
     requestDestination(socket, [100, 0]);
 
-    // The player moves one world unit per tick, so 17 ticks reaches region 1.
-    for (let i = 0; i < 17; i++) tick();
+    // Walk just far enough to step into region 1.
+    for (let i = 0; i < ticksToTravel(REGION_SIDE_LENGTH); i++) tick();
 
     const snapshotsSent = terrainSnapshots(socket);
     expect(snapshotsSent).toHaveLength(2);
     expect(snapshotsSent[1]?.size).toBe(LOADED_SIDE_LENGTH);
     expect(
-      [...(snapshotsSent[1]?.keys() ?? [])].every(id =>
-        id.startsWith(`${half},`)
+      [...(snapshotsSent[1]?.keys() ?? [])].every(
+        id => regionIdToPos(id)[0] === half
       )
     ).toBe(true);
   });
@@ -285,7 +290,10 @@ describe("terrain", () => {
 
     const snapshotsSent = terrainSnapshots(socket);
     expect(snapshotsSent).toHaveLength(2);
-    expect([...(snapshotsSent[1]?.keys() ?? [])]).toEqual(["0,0", "1,1"]);
+    expect([...(snapshotsSent[1]?.keys() ?? [])]).toEqual([
+      regionPosToId(0, 0),
+      regionPosToId(1, 1),
+    ]);
   });
 
   it("ignores an unload for regions it never sent", async () => {

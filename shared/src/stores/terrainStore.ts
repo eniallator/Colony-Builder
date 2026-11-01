@@ -20,9 +20,7 @@ export class TerrainStore {
   }
 
   get positions(): MapIterator<[number, number]> {
-    return this.regions
-      .keys()
-      .map(id => id.split(",").map(Number) as [number, number]);
+    return this.regions.keys().map(regionIdToPos);
   }
 
   add(id: RegionId, region: RegionTiles) {
@@ -34,7 +32,10 @@ export class TerrainStore {
   }
 
   get(id: RegionId): RegionTiles {
-    return this.optGet(id) ?? raise(new Error(`No region exists at ${id}`));
+    return (
+      this.optGet(id) ??
+      raise(new Error(`No region exists at ${regionIdToPos(id).join(",")}`))
+    );
   }
 
   delete(id: RegionId): boolean {
@@ -61,7 +62,9 @@ export class TerrainStore {
         tuple(
           id,
           this.regions.get(id) ??
-            raise(new Error(`Region ${id} not loaded yet!`))
+            raise(
+              new Error(`Region ${regionIdToPos(id).join(",")} not loaded yet!`)
+            )
         )
       )
     );

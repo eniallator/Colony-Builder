@@ -144,7 +144,7 @@ export const encObjectOf = <
   );
 
 export const encMapOf = <
-  const K extends string | number,
+  const K extends CodecValue,
   const V extends CodecValue,
 >(
   encKey: Encodable<K>,

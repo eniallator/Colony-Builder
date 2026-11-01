@@ -9,22 +9,33 @@ import {
   regionsAround,
   regionToWorldPos,
   tiles,
-  unsafeRegionId,
   worldToRegionPos,
+  type RegionId,
 } from "./types.ts";
 
 describe("regionPosToId / regionIdToPos", () => {
-  it("formats a position as comma separated numbers", () => {
-    expect(regionPosToId(0, 0)).toBe("0,0");
-    expect(regionPosToId(-3, 7)).toBe("-3,7");
+  it("packs x into the high 32 bits and y into the low 32 bits", () => {
+    expect(regionPosToId(0, 0)).toBe(0n);
+    expect(regionPosToId(1, 2)).toBe((1n << 32n) | 2n);
+    expect(regionPosToId(-3, 7)).toBe((0xfffffffdn << 32n) | 7n);
   });
 
-  it("parses an id back into numbers", () => {
-    expect(regionIdToPos(unsafeRegionId("-3,7"))).toEqual([-3, 7]);
+  it("unpacks an id back into numbers", () => {
+    const id = ((0xfffffffdn << 32n) | 7n) as RegionId;
+
+    expect(regionIdToPos(id)).toEqual([-3, 7]);
   });
 
   it("round-trips", () => {
     expect(regionIdToPos(regionPosToId(12, -34))).toEqual([12, -34]);
+  });
+
+  it("round-trips the full i32 range", () => {
+    const min = -(2 ** 31);
+    const max = 2 ** 31 - 1;
+
+    expect(regionIdToPos(regionPosToId(min, max))).toEqual([min, max]);
+    expect(regionIdToPos(regionPosToId(max, min))).toEqual([max, min]);
   });
 });
 
@@ -45,15 +56,20 @@ describe("worldToRegionPos", () => {
 
 describe("regionsAround", () => {
   it("lists the square of regions in x-major order", () => {
-    expect(regionsAround(0, 0, 2)).toEqual(["-1,-1", "-1,0", "0,-1", "0,0"]);
+    expect(regionsAround(0, 0, 2).map(regionIdToPos)).toEqual([
+      [-1, -1],
+      [-1, 0],
+      [0, -1],
+      [0, 0],
+    ]);
   });
 
   it("is centred on the given region", () => {
     const ids = regionsAround(3, -2, 4);
 
     expect(ids).toHaveLength(16);
-    expect(ids[0]).toBe("1,-4");
-    expect(ids.at(-1)).toBe("4,-1");
+    expect(ids[0]).toBe(regionPosToId(1, -4));
+    expect(ids.at(-1)).toBe(regionPosToId(4, -1));
   });
 
   it("is empty for a side length of zero", () => {
@@ -76,27 +92,27 @@ describe("regionToWorldPos", () => {
 });
 
 describe("encRegionId", () => {
-  it("accepts a pair of integers, including negative ones", () => {
-    expect(encRegionId.guard("0,0")).toBe(true);
-    expect(encRegionId.guard("3,-4")).toBe(true);
+  it("accepts a u64 bigint", () => {
+    expect(encRegionId.guard(0n)).toBe(true);
+    expect(encRegionId.guard(regionPosToId(3, -4))).toBe(true);
+    expect(encRegionId.guard(2n ** 64n - 1n)).toBe(true);
   });
 
-  it("rejects values that are not a pair of integers", () => {
+  it("rejects values that are not a u64 bigint", () => {
     expect(encRegionId.guard(0)).toBe(false);
-    expect(encRegionId.guard("1")).toBe(false);
-    expect(encRegionId.guard("1,2,3")).toBe(false);
-    expect(encRegionId.guard("1.5,2")).toBe(false);
-    expect(encRegionId.guard("a,b")).toBe(false);
+    expect(encRegionId.guard("0,0")).toBe(false);
+    expect(encRegionId.guard(-1n)).toBe(false);
+    expect(encRegionId.guard(2n ** 64n)).toBe(false);
   });
 
   it("encodes as two little-endian i32s", () => {
-    expect(encRegionId.encode(unsafeRegionId("1,-2"))).toEqual(
+    expect(encRegionId.encode(regionPosToId(1, -2))).toEqual(
       Uint8Array.of(1, 0, 0, 0, 0xfe, 0xff, 0xff, 0xff)
     );
   });
 
   it("round-trips", () => {
-    const id = unsafeRegionId("-70000,123456");
+    const id = regionPosToId(-70000, 123456);
 
     expect(encRegionId.decode(encRegionId.encode(id))).toBe(id);
   });

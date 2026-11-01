@@ -411,7 +411,7 @@ describe("app.animationFrame", () => {
 
       frame(state);
 
-      expect([...state.world.terrain.ids]).toEqual(["0,0"]);
+      expect([...state.world.terrain.ids]).toEqual([regionPosToId(0, 0)]);
       expect(state.send).toHaveBeenCalledExactlyOnceWith({
         type: "unload",
         ids: [far],
@@ -449,7 +449,7 @@ describe("app.animationFrame", () => {
 
       frame(state);
 
-      expect([...state.world.terrain.ids]).toEqual(["0,0"]);
+      expect([...state.world.terrain.ids]).toEqual([regionPosToId(0, 0)]);
       expect(state.send).toHaveBeenCalledExactlyOnceWith({
         type: "unload",
         ids: [behind],

@@ -1,18 +1,23 @@
-import { isString } from "deep-guards";
-import { tuple, unsafeTag, type Tagged } from "niall-utils/core";
+import { tuple, type Tagged } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { codI32, codTagged, type Codec } from "../protocol/codec.ts";
+import { codI32, type Codec } from "../protocol/codec.ts";
 import { encodable, encOneOf } from "../protocol/encodable.ts";
 
-export type RegionId = Tagged<`${number},${number}`, "RegionId">;
-export const unsafeRegionId = unsafeTag<RegionId>();
+/** Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32. */
+export type RegionId = Tagged<bigint, "RegionId">;
 
-export const regionIdToPos = (id: RegionId): [x: number, y: number] =>
-  id.split(",").map(Number) as [number, number];
+const I32_BITS = 32;
+const U64_LIMIT = 1n << 64n;
+
+export const regionIdToPos = (id: RegionId): [x: number, y: number] => [
+  Number(BigInt.asIntN(I32_BITS, id >> BigInt(I32_BITS))),
+  Number(BigInt.asIntN(I32_BITS, id)),
+];
 
 export const regionPosToId = (x: number, y: number): RegionId =>
-  unsafeRegionId(`${x},${y}`);
+  ((BigInt.asUintN(I32_BITS, BigInt(x)) << BigInt(I32_BITS)) |
+    BigInt.asUintN(I32_BITS, BigInt(y))) as RegionId;
 
 export const worldToRegionPos = (
   x: number,
@@ -39,22 +44,20 @@ export const regionsAround = (
     )
   );
 
-const codNumberPair: Codec<`${number},${number}`> = {
+const codRegionId: Codec<RegionId> = {
   size: () => 2 * codI32.size(0),
-  write: (cursor, value) => {
-    const [x, y] = value.split(",").map(Number) as [number, number];
+  write: (cursor, id) => {
+    const [x, y] = regionIdToPos(id);
     codI32.write(cursor, x);
     codI32.write(cursor, y);
   },
-  read: cursor =>
-    unsafeRegionId(`${codI32.read(cursor)},${codI32.read(cursor)}`),
+  read: cursor => regionPosToId(codI32.read(cursor), codI32.read(cursor)),
 };
 
-const numberPairRegex = /^(0|-?[1-9]\d*),(0|-?[1-9]\d*)$/;
-
 export const encRegionId = encodable<RegionId>(
-  (value): value is RegionId => isString(value) && numberPairRegex.test(value),
-  codTagged(codNumberPair)
+  (value): value is RegionId =>
+    typeof value === "bigint" && value >= 0n && value < U64_LIMIT,
+  codRegionId
 );
 
 export const tiles = tuple("grass", "dirt", "water", "sand", "stone");

@@ -2,12 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import type { RegionTiles, TerrainSnapshot } from "../protocol/index.ts";
-import {
-  regionPosToId,
-  tiles,
-  unsafeRegionId,
-  type Tile,
-} from "../terrain/index.ts";
+import { regionPosToId, tiles, type Tile } from "../terrain/index.ts";
 import { TerrainStore } from "./terrainStore.ts";
 
 const region = (
@@ -78,7 +73,7 @@ describe("TerrainStore", () => {
     it("lists the ids of its regions", () => {
       const store = storeWith([0, 0, grass], [-1, 2, water]);
 
-      expect([...store.ids]).toEqual(["0,0", "-1,2"]);
+      expect([...store.ids]).toEqual([origin, other]);
     });
 
     it("lists the positions of its regions as numbers", () => {
@@ -141,26 +136,29 @@ describe("TerrainStore", () => {
       );
 
       expect(store.unloadOutside(0, 0, 4)).toEqual([
-        unsafeRegionId("-3,0"),
-        unsafeRegionId("2,0"),
-        unsafeRegionId("0,-3"),
-        unsafeRegionId("0,2"),
+        regionPosToId(-3, 0),
+        regionPosToId(2, 0),
+        regionPosToId(0, -3),
+        regionPosToId(0, 2),
       ]);
-      expect([...store.ids]).toEqual(["0,0"]);
+      expect([...store.ids]).toEqual([origin]);
     });
 
     it("keeps the square's inclusive lower edge and exclusive upper edge", () => {
       const store = storeWith([-2, -2, grass], [1, 1, grass]);
 
       expect(store.unloadOutside(0, 0, 4)).toEqual([]);
-      expect([...store.ids]).toEqual(["-2,-2", "1,1"]);
+      expect([...store.ids]).toEqual([
+        regionPosToId(-2, -2),
+        regionPosToId(1, 1),
+      ]);
     });
 
     it("is centred on the given region position", () => {
       const store = storeWith([10, 10, grass], [0, 0, grass]);
 
-      expect(store.unloadOutside(10, 10, 4)).toEqual([unsafeRegionId("0,0")]);
-      expect([...store.ids]).toEqual(["10,10"]);
+      expect(store.unloadOutside(10, 10, 4)).toEqual([origin]);
+      expect([...store.ids]).toEqual([regionPosToId(10, 10)]);
     });
 
     it("returns nothing for an empty store", () => {
@@ -183,7 +181,7 @@ describe("TerrainStore", () => {
     it("only includes the requested regions", () => {
       const store = storeWith([0, 0, grass], [-1, 2, water]);
 
-      expect([...store.takeSnapshot([other]).keys()]).toEqual(["-1,2"]);
+      expect([...store.takeSnapshot([other]).keys()]).toEqual([other]);
     });
 
     it("is empty when no ids are requested", () => {
@@ -203,7 +201,7 @@ describe("TerrainStore", () => {
       store.add(other, water);
       store.delete(origin);
 
-      expect([...snapshot.keys()]).toEqual(["0,0"]);
+      expect([...snapshot.keys()]).toEqual([origin]);
     });
 
     it("throws for a region that is not loaded", () => {
@@ -241,7 +239,7 @@ describe("TerrainStore", () => {
 
       store.applySnapshot(snapshotOf([0, 0, water]));
 
-      expect([...store.ids]).toEqual(["0,0", "1,1"]);
+      expect([...store.ids]).toEqual([origin, regionPosToId(1, 1)]);
       expect(store.get(regionPosToId(1, 1))).toBe(water);
     });
 
@@ -250,7 +248,7 @@ describe("TerrainStore", () => {
 
       store.applySnapshot(new Map());
 
-      expect([...store.ids]).toEqual(["0,0"]);
+      expect([...store.ids]).toEqual([origin]);
     });
   });
 

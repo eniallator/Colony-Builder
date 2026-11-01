@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import { unsafeEntityId } from "../entity/index.ts";
-import { unsafeRegionId, type Tile } from "../terrain/index.ts";
+import { regionPosToId, type Tile } from "../terrain/index.ts";
 import {
   encClientMessage,
   encComponentSnapshot,
@@ -58,8 +58,8 @@ const grass = region(() => "grass");
 const checkerboard = region(i => (i % 2 ? "dirt" : "grass"));
 
 const terrain: TerrainSnapshot = new Map([
-  [unsafeRegionId("0,0"), grass],
-  [unsafeRegionId("-3,7"), checkerboard],
+  [regionPosToId(0, 0), grass],
+  [regionPosToId(-3, 7), checkerboard],
 ]);
 
 describe("encComponentSnapshot", () => {
@@ -170,7 +170,7 @@ describe("encClientMessage", () => {
   const move: ClientMessage = { type: "move", position: Vector.create(10, 20) };
   const unload: ClientMessage = {
     type: "unload",
-    ids: [unsafeRegionId("0,0"), unsafeRegionId("1,-1")],
+    ids: [regionPosToId(0, 0), regionPosToId(1, -1)],
   };
 
   it("round-trips a move message", () => {
@@ -215,7 +215,7 @@ describe("encClientMessage", () => {
   it("run-length encodes repeated unloaded ids", () => {
     const repeated = encUnloadMessage.encode({
       type: "unload",
-      ids: [unsafeRegionId("0,0"), unsafeRegionId("0,0")],
+      ids: [regionPosToId(0, 0), regionPosToId(0, 0)],
     });
 
     expect(repeated).toEqual(
