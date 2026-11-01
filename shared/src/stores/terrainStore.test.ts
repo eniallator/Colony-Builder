@@ -8,9 +8,9 @@ import { TerrainStore } from "./terrainStore.ts";
 const region = (
   tileAt: (x: number, y: number) => Tile = () => "grass"
 ): RegionTiles => ({
-  tiles: Array.from({ length: REGION_SIDE_LENGTH }, (_, x) =>
-    Array.from({ length: REGION_SIDE_LENGTH }, (_, y) => tileAt(x, y))
-  ) as unknown as RegionTiles["tiles"],
+  tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, (_, i) =>
+    tileAt(i % REGION_SIDE_LENGTH, Math.floor(i / REGION_SIDE_LENGTH))
+  ),
 });
 
 const grass = region();

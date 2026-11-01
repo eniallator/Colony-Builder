@@ -5,7 +5,7 @@ import { REGION_SIDE_LENGTH } from "../constants.ts";
 import type { Components } from "../entity/component.ts";
 import { encEntityId, encEntityType, type EntityId } from "../entity/index.ts";
 import { encRegionId, encTile } from "../terrain/types.ts";
-import { codF32, codMap, codTupleOf } from "./codec.ts";
+import { codF32, codFixedArrayOf, codMap } from "./codec.ts";
 import {
   encExact,
   encFixedArrayOf,
@@ -33,9 +33,9 @@ const isVec =
 const encVec2 = encodable<Vector<2>>(
   isVec(2),
   codMap(
-    codTupleOf(codF32, codF32),
+    codFixedArrayOf(codF32, 2),
     vec => vec.toArray(),
-    tup => Vector.create(...tup)
+    tup => Vector.create(...(tup as [number, number]))
   )
 );
 
@@ -44,7 +44,7 @@ export const encComponentSnapshot = encObjectOf<Components>({
   position: encVec2,
   destination: encOptional(encVec2),
   speed: encOptional(encFiniteNumber),
-  conveyable: encOptional(encOneOf(true)),
+  conveyable: encOptional(encOneOf([true])),
 });
 export type ComponentSnapshot = EncodableType<typeof encComponentSnapshot>;
 
@@ -52,10 +52,7 @@ export const encEntitySnapshot = encMapOf(encEntityId, encComponentSnapshot);
 export type EntitySnapshot = EncodableType<typeof encEntitySnapshot>;
 
 export const encRegionTiles = encObjectOf({
-  tiles: encFixedArrayOf(
-    encFixedArrayOf(encTile, REGION_SIDE_LENGTH),
-    REGION_SIDE_LENGTH
-  ),
+  tiles: encFixedArrayOf(encTile, REGION_SIDE_LENGTH ** 2, "u8"),
 });
 export type RegionTiles = EncodableType<typeof encRegionTiles>;
 

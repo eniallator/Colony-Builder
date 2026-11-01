@@ -59,6 +59,8 @@ setInterval(() => {
 
   for (const system of serverSystems) system(ctx);
 
+  world.generateTerrainForPlayers();
+
   const snapshot = encServerMessage.create(
     encSnapshotMessage.create(world.takeSnapshot())
   );

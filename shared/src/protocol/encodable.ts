@@ -2,8 +2,6 @@ import {
   isArrayOf,
   isExact,
   isExactObjectOf,
-  isIntersectionOf,
-  isObjectOf,
   isOneOf,
   isOptional,
   isRecordOf,
@@ -15,7 +13,6 @@ import { mapFind } from "niall-utils";
 import {
   attempt,
   raise,
-  type FillTuple,
   type NonEmptyArray,
   type ReadonlyNonEmptyArray,
 } from "niall-utils/core";
@@ -26,17 +23,25 @@ import {
   codArrayOf,
   codExact,
   codFixedArrayOf,
+  codFixedRLEArray,
   codMapOf,
   codObjectOf,
   codOneOf,
   codOptional,
   codRecordOf,
+  codRLEArray,
   codTupleOf,
   type Codec,
+  type CodecValue,
+  type Precision,
 } from "./codec.ts";
 
-// oxlint-disable-next-line typescript/no-explicit-any
-export interface Encodable<T = any, Args extends readonly unknown[] = any> {
+export interface Encodable<
+  // oxlint-disable-next-line typescript/no-explicit-any
+  T extends CodecValue = any,
+  // oxlint-disable-next-line typescript/no-explicit-any
+  Args extends readonly unknown[] = any,
+> {
   guard: Guard<T>;
   codec: Codec<T>;
   create: (...args: Args) => T;
@@ -47,7 +52,10 @@ export interface Encodable<T = any, Args extends readonly unknown[] = any> {
 export type EncodableType<E extends Encodable> =
   E extends Encodable<infer T> ? T : never;
 
-export const encodable = <const T, Args extends readonly unknown[] = [T]>(
+export const encodable = <
+  const T extends CodecValue,
+  Args extends readonly unknown[] = [T],
+>(
   guard: Guard<T>,
   codec: Codec<T>,
   create?: (...args: Args) => NoInfer<T>
@@ -73,7 +81,7 @@ export const encodable = <const T, Args extends readonly unknown[] = [T]>(
 });
 
 export const encExact = <
-  const T extends string | number | boolean | null,
+  const T extends string | number | boolean,
   Args extends readonly unknown[] = [T],
 >(
   value: T,
@@ -81,14 +89,15 @@ export const encExact = <
 ): Encodable<T, Args> => encodable(isExact(value), codExact(value), create);
 
 export const encOneOf = <
-  const T extends ReadonlyNonEmptyArray<string | number | boolean | null>,
+  const T extends ReadonlyNonEmptyArray<string | number | boolean>,
 >(
-  ...values: T
+  values: T,
+  precision?: Precision
 ): Encodable<T[number], [T[number]]> =>
-  encodable(isOneOf(...values), codOneOf(...values));
+  encodable(isOneOf(...values), codOneOf(values, precision));
 
 export const encOptional = <
-  const T,
+  const T extends CodecValue,
   Args extends readonly unknown[] = [T | undefined],
 >(
   inner: Encodable<T>,
@@ -96,31 +105,43 @@ export const encOptional = <
 ): Encodable<T | undefined, Args> =>
   encodable(isOptional(inner.guard), codOptional(inner.codec), create);
 
-export const encArrayOf = <const T, Args extends readonly unknown[] = [T[]]>(
-  inner: Encodable<T>,
-  create?: (...args: Args) => NoInfer<T[]>
-): Encodable<T[], Args> =>
-  encodable(isArrayOf(inner.guard), codArrayOf(inner.codec), create);
-
-export const encFixedArrayOf = <
-  const T,
-  const N extends number,
-  Args extends readonly unknown[] = [FillTuple<T, N>],
+export const encArrayOf = <
+  const T extends CodecValue,
+  Args extends readonly unknown[] = [T[]],
 >(
   inner: Encodable<T>,
-  length: N,
-  create?: (...args: Args) => NoInfer<FillTuple<T, N>>
-): Encodable<FillTuple<T, N>, Args> =>
+  runPrecision?: Precision,
+  create?: (...args: Args) => NoInfer<T[]>
+): Encodable<T[], Args> =>
   encodable(
-    isIntersectionOf(
-      isArrayOf(inner.guard),
-      isObjectOf({ length: isExact(length) })
-    ) as Guard<FillTuple<T, N>>,
-    codFixedArrayOf(inner.codec, length),
+    isArrayOf(inner.guard),
+    runPrecision != null
+      ? codRLEArray(inner.codec, "u32", runPrecision)
+      : codArrayOf(inner.codec),
     create
   );
 
-export const encTupleOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
+export const encFixedArrayOf = <
+  const T extends CodecValue,
+  Args extends readonly unknown[] = [T[]],
+>(
+  inner: Encodable<T>,
+  length: number,
+  runPrecision?: Precision,
+  create?: (...args: Args) => NoInfer<T[]>
+): Encodable<T[], Args> => {
+  const isItems = isArrayOf(inner.guard);
+
+  return encodable(
+    (value): value is T[] => isItems(value) && value.length === length,
+    runPrecision != null
+      ? codFixedRLEArray(inner.codec, length, runPrecision)
+      : codFixedArrayOf(inner.codec, length),
+    create
+  );
+};
+
+export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
   ...inners: { [K in keyof T]: Encodable<T[K]> }
 ): Encodable<T, [T]> =>
   encodable(
@@ -134,7 +155,7 @@ export const encTupleOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
 
 export const encRecordOf = <
   const K extends string | number,
-  const V,
+  const V extends CodecValue,
   Args extends readonly unknown[] = [Record<K, V>],
 >(
   encKey: Encodable<K>,
@@ -148,7 +169,7 @@ export const encRecordOf = <
   );
 
 export const encObjectOf = <
-  const T extends object,
+  const T extends { [K in keyof T]: CodecValue },
   Args extends readonly unknown[] = [T],
 >(
   shape: { [K in keyof T]-?: Encodable<T[K]> },
@@ -172,7 +193,7 @@ export const encObjectOf = <
 
 export const encMapOf = <
   const K extends string | number,
-  const V,
+  const V extends CodecValue,
   Args extends readonly unknown[] = [Map<K, V>],
 >(
   encKey: Encodable<K>,
@@ -189,7 +210,7 @@ export const encMapOf = <
     create
   );
 
-export const encUnionOf = <const T extends ReadonlyNonEmptyArray<unknown>>(
+export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
   ...encs: { [K in keyof T]: Encodable<T[K]> }
 ): Encodable<T[number], [T[number]]> => {
   const cod = chooseUIntCod(encs.length - 1);

@@ -1,10 +1,11 @@
 import { isNumber, isString } from "deep-guards";
 import { describe, expect, it } from "vitest";
 
-import { codString, codU8 } from "./codec.ts";
+import { codStringOf, codU8 } from "./codec.ts";
 import {
   encArrayOf,
   encExact,
+  encFixedArrayOf,
   encObjectOf,
   encodable,
   encOneOf,
@@ -16,7 +17,7 @@ import {
 } from "./encodable.ts";
 
 const byte = encodable(isNumber, codU8);
-const text = encodable(isString, codString);
+const text = encodable(isString, codStringOf());
 
 describe("encodable", () => {
   it("encodes and decodes through the codec", () => {
@@ -83,7 +84,7 @@ describe("encExact", () => {
 });
 
 describe("encOneOf", () => {
-  const colour = encOneOf("red", "green", "blue");
+  const colour = encOneOf(["red", "green", "blue"]);
 
   it("encodes as the index of the value", () => {
     expect(colour.encode("red")).toEqual(Uint8Array.of(0));
@@ -103,9 +104,17 @@ describe("encOneOf", () => {
     expect(colour.guard("pink")).toBe(false);
   });
 
+  it("uses the given precision for the index", () => {
+    const wide = encOneOf(["a", "b"], "u16");
+
+    expect(wide.encode("b")).toEqual(Uint8Array.of(1, 0));
+    expect(wide.decode(Uint8Array.of(1, 0))).toBe("b");
+    expect(wide.decode(Uint8Array.of(1))).toBeUndefined();
+  });
+
   it("widens the index past 256 values", () => {
     const many = encOneOf(
-      ...(Array.from({ length: 300 }, (_, i) => i) as [number, ...number[]])
+      Array.from({ length: 300 }, (_, i) => i) as [number, ...number[]]
     );
 
     expect(many.encode(299)).toEqual(Uint8Array.of(0x2b, 0x01));
@@ -188,9 +197,87 @@ describe("encArrayOf", () => {
   });
 
   it("uses a custom create when given", () => {
-    const rest = encArrayOf(byte, (...items: number[]) => items);
+    const rest = encArrayOf(byte, undefined, (...items: number[]) => items);
 
     expect(rest.create(1, 2, 3)).toEqual([1, 2, 3]);
+  });
+
+  describe("with a run precision", () => {
+    const rle = encArrayOf(byte, "u8");
+
+    it("run-length encodes behind a u32 run count", () => {
+      expect(rle.encode([5, 5, 5, 7])).toEqual(
+        Uint8Array.of(2, 0, 0, 0, 3, 5, 1, 7)
+      );
+      expect(rle.encode([])).toEqual(Uint8Array.of(0, 0, 0, 0));
+    });
+
+    it("round-trips", () => {
+      expect(rle.decode(rle.encode([5, 5, 5, 7]))).toEqual([5, 5, 5, 7]);
+      expect(rle.decode(rle.encode([]))).toEqual([]);
+    });
+
+    it("guards every item", () => {
+      expect(rle.guard([1, 1])).toBe(true);
+      expect(rle.guard([1, "1"])).toBe(false);
+    });
+
+    it("uses a custom create when given", () => {
+      const made = encArrayOf(byte, "u8", (n: number) => [n, n]);
+
+      expect(made.create(3)).toEqual([3, 3]);
+    });
+  });
+});
+
+describe("encFixedArrayOf", () => {
+  const triple = encFixedArrayOf(byte, 3);
+
+  it("writes the items with no length prefix", () => {
+    expect(triple.encode([1, 2, 3])).toEqual(Uint8Array.of(1, 2, 3));
+  });
+
+  it("round-trips", () => {
+    expect(triple.decode(Uint8Array.of(4, 5, 6))).toEqual([4, 5, 6]);
+  });
+
+  it("returns undefined when the bytes run out", () => {
+    expect(triple.decode(Uint8Array.of(1, 2))).toBeUndefined();
+  });
+
+  it("guards the length and every item", () => {
+    expect(triple.guard([1, 2, 3])).toBe(true);
+    expect(triple.guard([1, 2])).toBe(false);
+    expect(triple.guard([1, 2, 3, 4])).toBe(false);
+    expect(triple.guard([1, 2, "3"])).toBe(false);
+  });
+
+  it("uses a custom create when given", () => {
+    const made = encFixedArrayOf(byte, 2, undefined, (n: number) => [n, n]);
+
+    expect(made.create(3)).toEqual([3, 3]);
+  });
+
+  describe("with a run precision", () => {
+    const rle = encFixedArrayOf(byte, 4, "u8");
+
+    it("run-length encodes with no run count", () => {
+      expect(rle.encode([5, 5, 5, 7])).toEqual(Uint8Array.of(3, 5, 1, 7));
+      expect(rle.encode([1, 1, 1, 1])).toEqual(Uint8Array.of(4, 1));
+    });
+
+    it("round-trips", () => {
+      expect(rle.decode(Uint8Array.of(3, 5, 1, 7))).toEqual([5, 5, 5, 7]);
+    });
+
+    it("returns undefined when a run overshoots the length", () => {
+      expect(rle.decode(Uint8Array.of(5, 1))).toBeUndefined();
+    });
+
+    it("guards the length and every item", () => {
+      expect(rle.guard([1, 1, 1, 1])).toBe(true);
+      expect(rle.guard([1, 1])).toBe(false);
+    });
   });
 });
 

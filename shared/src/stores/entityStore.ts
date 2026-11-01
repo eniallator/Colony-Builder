@@ -1,4 +1,4 @@
-import { raise, tuple, type ReadonlyNonEmptyArray } from "niall-utils/core";
+import { raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
 import { typedFromEntries, typedToEntries } from "niall-utils/data";
 
 import {
@@ -60,14 +60,12 @@ export class EntityStore {
     return new Map(
       this.ids
         .toArray()
-        .map(id =>
-          tuple(
-            id,
-            typedFromEntries<Components>(
-              componentNames.map(name => tuple(name, this.stores[name].get(id)))
-            )
-          )
-        )
+        .map(id => [
+          id,
+          typedFromEntries(
+            componentNames.map(name => [name, this.stores[name].get(id)])
+          ),
+        ])
     );
   }
 

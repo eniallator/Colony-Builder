@@ -3,7 +3,12 @@ import { raise } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import type { RegionTiles, TerrainSnapshot } from "../protocol/message.ts";
-import { unsafeRegionId, type RegionId, type Tile } from "../terrain/index.ts";
+import {
+  regionPosToId,
+  worldToRegionPos,
+  type RegionId,
+  type Tile,
+} from "../terrain/index.ts";
 
 export class TerrainStore {
   private readonly regions: Map<RegionId, RegionTiles> = new Map();
@@ -18,22 +23,20 @@ export class TerrainStore {
       .map(id => id.split(",").map(Number) as [number, number]);
   }
 
-  add(x: number, y: number, region: RegionTiles) {
-    this.regions.set(unsafeRegionId(`${x},${y}`), region);
+  add(id: RegionId, region: RegionTiles) {
+    this.regions.set(id, region);
   }
 
-  optGet(x: number, y: number): RegionTiles | undefined {
-    return this.regions.get(unsafeRegionId(`${x},${y}`));
+  optGet(id: RegionId): RegionTiles | undefined {
+    return this.regions.get(id);
   }
 
-  get(x: number, y: number): RegionTiles {
-    return (
-      this.optGet(x, y) ?? raise(new Error(`No region exists at ${x}, ${y}`))
-    );
+  get(id: RegionId): RegionTiles {
+    return this.optGet(id) ?? raise(new Error(`No region exists at ${id}`));
   }
 
-  delete(x: number, y: number): boolean {
-    return this.regions.delete(unsafeRegionId(`${x},${y}`));
+  delete(id: RegionId): boolean {
+    return this.regions.delete(id);
   }
 
   takeSnapshot(): TerrainSnapshot {
@@ -55,14 +58,9 @@ export class TerrainStore {
   }
 
   optTileAt(x: number, y: number): Tile | undefined {
-    const id = unsafeRegionId(
-      `${Math.floor(x / REGION_SIDE_LENGTH)},${Math.floor(
-        y / REGION_SIDE_LENGTH
-      )}`
-    );
-
-    return this.regions.get(id)?.tiles[positiveMod(x, REGION_SIDE_LENGTH)]?.[
-      positiveMod(y, REGION_SIDE_LENGTH)
+    return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.tiles[
+      positiveMod(y, REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
+        positiveMod(x, REGION_SIDE_LENGTH)
     ];
   }
 

@@ -19,7 +19,7 @@ const isArrayBuffer = isInstance(ArrayBuffer);
 export const app = appMethods<State>({
   init: ({ canvas, mouse }) => {
     const state: State = {
-      camera: { center: Vector.zero(2), zoom: 0 },
+      camera: { center: Vector.zero(2), zoom: 2 },
       world: new World(),
     };
 

@@ -18,5 +18,5 @@ export const encEntityId = encodable<EntityId>(
 );
 
 export const allEntityTypes = tuple("player", "item");
-export const encEntityType = encOneOf(...allEntityTypes);
+export const encEntityType = encOneOf(allEntityTypes);
 export type EntityType = EncodableType<typeof encEntityType>;

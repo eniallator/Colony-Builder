@@ -2,32 +2,45 @@ import { describe, expect, it } from "vitest";
 
 import {
   chooseUIntCod,
+  codArrayOf,
   codBoolean,
+  codEntries,
+  codExact,
   codF16,
   codF32,
   codFixedArrayOf,
+  codFixedRLEArray,
   codI8,
   codI16,
   codI32,
   codMap,
   codMapOf,
+  codObjectOf,
   codOneOf,
+  codOptional,
   codRecordOf,
-  codString,
+  codRLEArray,
+  codStringOf,
   codTagged,
+  codTupleOf,
   codU8,
   codU16,
   codU32,
+  codUInt,
+  isPrecision,
   type Codec,
+  type CodecValue,
 } from "./codec.ts";
 
-const write = <T>(codec: Codec<T>, value: T) => {
+const codString = codStringOf();
+
+const write = <T extends CodecValue>(codec: Codec<T>, value: T) => {
   const buffer = new ArrayBuffer(codec.size(value));
   codec.write({ view: new DataView(buffer), pos: 0 }, value);
   return [...new Uint8Array(buffer)];
 };
 
-const read = <T>(codec: Codec<T>, bytes: number[]) => {
+const read = <T extends CodecValue>(codec: Codec<T>, bytes: number[]) => {
   const cursor = { view: new DataView(new Uint8Array(bytes).buffer), pos: 0 };
   return { value: codec.read(cursor), pos: cursor.pos };
 };
@@ -117,7 +130,7 @@ describe("chooseUIntCod", () => {
 describe("codOneOf", () => {
   it("uses a single byte for up to 256 values", () => {
     const values = Array.from({ length: 200 }, (_, i) => i);
-    const cod = codOneOf(...(values as [number, ...number[]]));
+    const cod = codOneOf(values as [number, ...number[]]);
 
     expect(write(cod, 199)).toEqual([199]);
     expect(read(cod, [199]).value).toBe(199);
@@ -125,7 +138,7 @@ describe("codOneOf", () => {
 
   it("widens the index to two bytes past 256 values", () => {
     const values = Array.from({ length: 300 }, (_, i) => i);
-    const cod = codOneOf(...(values as [number, ...number[]]));
+    const cod = codOneOf(values as [number, ...number[]]);
 
     expect(cod.size(0)).toBe(2);
     expect(write(cod, 299)).toEqual([0x2b, 0x01]);
@@ -133,7 +146,7 @@ describe("codOneOf", () => {
   });
 
   it("throws on an index outside the values", () => {
-    expect(() => read(codOneOf("a", "b"), [2])).toThrow("Unknown enum index");
+    expect(() => read(codOneOf(["a", "b"]), [2])).toThrow("Unknown enum index");
   });
 });
 
@@ -272,7 +285,6 @@ describe("codFixedArrayOf", () => {
     const cursor = { view: new DataView(new ArrayBuffer(8)), pos: 0 };
 
     expect(() => {
-      // @ts-expect-error the array is too short for the codec's length
       triple.write(cursor, [1, 2]);
     }).toThrow("Expected length 3, got 2");
   });
@@ -355,3 +367,368 @@ describe("codString", () => {
     expect(() => read(codString, [1, 0, 0, 0, 0xff])).toThrow(TypeError);
   });
 });
+
+describe("codUInt", () => {
+  it("uses the width of the precision", () => {
+    expect(write(codUInt("u8"), 7)).toEqual([7]);
+    expect(write(codUInt("u16"), 7)).toEqual([7, 0]);
+    expect(write(codUInt("u32"), 7)).toEqual([7, 0, 0, 0]);
+    expect(codUInt("u16").size(0)).toBe(2);
+    expect(read(codUInt("u16"), [7, 0])).toEqual({ value: 7, pos: 2 });
+  });
+
+  it("accepts the maximum and rejects anything larger", () => {
+    expect(write(codUInt("u8"), 255)).toEqual([255]);
+    expect(() => write(codUInt("u8"), 256)).toThrow(RangeError);
+    expect(() => write(codUInt("u16"), 65536)).toThrow(RangeError);
+  });
+});
+
+describe("length precision", () => {
+  it("defaults to u32", () => {
+    expect(write(codArrayOf(codU8), [1])).toEqual([1, 0, 0, 0, 1]);
+  });
+
+  it("is honoured by every length-prefixed codec", () => {
+    expect(write(codStringOf("u8"), "a")).toEqual([1, 0x61]);
+    expect(write(codArrayOf(codU8, "u8"), [1])).toEqual([1, 1]);
+    expect(write(codEntries(codU8, codU8, "u8"), [[1, 2]])).toEqual([1, 1, 2]);
+    expect(write(codRecordOf(codU8, codU8, "u8"), { 1: 2 })).toEqual([1, 1, 2]);
+    expect(write(codMapOf(codU8, codU8, "u8"), new Map([[1, 2]]))).toEqual([
+      1, 1, 2,
+    ]);
+  });
+
+  it("throws when a length overflows the precision", () => {
+    expect(() => write(codArrayOf(codU8, "u8"), Array(256).fill(0))).toThrow(
+      RangeError
+    );
+  });
+});
+
+describe("codEntries", () => {
+  const cod = codEntries(codU8, codU8);
+  const value: [number, number][] = [
+    [1, 2],
+    [3, 4],
+  ];
+
+  it("round-trips entries in order", () => {
+    expect(write(cod, value)).toEqual([2, 0, 0, 0, 1, 2, 3, 4]);
+    expect(read(cod, write(cod, value)).value).toEqual(value);
+    expect(cod.size(value)).toBe(8);
+  });
+});
+
+describe("codRLEArray", () => {
+  const rle = codRLEArray(codU8);
+
+  it("writes a run count, then a length and value per run", () => {
+    expect(write(rle, [])).toEqual([0, 0, 0, 0]);
+    expect(write(rle, [5, 5, 5, 7])).toEqual([2, 0, 0, 0, 3, 5, 1, 7]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    const value = [5, 5, 5, 7];
+
+    expect(rle.size(value)).toBe(write(rle, value).length);
+  });
+
+  it("splits runs longer than the run precision allows", () => {
+    const value = Array<number>(300).fill(1);
+
+    expect(write(rle, value)).toEqual([2, 0, 0, 0, 255, 1, 45, 1]);
+    expect(read(rle, write(rle, value)).value).toEqual(value);
+    expect(write(codRLEArray(codU8, "u32", "u16"), value)).toEqual([
+      1, 0, 0, 0, 0x2c, 0x01, 1,
+    ]);
+  });
+
+  it("honours the length precision", () => {
+    expect(write(codRLEArray(codU8, "u8"), [4, 4])).toEqual([1, 2, 4]);
+    expect(read(codRLEArray(codU8, "u8"), [1, 2, 4])).toEqual({
+      value: [4, 4],
+      pos: 3,
+    });
+  });
+
+  it("reads runs back into a flat array", () => {
+    expect(read(rle, [2, 0, 0, 0, 3, 5, 1, 7])).toEqual({
+      value: [5, 5, 5, 7],
+      pos: 8,
+    });
+    expect(read(rle, [0, 0, 0, 0])).toEqual({ value: [], pos: 4 });
+  });
+
+  it("reads runs using the run precision", () => {
+    const wide = codRLEArray(codU8, "u32", "u16");
+
+    expect(read(wide, [1, 0, 0, 0, 0x2c, 0x01, 1]).value).toEqual(
+      Array<number>(300).fill(1)
+    );
+  });
+
+  it("only merges values that are strictly equal", () => {
+    const objects = codRLEArray(codObjectOf({ a: codU8 }));
+
+    expect(write(objects, [{ a: 1 }, { a: 1 }])).toEqual([
+      2, 0, 0, 0, 1, 1, 1, 1,
+    ]);
+  });
+
+  it("throws when the run count overflows the length precision", () => {
+    const distinct = Array.from({ length: 256 }, (_, i) => i);
+
+    expect(() => write(codRLEArray(codU8, "u8"), distinct)).toThrow(RangeError);
+  });
+});
+
+describe("codFixedRLEArray", () => {
+  const rle = codFixedRLEArray(codU8, 4);
+
+  it("writes only the runs, with no count prefix", () => {
+    expect(write(rle, [5, 5, 5, 7])).toEqual([3, 5, 1, 7]);
+    expect(write(rle, [1, 1, 1, 1])).toEqual([4, 1]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(rle.size([5, 5, 5, 7])).toBe(4);
+    expect(rle.size([1, 1, 1, 1])).toBe(2);
+  });
+
+  it("reads runs until the fixed length is filled", () => {
+    expect(read(rle, [3, 5, 1, 7])).toEqual({ value: [5, 5, 5, 7], pos: 4 });
+  });
+
+  it("does not consume bytes past the final run", () => {
+    expect(read(rle, [4, 1, 9, 9]).pos).toBe(2);
+  });
+
+  it("splits runs longer than the run precision allows", () => {
+    const long = codFixedRLEArray(codU8, 300);
+    const value = Array<number>(300).fill(1);
+
+    expect(write(long, value)).toEqual([255, 1, 45, 1]);
+    expect(read(long, [255, 1, 45, 1]).value).toEqual(value);
+    expect(write(codFixedRLEArray(codU8, 300, "u16"), value)).toEqual([
+      0x2c, 0x01, 1,
+    ]);
+  });
+
+  it("round-trips an empty array without reading anything", () => {
+    const empty = codFixedRLEArray(codU8, 0);
+
+    expect(write(empty, [])).toEqual([]);
+    expect(read(empty, [])).toEqual({ value: [], pos: 0 });
+  });
+
+  it("throws when writing the wrong number of items", () => {
+    const cursor = { view: new DataView(new ArrayBuffer(8)), pos: 0 };
+
+    expect(() => {
+      rle.write(cursor, [1, 2]);
+    }).toThrow("Expected length 4, got 2");
+  });
+
+  it("throws when a run overshoots the fixed length", () => {
+    expect(() => read(rle, [5, 1])).toThrow(
+      "Run length exceeds remaining array length"
+    );
+  });
+
+  it("throws when the runs run past the end of the buffer", () => {
+    expect(() => read(rle, [3, 5])).toThrow(RangeError);
+  });
+});
+
+describe("isPrecision", () => {
+  it.each(["u8", "u16", "u32"])("accepts %s", precision => {
+    expect(isPrecision(precision)).toBe(true);
+  });
+
+  it.each(["u64", "U8", 8, undefined])("rejects %j", value => {
+    expect(isPrecision(value)).toBe(false);
+  });
+});
+
+describe("codUInt reading", () => {
+  it("throws when reading past the end of the buffer", () => {
+    expect(() => read(codUInt("u16"), [1])).toThrow(RangeError);
+  });
+});
+
+describe("codOneOf precision", () => {
+  const values = ["a", "b"] as const;
+
+  it("overrides the narrowest index width", () => {
+    const wide = codOneOf(values, "u16");
+
+    expect(wide.size("a")).toBe(2);
+    expect(write(wide, "b")).toEqual([1, 0]);
+    expect(read(wide, [1, 0])).toEqual({ value: "b", pos: 2 });
+  });
+
+  it("falls back to the narrowest width when omitted", () => {
+    expect(write(codOneOf(values), "b")).toEqual([1]);
+  });
+
+  it("throws when an index overflows the precision", () => {
+    const many = Array.from({ length: 300 }, (_, i) => i);
+    const narrow = codOneOf(many as [number, ...number[]], "u8");
+
+    expect(() => write(narrow, 299)).toThrow(RangeError);
+  });
+});
+
+describe("codExact", () => {
+  const exact = codExact("tag");
+
+  it("occupies no bytes", () => {
+    expect(exact.size("tag")).toBe(0);
+    expect(write(exact, "tag")).toEqual([]);
+  });
+
+  it("reads the fixed value without moving the cursor", () => {
+    expect(read(exact, [])).toEqual({ value: "tag", pos: 0 });
+  });
+});
+
+describe("codOptional", () => {
+  const optional = codOptional(codU8);
+
+  it("writes a presence byte before a defined value", () => {
+    expect(write(optional, undefined)).toEqual([0]);
+    expect(write(optional, 5)).toEqual([1, 5]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(optional.size(undefined)).toBe(1);
+    expect(optional.size(5)).toBe(2);
+  });
+
+  it("reads back both cases", () => {
+    expect(read(optional, [0])).toEqual({ value: undefined, pos: 1 });
+    expect(read(optional, [1, 5])).toEqual({ value: 5, pos: 2 });
+  });
+});
+
+describe("codTupleOf", () => {
+  const tuple = codTupleOf<[number, number]>(codU8, codU16);
+
+  it("writes the members in order with no prefix", () => {
+    expect(write(tuple, [1, 2])).toEqual([1, 2, 0]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(tuple.size([1, 2])).toBe(3);
+  });
+
+  it("reads the members back, advancing the cursor", () => {
+    expect(read(tuple, [1, 2, 0])).toEqual({ value: [1, 2], pos: 3 });
+  });
+});
+
+describe("codObjectOf", () => {
+  const obj = codObjectOf<{ a: number; b: number | undefined }>({
+    a: codU8,
+    b: codOptional(codU8),
+  });
+
+  it("writes the fields in declaration order", () => {
+    expect(write(obj, { a: 1, b: 2 })).toEqual([1, 1, 2]);
+    expect(write(obj, { a: 1, b: undefined })).toEqual([1, 0]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(obj.size({ a: 1, b: 2 })).toBe(3);
+    expect(obj.size({ a: 1, b: undefined })).toBe(2);
+  });
+
+  it("round-trips, omitting undefined fields on read", () => {
+    expect(read(obj, [1, 1, 2])).toEqual({ value: { a: 1, b: 2 }, pos: 3 });
+
+    const { value, pos } = read(obj, [1, 0]);
+    expect(value).toStrictEqual({ a: 1 });
+    expect(pos).toBe(2);
+  });
+});
+
+describe("codArrayOf", () => {
+  const arr = codArrayOf(codU8);
+
+  it("prefixes the items with a u32 count", () => {
+    expect(write(arr, [])).toEqual([0, 0, 0, 0]);
+    expect(write(arr, [1, 2])).toEqual([2, 0, 0, 0, 1, 2]);
+  });
+
+  it("sizes exactly what it writes", () => {
+    expect(arr.size([1, 2])).toBe(6);
+    expect(codArrayOf(codString).size(["a", "bc"])).toBe(
+      write(codArrayOf(codString), ["a", "bc"]).length
+    );
+  });
+
+  it("round-trips, advancing the cursor past every item", () => {
+    expect(read(arr, [2, 0, 0, 0, 1, 2])).toEqual({ value: [1, 2], pos: 6 });
+  });
+
+  it("throws when the count exceeds the remaining bytes", () => {
+    expect(() => read(arr, [5, 0, 0, 0, 1])).toThrow(
+      "Array length exceeds remaining bytes"
+    );
+  });
+});
+
+describe("length precision reading", () => {
+  it("reads every length-prefixed codec with a custom precision", () => {
+    expect(read(codStringOf("u8"), [1, 0x61])).toEqual({ value: "a", pos: 2 });
+    expect(read(codArrayOf(codU8, "u16"), [1, 0, 9])).toEqual({
+      value: [9],
+      pos: 3,
+    });
+    expect(read(codEntries(codU8, codU8, "u8"), [1, 1, 2])).toEqual({
+      value: [[1, 2]],
+      pos: 3,
+    });
+    expect(read(codRecordOf(codU8, codU8, "u8"), [1, 1, 2])).toEqual({
+      value: { 1: 2 },
+      pos: 3,
+    });
+    expect(read(codMapOf(codU8, codU8, "u8"), [1, 1, 2])).toEqual({
+      value: new Map([[1, 2]]),
+      pos: 3,
+    });
+  });
+
+  it("throws when a string or array overflows its precision", () => {
+    expect(() => write(codStringOf("u8"), "a".repeat(256))).toThrow(RangeError);
+    expect(() => write(codMapOf(codU8, codU8, "u8"), bigMap())).toThrow(
+      RangeError
+    );
+  });
+
+  it("throws when entries or records overflow their precision", () => {
+    const entries = Array.from({ length: 256 }, (_, i): [number, number] => [
+      i,
+      i,
+    ]);
+
+    expect(() => write(codEntries(codU8, codU8, "u8"), entries)).toThrow(
+      RangeError
+    );
+    expect(() =>
+      write(codRecordOf(codU8, codU8, "u8"), Object.fromEntries(entries))
+    ).toThrow(RangeError);
+  });
+});
+
+describe("codEntries reading", () => {
+  it("throws when the entries run past the end of the buffer", () => {
+    expect(() => read(codEntries(codU8, codU8), [2, 0, 0, 0, 1, 2])).toThrow(
+      RangeError
+    );
+  });
+});
+
+const bigMap = () =>
+  new Map(Array.from({ length: 256 }, (_, i): [number, number] => [i, i]));
