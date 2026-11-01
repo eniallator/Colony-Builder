@@ -1,10 +1,11 @@
 import {
   encClientMessage,
-  encMoveMessage,
   encServerMessage,
   SOCKET_PORT,
   TPS,
+  UNLOADED_SIDE_LENGTH,
   World,
+  worldToRegionPos,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
 import { Vector } from "vectyped";
@@ -18,15 +19,18 @@ const isArrayBuffer = isInstance(ArrayBuffer);
 
 export const app = appMethods<State>({
   init: ({ canvas, mouse }) => {
-    const state: State = {
-      camera: { center: Vector.zero(2), zoom: 2 },
-      world: new World(),
-    };
-
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(
       `${protocol}://${location.hostname}:${SOCKET_PORT}`
     );
+
+    const state: State = {
+      camera: { center: Vector.zero(2), zoom: 2 },
+      world: new World(),
+      send: message => {
+        socket.send(encClientMessage.encode(message));
+      },
+    };
 
     socket.binaryType = "arraybuffer";
 
@@ -40,18 +44,14 @@ export const app = appMethods<State>({
 
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
-      socket.send(
-        encClientMessage.encode(
-          encMoveMessage.create(...mouseWorldPos.toArray())
-        )
-      );
+      state.send({ type: "move", position: mouseWorldPos });
     });
 
     return state;
   },
 
   animationFrame: ({ getState, canvas, ctx, time }) => {
-    const { playerId, world, camera } = getState();
+    const { playerId, world, camera, send } = getState();
     const dt = Math.min(time.delta, 2 / TPS);
 
     const systemCtx: Parameters<ClientSystem>[0] = {
@@ -63,6 +63,18 @@ export const app = appMethods<State>({
       world,
       dt,
     };
+
+    const playerPos =
+      playerId != null
+        ? world.entities.optGet(playerId, "position")
+        : undefined;
+    if (playerPos != null) {
+      const unloaded = world.terrain.unloadOutside(
+        ...worldToRegionPos(...playerPos.toArray()),
+        UNLOADED_SIDE_LENGTH
+      );
+      if (unloaded.length > 0) send({ type: "unload", ids: unloaded });
+    }
 
     for (const system of clientSystems) system(systemCtx);
   },

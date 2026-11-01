@@ -11,7 +11,7 @@ import {
   type EntityId,
 } from "../entity/index.ts";
 import {
-  encWorldSnapshot,
+  encEntitySnapshot,
   type ComponentSnapshot,
   type EntitySnapshot,
 } from "../protocol/index.ts";
@@ -172,7 +172,7 @@ describe("EntityStore", () => {
       const player = createPlayer(world, Vector.create(1, 2));
       const item = createItem(world, Vector.create(3, 4));
 
-      expect(world.entities.takeSnapshot()).toEqual(
+      expect(world.entities.takeSnapshot([player, item])).toEqual(
         new Map([
           [
             player,
@@ -203,27 +203,35 @@ describe("EntityStore", () => {
       const player = createPlayer(world);
       world.entities.add(player, "destination", Vector.create(5, 6));
 
-      expect(world.entities.takeSnapshot().get(player)?.destination).toEqual(
-        Vector.create(5, 6)
-      );
+      expect(
+        world.entities.takeSnapshot([player]).get(player)?.destination
+      ).toEqual(Vector.create(5, 6));
     });
 
-    it("skips entities without a position", () => {
-      const store = new EntityStore();
-      store.spawn({ speed: 1 });
+    it("only captures the requested ids", () => {
+      const world = new World();
+      createPlayer(world);
+      const item = createItem(world);
 
-      expect(store.takeSnapshot()).toEqual(new Map());
+      expect([...world.entities.takeSnapshot([item]).keys()]).toEqual([item]);
+    });
+
+    it("is empty when no ids are requested", () => {
+      const world = new World();
+      createPlayer(world);
+
+      expect(world.entities.takeSnapshot([])).toEqual(new Map());
     });
 
     it("survives an encode / decode round trip", () => {
       const world = new World();
-      createPlayer(world, Vector.create(1.5, 2.5));
-      createItem(world);
+      const player = createPlayer(world, Vector.create(1.5, 2.5));
+      const item = createItem(world);
 
-      const snapshot = world.takeSnapshot();
+      const snapshot = world.entities.takeSnapshot([player, item]);
 
       expect(
-        encWorldSnapshot.decode(encWorldSnapshot.encode(snapshot))
+        encEntitySnapshot.decode(encEntitySnapshot.encode(snapshot))
       ).toEqual(snapshot);
     });
 
@@ -233,7 +241,7 @@ describe("EntityStore", () => {
       const item = createItem(world, Vector.create(3, 4));
       const store = new EntityStore();
 
-      store.applySnapshot(world.entities.takeSnapshot());
+      store.applySnapshot(world.entities.takeSnapshot([player, item]));
 
       expect(store.get(player, "position").toArray()).toEqual([1, 2]);
       expect(store.get(item, "position").toArray()).toEqual([3, 4]);
@@ -379,16 +387,11 @@ describe("EntityStore", () => {
 
       it("clears components omitted from a decoded snapshot", () => {
         const store = populated();
-        const decoded = encWorldSnapshot.decode(
-          encWorldSnapshot.encode({
-            entities: snapshotOf([a, component()]),
-            terrain: new Map(),
-          })
+        const decoded = encEntitySnapshot.decode(
+          encEntitySnapshot.encode(snapshotOf([a, component()]))
         );
 
-        store.applySnapshot(
-          (decoded ?? raise(new Error("Did not decode"))).entities
-        );
+        store.applySnapshot(decoded ?? raise(new Error("Did not decode")));
 
         expect(store.query("destination")).toEqual([]);
         expect(store.query("speed")).toEqual([]);

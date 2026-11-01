@@ -27,6 +27,18 @@ export const regionToWorldPos = (
   y: number
 ): [x: number, y: number] => [x * REGION_SIDE_LENGTH, y * REGION_SIDE_LENGTH];
 
+export const regionsAround = (
+  centerX: number,
+  centerY: number,
+  sideLength: number
+): RegionId[] =>
+  Array.from({ length: sideLength ** 2 }, (_, i) =>
+    regionPosToId(
+      Math.floor(centerX - sideLength / 2 + Math.floor(i / sideLength)),
+      Math.floor(centerY - sideLength / 2 + (i % sideLength))
+    )
+  );
+
 const codNumberPair: Codec<`${number},${number}`> = {
   size: () => 2 * codI32.size(0),
   write: (cursor, value) => {

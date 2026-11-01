@@ -5,7 +5,6 @@ import { codStringOf, codU8 } from "./codec.ts";
 import {
   encArrayOf,
   encExact,
-  encFixedArrayOf,
   encObjectOf,
   encodable,
   encOneOf,
@@ -44,14 +43,9 @@ describe("encodable", () => {
     expect(small.decode(Uint8Array.of(10))).toBeUndefined();
   });
 
-  it("uses the identity as the default create", () => {
-    expect(byte.create(5)).toBe(5);
-  });
-
-  it("uses a custom create when given", () => {
-    const doubled = encodable(isNumber, codU8, (n: number) => n * 2);
-
-    expect(doubled.create(5)).toBe(10);
+  it("exposes the guard and codec it was built from", () => {
+    expect(byte.guard).toBe(isNumber);
+    expect(byte.codec).toBe(codU8);
   });
 });
 
@@ -70,16 +64,6 @@ describe("encExact", () => {
 
   it("returns undefined when given bytes", () => {
     expect(tag.decode(Uint8Array.of(0))).toBeUndefined();
-  });
-
-  it("uses the value as the default create", () => {
-    expect(tag.create("tag")).toBe("tag");
-  });
-
-  it("uses a custom create when given", () => {
-    const made = encExact("tag", () => "tag");
-
-    expect(made.create()).toBe("tag");
   });
 });
 
@@ -163,32 +147,40 @@ describe("encOptional", () => {
     expect(maybeByte.guard(3)).toBe(true);
     expect(maybeByte.guard("x")).toBe(false);
   });
-
-  it("uses a custom create when given", () => {
-    const orZero = encOptional(byte, (n?: number) => n);
-
-    expect(orZero.create(4)).toBe(4);
-    expect(orZero.create()).toBeUndefined();
-  });
 });
 
 describe("encArrayOf", () => {
   const bytesArray = encArrayOf(byte);
 
-  it("prefixes the items with a u32 length", () => {
-    expect(bytesArray.encode([5, 6])).toEqual(Uint8Array.of(2, 0, 0, 0, 5, 6));
-    expect(bytesArray.encode([])).toEqual(Uint8Array.of(0, 0, 0, 0));
+  it("writes the dynamic mode and a u32 length before the items", () => {
+    expect(bytesArray.encode([5, 6])).toEqual(
+      Uint8Array.of(0, 2, 0, 0, 0, 5, 6)
+    );
+    expect(bytesArray.encode([])).toEqual(Uint8Array.of(0, 0, 0, 0, 0));
+  });
+
+  it("switches to run-length encoding when that is smaller", () => {
+    expect(bytesArray.encode([5, 5, 5, 5, 5, 7])).toEqual(
+      Uint8Array.of(1, 2, 0, 0, 0, 5, 5, 1, 7)
+    );
   });
 
   it("round-trips", () => {
     expect(bytesArray.decode(bytesArray.encode([1, 2, 3]))).toEqual([1, 2, 3]);
+    expect(bytesArray.decode(bytesArray.encode([4, 4, 4, 4, 4, 4]))).toEqual([
+      4, 4, 4, 4, 4, 4,
+    ]);
     expect(bytesArray.decode(bytesArray.encode([]))).toEqual([]);
   });
 
   it("returns undefined when the length exceeds the remaining bytes", () => {
     expect(
-      bytesArray.decode(Uint8Array.of(255, 255, 255, 255, 1))
+      bytesArray.decode(Uint8Array.of(0, 255, 255, 255, 255, 1))
     ).toBeUndefined();
+  });
+
+  it("returns undefined for a fixed-length mode", () => {
+    expect(bytesArray.decode(Uint8Array.of(2, 1))).toBeUndefined();
   });
 
   it("guards every item", () => {
@@ -196,93 +188,55 @@ describe("encArrayOf", () => {
     expect(bytesArray.guard([1, "2"])).toBe(false);
   });
 
-  it("uses a custom create when given", () => {
-    const rest = encArrayOf(byte, undefined, (...items: number[]) => items);
+  it("passes the precisions on to the codec", () => {
+    const wide = encArrayOf(byte, { runPrecision: "u16" });
 
-    expect(rest.create(1, 2, 3)).toEqual([1, 2, 3]);
+    expect(wide.encode(Array<number>(300).fill(1))).toEqual(
+      Uint8Array.of(1, 1, 0, 0, 0, 0x2c, 0x01, 1)
+    );
   });
 
-  describe("with a run precision", () => {
-    const rle = encArrayOf(byte, "u8");
+  describe("with a fixed length", () => {
+    const triple = encArrayOf(byte, { fixedLength: 3 });
 
-    it("run-length encodes behind a u32 run count", () => {
-      expect(rle.encode([5, 5, 5, 7])).toEqual(
-        Uint8Array.of(2, 0, 0, 0, 3, 5, 1, 7)
-      );
-      expect(rle.encode([])).toEqual(Uint8Array.of(0, 0, 0, 0));
+    it("writes the fixed mode and the items with no length", () => {
+      expect(triple.encode([1, 2, 3])).toEqual(Uint8Array.of(2, 1, 2, 3));
+    });
+
+    it("switches to run-length encoding when that is smaller", () => {
+      const five = encArrayOf(byte, { fixedLength: 5 });
+
+      expect(five.encode([1, 1, 1, 1, 1])).toEqual(Uint8Array.of(3, 5, 1));
     });
 
     it("round-trips", () => {
-      expect(rle.decode(rle.encode([5, 5, 5, 7]))).toEqual([5, 5, 5, 7]);
-      expect(rle.decode(rle.encode([]))).toEqual([]);
+      expect(triple.decode(Uint8Array.of(2, 4, 5, 6))).toEqual([4, 5, 6]);
+      expect(triple.decode(triple.encode([7, 7, 7]))).toEqual([7, 7, 7]);
     });
 
-    it("guards every item", () => {
-      expect(rle.guard([1, 1])).toBe(true);
-      expect(rle.guard([1, "1"])).toBe(false);
-    });
-
-    it("uses a custom create when given", () => {
-      const made = encArrayOf(byte, "u8", (n: number) => [n, n]);
-
-      expect(made.create(3)).toEqual([3, 3]);
-    });
-  });
-});
-
-describe("encFixedArrayOf", () => {
-  const triple = encFixedArrayOf(byte, 3);
-
-  it("writes the items with no length prefix", () => {
-    expect(triple.encode([1, 2, 3])).toEqual(Uint8Array.of(1, 2, 3));
-  });
-
-  it("round-trips", () => {
-    expect(triple.decode(Uint8Array.of(4, 5, 6))).toEqual([4, 5, 6]);
-  });
-
-  it("returns undefined when the bytes run out", () => {
-    expect(triple.decode(Uint8Array.of(1, 2))).toBeUndefined();
-  });
-
-  it("guards the length and every item", () => {
-    expect(triple.guard([1, 2, 3])).toBe(true);
-    expect(triple.guard([1, 2])).toBe(false);
-    expect(triple.guard([1, 2, 3, 4])).toBe(false);
-    expect(triple.guard([1, 2, "3"])).toBe(false);
-  });
-
-  it("uses a custom create when given", () => {
-    const made = encFixedArrayOf(byte, 2, undefined, (n: number) => [n, n]);
-
-    expect(made.create(3)).toEqual([3, 3]);
-  });
-
-  describe("with a run precision", () => {
-    const rle = encFixedArrayOf(byte, 4, "u8");
-
-    it("run-length encodes with no run count", () => {
-      expect(rle.encode([5, 5, 5, 7])).toEqual(Uint8Array.of(3, 5, 1, 7));
-      expect(rle.encode([1, 1, 1, 1])).toEqual(Uint8Array.of(4, 1));
-    });
-
-    it("round-trips", () => {
-      expect(rle.decode(Uint8Array.of(3, 5, 1, 7))).toEqual([5, 5, 5, 7]);
+    it("returns undefined when the bytes run out", () => {
+      expect(triple.decode(Uint8Array.of(2, 1, 2))).toBeUndefined();
     });
 
     it("returns undefined when a run overshoots the length", () => {
-      expect(rle.decode(Uint8Array.of(5, 1))).toBeUndefined();
+      expect(triple.decode(Uint8Array.of(3, 5, 1))).toBeUndefined();
+    });
+
+    it("returns undefined for a dynamic mode", () => {
+      expect(triple.decode(Uint8Array.of(0, 0, 0, 0, 0))).toBeUndefined();
     });
 
     it("guards the length and every item", () => {
-      expect(rle.guard([1, 1, 1, 1])).toBe(true);
-      expect(rle.guard([1, 1])).toBe(false);
+      expect(triple.guard([1, 2, 3])).toBe(true);
+      expect(triple.guard([1, 2])).toBe(false);
+      expect(triple.guard([1, 2, 3, 4])).toBe(false);
+      expect(triple.guard([1, 2, "3"])).toBe(false);
     });
   });
 });
 
 describe("encRecordOf", () => {
-  const scores = encRecordOf(text, byte, (rec: Record<string, number>) => rec);
+  const scores = encRecordOf(text, byte);
 
   it("prefixes the entries with a u32 count", () => {
     expect(scores.encode({})).toEqual(Uint8Array.of(0, 0, 0, 0));
@@ -308,12 +262,6 @@ describe("encRecordOf", () => {
     expect(scores.guard({ a: "1" })).toBe(false);
     expect(scores.guard("nope")).toBe(false);
     expect(scores.guard(null)).toBe(false);
-  });
-
-  it("uses the given create", () => {
-    const made = encRecordOf(text, byte, (n: number) => ({ n }));
-
-    expect(made.create(4)).toEqual({ n: 4 });
   });
 });
 
@@ -350,12 +298,6 @@ describe("encExactObjectOf", () => {
     expect(entity.guard({ id: "1", tag: "e" })).toBe(false);
     expect(entity.guard({ id: 1, tag: "e", extra: 1 })).toBe(false);
     expect(entity.guard(null)).toBe(false);
-  });
-
-  it("uses the custom create when given", () => {
-    const wrapped = encObjectOf({ id: byte }, (id: number) => ({ id }));
-
-    expect(wrapped.create(4)).toEqual({ id: 4 });
   });
 });
 

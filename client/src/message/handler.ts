@@ -9,8 +9,12 @@ export const messageHandler = (state: State, message: ServerMessage): void => {
       state.playerId = message.id;
       break;
 
-    case "snapshot":
-      state.world.applySnapshot(message.snapshot);
+    case "entities":
+      state.world.entities.applySnapshot(message.snapshot);
+      break;
+
+    case "terrain":
+      state.world.terrain.applySnapshot(message.snapshot);
       break;
 
     default:

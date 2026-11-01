@@ -1,14 +1,19 @@
 import {
+  createPlayer,
   encClientMessage,
-  encInitMessage,
-  encMoveMessage,
   encServerMessage,
-  encSnapshotMessage,
+  REGION_SIDE_LENGTH,
+  regionPosToId,
   SOCKET_PORT,
   TPS,
+  UNLOADED_SIDE_LENGTH,
   unsafeEntityId,
   World,
+  type ClientMessage,
   type ComponentSnapshot,
+  type EntityId,
+  type RegionTiles,
+  type ServerMessage,
 } from "@colony-builder/shared";
 import { raise, toElement } from "niall-utils";
 import { Vector } from "vectyped";
@@ -72,6 +77,13 @@ const createAppContext = (): AppContext => {
 
 const message = (data: unknown) => new MessageEvent("message", { data });
 
+const serverMessage = (serverMsg: ServerMessage) =>
+  message(encServerMessage.encode(serverMsg).buffer);
+
+const grass: RegionTiles = {
+  tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => "grass"),
+};
+
 beforeEach(() => {
   FakeWebSocket.instances = [];
   vi.stubGlobal("WebSocket", FakeWebSocket);
@@ -83,12 +95,13 @@ afterEach(() => {
 });
 
 describe("app.init", () => {
-  it("starts with an empty world and a centred camera", () => {
+  it("starts with an empty world and a zoomed in, centred camera", () => {
     const state = app.init(createAppContext());
 
     expect(state.world.entities.query("position")).toEqual([]);
+    expect([...state.world.terrain.ids]).toEqual([]);
     expect(state.camera.center.toArray()).toEqual([0, 0]);
-    expect(state.camera.zoom).toBe(0);
+    expect(state.camera.zoom).toBe(2);
     expect(state.playerId).toBeUndefined();
   });
 
@@ -107,21 +120,34 @@ describe("app.init", () => {
     expect(lastSocket().url).toBe(`wss://example.com:${SOCKET_PORT}`);
   });
 
+  describe("send", () => {
+    it("encodes client messages onto the socket", () => {
+      const state = app.init(createAppContext());
+      const unload: ClientMessage = {
+        type: "unload",
+        ids: [regionPosToId(3, -4)],
+      };
+
+      state.send(unload);
+
+      expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
+        encClientMessage.encode(unload)
+      );
+    });
+  });
+
   describe("server messages", () => {
     it("stores the player id from an init message", () => {
       const state = app.init(createAppContext());
 
       lastSocket().dispatchEvent(
-        message(
-          encServerMessage.encode(encInitMessage.create(unsafeEntityId(4)))
-            .buffer
-        )
+        serverMessage({ type: "init", id: unsafeEntityId(4) })
       );
 
       expect(state.playerId).toBe(4);
     });
 
-    it("applies snapshot messages to the world", () => {
+    it("applies entities messages to the world", () => {
       const state = app.init(createAppContext());
       const id = unsafeEntityId(2);
       const entity: ComponentSnapshot = {
@@ -133,19 +159,25 @@ describe("app.init", () => {
       };
 
       lastSocket().dispatchEvent(
-        message(
-          encServerMessage.encode(
-            encSnapshotMessage.create({
-              entities: new Map([[id, entity]]),
-              terrain: new Map(),
-            })
-          ).buffer
-        )
+        serverMessage({ type: "entities", snapshot: new Map([[id, entity]]) })
       );
 
       expect(state.world.entities.get(id, "position").toArray()).toEqual([
         3, 4,
       ]);
+    });
+
+    it("applies terrain messages to the world", () => {
+      const state = app.init(createAppContext());
+
+      lastSocket().dispatchEvent(
+        serverMessage({
+          type: "terrain",
+          snapshot: new Map([[regionPosToId(1, 2), grass]]),
+        })
+      );
+
+      expect(state.world.terrain.get(regionPosToId(1, 2))).toEqual(grass);
     });
 
     it("ignores messages that are not binary", () => {
@@ -163,6 +195,7 @@ describe("app.init", () => {
 
       expect(state.playerId).toBeUndefined();
       expect(state.world.entities.query("position")).toEqual([]);
+      expect([...state.world.terrain.ids]).toEqual([]);
     });
   });
 
@@ -175,8 +208,12 @@ describe("app.init", () => {
         new MouseEvent("mousedown", { clientX: 60, clientY: 30 })
       );
 
+      // The click is (10, 5) from the canvas centre, scaled down by 2 ** zoom.
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        encClientMessage.encode(encMoveMessage.create(10, 5))
+        encClientMessage.encode({
+          type: "move",
+          position: Vector.create(2.5, 1.25),
+        })
       );
     });
 
@@ -191,7 +228,10 @@ describe("app.init", () => {
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
-        encClientMessage.encode(encMoveMessage.create(105, 102.5))
+        encClientMessage.encode({
+          type: "move",
+          position: Vector.create(105, 102.5),
+        })
       );
     });
   });
@@ -210,11 +250,16 @@ describe("app.animationFrame", () => {
     return ctx;
   };
 
-  const createState = (): State => ({
-    camera: { center: Vector.zero(2), zoom: 0 },
-    world: new World(),
-    playerId: unsafeEntityId(1),
-  });
+  const createState = (playerPosition?: Vector<2>): State => {
+    const world = new World();
+
+    return {
+      camera: { center: Vector.zero(2), zoom: 0 },
+      world,
+      playerId: createPlayer(world, playerPosition),
+      send: vi.fn(),
+    };
+  };
 
   const firstCtx = (system: Mock<ClientSystem> | undefined) =>
     system?.mock.calls[0]?.[0] ?? raise(new Error("System was not called"));
@@ -262,5 +307,131 @@ describe("app.animationFrame", () => {
     frame(createState(), { delta: 5 });
 
     expect(firstCtx(systems[0]).dt).toBe(2 / TPS);
+  });
+
+  describe("when the player has no position yet", () => {
+    const far = regionPosToId(UNLOADED_SIDE_LENGTH, 0);
+
+    const stateWithout = (playerId?: EntityId): State => {
+      const world = new World();
+      world.terrain.add(far, grass);
+
+      return {
+        camera: { center: Vector.zero(2), zoom: 0 },
+        world,
+        playerId,
+        send: vi.fn(),
+      };
+    };
+
+    it("keeps all terrain without a player id", () => {
+      const state = stateWithout();
+
+      frame(state);
+
+      expect(state.world.terrain.optGet(far)).toBe(grass);
+      expect(state.send).not.toHaveBeenCalled();
+    });
+
+    it("keeps all terrain while the player entity has not arrived", () => {
+      const state = stateWithout(unsafeEntityId(1));
+
+      frame(state);
+
+      expect(state.world.terrain.optGet(far)).toBe(grass);
+      expect(state.send).not.toHaveBeenCalled();
+    });
+
+    it("still runs the systems", () => {
+      frame(stateWithout());
+
+      expect(systems[0]).toHaveBeenCalledOnce();
+      expect(systems[1]).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("unloading terrain", () => {
+    const half = UNLOADED_SIDE_LENGTH / 2;
+
+    it("drops regions outside the unload square and tells the server", () => {
+      const state = createState();
+      const far = regionPosToId(half, 0);
+      state.world.terrain.add(regionPosToId(0, 0), grass);
+      state.world.terrain.add(far, grass);
+
+      frame(state);
+
+      expect([...state.world.terrain.ids]).toEqual(["0,0"]);
+      expect(state.send).toHaveBeenCalledExactlyOnceWith({
+        type: "unload",
+        ids: [far],
+      });
+    });
+
+    it("keeps regions on the inclusive lower and exclusive upper edge", () => {
+      const state = createState();
+      state.world.terrain.add(regionPosToId(-half, 0), grass);
+      state.world.terrain.add(regionPosToId(half - 1, 0), grass);
+
+      frame(state);
+
+      expect([...state.world.terrain.ids]).toEqual([
+        regionPosToId(-half, 0),
+        regionPosToId(half - 1, 0),
+      ]);
+      expect(state.send).not.toHaveBeenCalled();
+    });
+
+    it("sends nothing when there is nothing to unload", () => {
+      const state = createState();
+      state.world.terrain.add(regionPosToId(0, 0), grass);
+
+      frame(state);
+
+      expect(state.send).not.toHaveBeenCalled();
+    });
+
+    it("is centred on the region the player is in", () => {
+      const state = createState(Vector.create(5.5 * REGION_SIDE_LENGTH, 0));
+      const behind = regionPosToId(5 - half - 1, 0);
+      state.world.terrain.add(regionPosToId(0, 0), grass);
+      state.world.terrain.add(behind, grass);
+
+      frame(state);
+
+      expect([...state.world.terrain.ids]).toEqual(["0,0"]);
+      expect(state.send).toHaveBeenCalledExactlyOnceWith({
+        type: "unload",
+        ids: [behind],
+      });
+    });
+
+    it("unloads in one message, in store order", () => {
+      const state = createState();
+      const [a, b] = [regionPosToId(half, 0), regionPosToId(0, -half - 1)];
+      state.world.terrain.add(a, grass);
+      state.world.terrain.add(b, grass);
+
+      frame(state);
+
+      expect(state.send).toHaveBeenCalledExactlyOnceWith({
+        type: "unload",
+        ids: [a, b],
+      });
+    });
+
+    it("happens before the systems run", () => {
+      const state = createState();
+      const far = regionPosToId(half, 0);
+      state.world.terrain.add(far, grass);
+      const seenByFirstSystem: boolean[] = [];
+      systems[0]?.mockImplementation(({ world }) => {
+        seenByFirstSystem.push(world.terrain.optGet(far) != null);
+      });
+
+      frame(state);
+
+      expect(seenByFirstSystem).toEqual([false]);
+    });
   });
 });

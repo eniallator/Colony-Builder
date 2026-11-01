@@ -1,10 +1,12 @@
 import { positiveMod } from "niall-utils";
-import { raise } from "niall-utils/core";
+import { raise, tuple } from "niall-utils/core";
 
-import { REGION_SIDE_LENGTH } from "../constants.ts";
+import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import type { RegionTiles, TerrainSnapshot } from "../protocol/message.ts";
 import {
+  regionIdToPos,
   regionPosToId,
+  regionsAround,
   worldToRegionPos,
   type RegionId,
   type Tile,
@@ -39,24 +41,6 @@ export class TerrainStore {
     return this.regions.delete(id);
   }
 
-  takeSnapshot(): TerrainSnapshot {
-    return new Map(this.regions.entries().map(([id, tiles]) => [id, tiles]));
-  }
-
-  applySnapshot(snapshot: TerrainSnapshot): void {
-    const seen = new Set<RegionId>();
-
-    for (const [id, tiles] of snapshot) {
-      seen.add(id);
-
-      this.regions.set(id, tiles);
-    }
-
-    for (const id of this.ids) {
-      if (!seen.has(id)) this.regions.delete(id);
-    }
-  }
-
   optTileAt(x: number, y: number): Tile | undefined {
     return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.tiles[
       positiveMod(y, REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
@@ -69,6 +53,58 @@ export class TerrainStore {
       this.optTileAt(x, y) ??
       raise(new Error(`No region exists for position ${x}, ${y}`))
     );
+  }
+
+  takeSnapshot(ids: RegionId[]): TerrainSnapshot {
+    return new Map(
+      ids.map(id =>
+        tuple(
+          id,
+          this.regions.get(id) ??
+            raise(new Error(`Region ${id} not loaded yet!`))
+        )
+      )
+    );
+  }
+
+  applySnapshot(snapshot: TerrainSnapshot): void {
+    for (const [id, tiles] of snapshot) this.regions.set(id, tiles);
+  }
+
+  loadTerrain(worldX: number, worldY: number): Set<RegionId> {
+    const ids = regionsAround(
+      ...worldToRegionPos(worldX, worldY),
+      LOADED_SIDE_LENGTH
+    );
+
+    for (const id of ids) {
+      if (this.regions.get(id) == null) {
+        this.regions.set(id, {
+          tiles: Array.from(
+            { length: REGION_SIDE_LENGTH ** 2 },
+            (_, i): Tile => (i % 2 ? "dirt" : "grass")
+          ),
+        });
+      }
+    }
+
+    return new Set(ids);
+  }
+
+  unloadOutside(x: number, y: number, sideLength: number): RegionId[] {
+    const half = sideLength / 2;
+    const unloaded = this.ids
+      .filter(id => {
+        const [rx, ry] = regionIdToPos(id);
+        return (
+          rx < x - half || rx >= x + half || ry < y - half || ry >= y + half
+        );
+      })
+      .toArray();
+
+    for (const id of unloaded) this.regions.delete(id);
+
+    return unloaded;
   }
 }
 

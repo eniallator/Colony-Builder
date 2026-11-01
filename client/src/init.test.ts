@@ -37,6 +37,7 @@ const NOW_MS = 1_000_000;
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
   world: new World(),
+  send: vi.fn(),
 });
 
 const load = async () => {

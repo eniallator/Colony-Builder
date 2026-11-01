@@ -56,16 +56,26 @@ export class EntityStore {
     );
   }
 
-  takeSnapshot(): EntitySnapshot {
+  spawn(components: Partial<Components> = {}): EntityId {
+    const id = unsafeEntityId(this.entityCount++);
+    for (const [name, value] of typedToEntries(components)) {
+      if (value !== undefined) this.stores[name].set(id, value as never);
+    }
+    return id;
+  }
+
+  despawn(id: EntityId): void {
+    for (const name of componentNames) this.stores[name].delete(id);
+  }
+
+  takeSnapshot(ids: EntityId[]): EntitySnapshot {
     return new Map(
-      this.ids
-        .toArray()
-        .map(id => [
-          id,
-          typedFromEntries(
-            componentNames.map(name => [name, this.stores[name].get(id)])
-          ),
-        ])
+      ids.map(id => [
+        id,
+        typedFromEntries(
+          componentNames.map(name => [name, this.stores[name].get(id)])
+        ),
+      ])
     );
   }
 
@@ -87,17 +97,5 @@ export class EntityStore {
         for (const name of componentNames) this.stores[name].delete(id);
       }
     }
-  }
-
-  spawn(components: Partial<Components> = {}): EntityId {
-    const id = unsafeEntityId(this.entityCount++);
-    for (const [name, value] of typedToEntries(components)) {
-      if (value !== undefined) this.stores[name].set(id, value as never);
-    }
-    return id;
-  }
-
-  despawn(id: EntityId): void {
-    for (const name of componentNames) this.stores[name].delete(id);
   }
 }

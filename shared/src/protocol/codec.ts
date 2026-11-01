@@ -256,49 +256,6 @@ export const codTupleOf = <const T extends readonly CodecValue[]>(
   read: cursor => codecs.map(codec => codec.read(cursor)) as unknown as T,
 });
 
-export const codFixedArrayOf = <const T extends CodecValue>(
-  codec: Codec<T>,
-  length: number
-): Codec<T[]> => ({
-  size: values => values.reduce((acc, v) => acc + codec.size(v), 0),
-  write: (cursor, values) => {
-    if (values.length !== length) {
-      throw new Error(`Expected length ${length}, got ${values.length}`);
-    }
-
-    for (let i = 0; i < length; i++) {
-      codec.write(cursor, values[i] as T);
-    }
-  },
-  read: cursor => {
-    return length > cursor.view.byteLength - cursor.pos
-      ? raise(new RangeError("Array length exceeds remaining bytes"))
-      : Array.from({ length }, () => codec.read(cursor));
-  },
-});
-
-export const codArrayOf = <const T extends CodecValue>(
-  codec: Codec<T>,
-  lengthPrecision: Precision = "u32"
-): Codec<T[]> => {
-  const codLength = codUInt(lengthPrecision);
-
-  return {
-    size: values =>
-      values.reduce((acc, v) => acc + codec.size(v), codLength.size(0)),
-    write: (cursor, values) => {
-      codLength.write(cursor, values.length);
-      for (const value of values) codec.write(cursor, value);
-    },
-    read: cursor => {
-      const length = codLength.read(cursor);
-      return length > cursor.view.byteLength - cursor.pos
-        ? raise(new RangeError("Array length exceeds remaining bytes"))
-        : Array.from({ length }, () => codec.read(cursor));
-    },
-  };
-};
-
 const groupRuns = <T>(values: readonly T[], maxRun: number): [T, number][] =>
   values.reduce<[T, number][]>((runs, value) => {
     const last = runs.at(-1);
@@ -307,77 +264,93 @@ const groupRuns = <T>(values: readonly T[], maxRun: number): [T, number][] =>
     return runs;
   }, []);
 
-export const codRLEArray = <const T extends CodecValue>(
+const codArrayMode = codOneOf(["dynamic", "rle", "fixed", "fixedrle"]);
+
+export interface ArrayOptions {
+  fixedLength?: number;
+  lengthPrecision?: Precision;
+  runPrecision?: Precision;
+}
+
+export const codArrayOf = <const T extends CodecValue>(
   codec: Codec<T>,
-  lengthPrecision: Precision = "u32",
-  runPrecision: Precision = "u8"
+  opts: ArrayOptions = {}
 ): Codec<T[]> => {
+  const { fixedLength, lengthPrecision = "u32", runPrecision = "u8" } = opts;
   const codLength = codUInt(lengthPrecision);
   const codRun = codUInt(runPrecision);
   const maxRun = precisionMax(runPrecision);
+  const isFixed = fixedLength != null;
 
-  return {
-    size: values =>
-      groupRuns(values, maxRun).reduce(
-        (acc, [value]) => acc + codRun.size(0) + codec.size(value),
-        codLength.size(0)
-      ),
-    write: (cursor, values) => {
-      const runs = groupRuns(values, maxRun);
-      codLength.write(cursor, runs.length);
-      for (const [value, runLength] of runs) {
-        codRun.write(cursor, runLength);
-        codec.write(cursor, value);
-      }
-    },
-    read: cursor => {
-      const arr: T[] = [];
-      const numEntries = codLength.read(cursor);
-      for (let i = 0; i < numEntries; i++) {
-        const runLength = codRun.read(cursor);
-        const value = codec.read(cursor);
-        arr.push(...Array.from({ length: runLength }, () => value));
-      }
-      return arr;
-    },
-  };
-};
+  const modeOf = (rle: boolean): CodecType<typeof codArrayMode> =>
+    isFixed ? (rle ? "fixedrle" : "fixed") : rle ? "rle" : "dynamic";
 
-export const codFixedRLEArray = <const T extends CodecValue>(
-  codec: Codec<T>,
-  length: number,
-  runPrecision: Precision = "u8"
-): Codec<T[]> => {
-  const codRun = codUInt(runPrecision);
-  const maxRun = precisionMax(runPrecision);
-
-  return {
-    size: values =>
-      groupRuns(values, maxRun).reduce(
-        (acc, [value]) => acc + codRun.size(0) + codec.size(value),
+  const layout = (values: T[], rle: boolean) => {
+    const units: [T, number][] = rle
+      ? groupRuns(values, maxRun)
+      : values.map(value => [value, 1]);
+    const size =
+      (isFixed ? 0 : codLength.size(0)) +
+      units.reduce(
+        (acc, [value]) => acc + (rle ? codRun.size(0) : 0) + codec.size(value),
         0
-      ),
+      );
+
+    return { rle, units, size };
+  };
+
+  const smallest = (values: T[]) => {
+    const plain = layout(values, false);
+    const runs = layout(values, true);
+
+    return runs.size < plain.size ? runs : plain;
+  };
+
+  return {
+    size: values => codArrayMode.size("dynamic") + smallest(values).size,
     write: (cursor, values) => {
-      if (values.length !== length) {
-        throw new Error(`Expected length ${length}, got ${values.length}`);
+      if (isFixed && values.length !== fixedLength) {
+        throw new Error(`Expected length ${fixedLength}, got ${values.length}`);
       }
 
-      for (const [value, runLength] of groupRuns(values, maxRun)) {
-        codRun.write(cursor, runLength);
+      const { rle, units } = smallest(values);
+      codArrayMode.write(cursor, modeOf(rle));
+      if (!isFixed) codLength.write(cursor, units.length);
+      for (const [value, runLength] of units) {
+        if (rle) codRun.write(cursor, runLength);
         codec.write(cursor, value);
       }
     },
     read: cursor => {
-      const arr: T[] = [];
-      while (arr.length < length) {
-        const runLength = codRun.read(cursor);
-        if (runLength > length - arr.length) {
+      const mode = codArrayMode.read(cursor);
+      const rle = mode === "rle" || mode === "fixedrle";
+      if (mode !== modeOf(rle)) {
+        throw new RangeError(`Array mode ${mode} is not allowed here`);
+      }
+
+      const unitCount = fixedLength ?? codLength.read(cursor);
+      if (
+        !(isFixed && rle) &&
+        unitCount > cursor.view.byteLength - cursor.pos
+      ) {
+        throw new RangeError("Array length exceeds remaining bytes");
+      }
+
+      const values: T[] = [];
+      for (
+        let units = 0;
+        isFixed ? values.length < unitCount : units < unitCount;
+        units++
+      ) {
+        const runLength = rle ? codRun.read(cursor) : 1;
+        if (isFixed && runLength > unitCount - values.length) {
           throw new RangeError("Run length exceeds remaining array length");
         }
+
         const value = codec.read(cursor);
-        arr.push(...Array.from({ length: runLength }, () => value));
+        for (let i = 0; i < runLength; i++) values.push(value);
       }
-      return arr;
+      return values;
     },
   };
 };
