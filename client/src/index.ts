@@ -1,6 +1,8 @@
 import {
   encClientMessage,
   encServerMessage,
+  MAX_ZOOM,
+  MIN_ZOOM,
   SOCKET_PORT,
   TPS,
   UNLOADED_SIDE_LENGTH,
@@ -8,6 +10,7 @@ import {
   worldToRegionPos,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
+import { clamp } from "niall-utils";
 import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
@@ -17,8 +20,15 @@ import { appMethods, fromCanvasCoords } from "./ui/index.ts";
 
 const isArrayBuffer = isInstance(ArrayBuffer);
 
+const ZOOM_STEPS: Partial<Record<string, number>> = {
+  Equal: 1,
+  NumpadAdd: 1,
+  Minus: -1,
+  NumpadSubtract: -1,
+};
+
 export const app = appMethods<State>({
-  init: ({ canvas, mouse }) => {
+  init: ({ canvas, mouse, keyboard }) => {
     const protocol = location.protocol === "https:" ? "wss" : "ws";
     const socket = new WebSocket(
       `${protocol}://${location.hostname}:${SOCKET_PORT}`
@@ -45,6 +55,11 @@ export const app = appMethods<State>({
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
       state.send({ type: "move", position: mouseWorldPos });
+    });
+
+    keyboard.setOnDown(({ code }) => {
+      const step = ZOOM_STEPS[code] ?? 0;
+      state.camera.zoom = clamp(state.camera.zoom + step, MIN_ZOOM, MAX_ZOOM);
     });
 
     return state;

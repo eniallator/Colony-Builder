@@ -2,6 +2,8 @@ import {
   createPlayer,
   encClientMessage,
   encServerMessage,
+  MAX_ZOOM,
+  MIN_ZOOM,
   REGION_SIDE_LENGTH,
   regionPosToId,
   SOCKET_PORT,
@@ -233,6 +235,54 @@ describe("app.init", () => {
           position: Vector.create(105, 102.5),
         })
       );
+    });
+  });
+
+  describe("keyboard zoom", () => {
+    const press = ({ canvas }: AppContext, code: string) => {
+      canvas.dispatchEvent(new KeyboardEvent("keydown", { code }));
+      canvas.dispatchEvent(new KeyboardEvent("keyup", { code }));
+    };
+
+    it.each([
+      ["Equal", 3],
+      ["NumpadAdd", 3],
+      ["Minus", 1],
+      ["NumpadSubtract", 1],
+    ])("%s moves the zoom to %d", (code, expected) => {
+      const ctx = createAppContext();
+      const state = app.init(ctx);
+
+      press(ctx, code);
+
+      expect(state.camera.zoom).toBe(expected);
+    });
+
+    it("ignores other keys", () => {
+      const ctx = createAppContext();
+      const state = app.init(ctx);
+
+      press(ctx, "KeyA");
+
+      expect(state.camera.zoom).toBe(2);
+    });
+
+    it("stops at the maximum zoom", () => {
+      const ctx = createAppContext();
+      const state = app.init(ctx);
+
+      for (let i = 0; i <= MAX_ZOOM; i++) press(ctx, "Equal");
+
+      expect(state.camera.zoom).toBe(MAX_ZOOM);
+    });
+
+    it("stops at the minimum zoom", () => {
+      const ctx = createAppContext();
+      const state = app.init(ctx);
+
+      for (let i = 0; i <= 2 - MIN_ZOOM + 1; i++) press(ctx, "Minus");
+
+      expect(state.camera.zoom).toBe(MIN_ZOOM);
     });
   });
 });
