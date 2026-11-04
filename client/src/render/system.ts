@@ -22,10 +22,15 @@ export const prepareRender: ClientSystem = ({
 
 const TILE_COLOUR_LOOKUP: Record<Tile, string> = {
   grass: "#4a9c3c",
-  dirt: "#8b5a2b",
+  swampland: "#4f6b3a",
+  jungle: "#1f6b2a",
   water: "#2f6fdb",
   sand: "#e3d38a",
   stone: "#8a8a8a",
+  conveyor_up: "#7a7a86",
+  conveyor_left: "#6b6b76",
+  conveyor_right: "#4d4d56",
+  conveyor_down: "#40404a",
 };
 
 export const renderTiles: ClientSystem = ({ canvas, ctx, camera, world }) => {

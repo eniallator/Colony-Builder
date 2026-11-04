@@ -2,7 +2,7 @@ export const SOCKET_PORT = 3000;
 
 export const TPS = 20;
 
-export const PLAYER_SPEED = 3;
+export const PLAYER_SPEED = 10;
 
 export const REGION_SIDE_LENGTH = 16;
 

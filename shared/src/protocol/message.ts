@@ -33,7 +33,7 @@ const isVec =
 const encVec2 = encodable<Vector<2>>(
   isVec(2),
   codMap(
-    codTupleOf<[number, number]>(codF32, codF32),
+    codTupleOf(codF32, codF32),
     vec => vec.toArray(),
     ([x, y]) => Vector.create(x, y)
   )

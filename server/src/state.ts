@@ -9,6 +9,4 @@ export interface PlayerState {
 export interface State {
   world: World;
   players: Map<EntityId, PlayerState>;
-  /** The entities in each region, rebuilt at the start of every tick. */
-  entityRegions: Map<RegionId, EntityId[]>;
 }

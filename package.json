@@ -36,8 +36,10 @@
   },
   "scripts": {
     "build": "pnpm --filter @colony-builder/client build",
-    "watch": "pnpm --filter @colony-builder/client watch",
-    "server": "pnpm --filter @colony-builder/server start",
+    "watch": "pnpm -r --parallel run watch",
+    "client": "pnpm --filter @colony-builder/client run",
+    "server": "pnpm --filter @colony-builder/server run",
+    "shared": "pnpm --filter @colony-builder/shared run",
     "typecheck": "pnpm -r typecheck",
     "lint": "oxlint client/src server/src shared/src",
     "format": "prettier --write .",

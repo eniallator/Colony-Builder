@@ -234,12 +234,8 @@ export const codOneOf = <
     write: (cursor, value) => {
       cod.write(cursor, values.indexOf(value));
     },
-    read: cursor => {
-      const value = values[cod.read(cursor)];
-      return value === undefined
-        ? raise(new RangeError("Unknown enum index"))
-        : value;
-    },
+    read: cursor =>
+      values[cod.read(cursor)] ?? raise(new RangeError("Unknown enum index")),
   };
 };
 
@@ -255,14 +251,6 @@ export const codTupleOf = <const T extends readonly CodecValue[]>(
   },
   read: cursor => codecs.map(codec => codec.read(cursor)) as unknown as T,
 });
-
-const groupRuns = <T>(values: readonly T[], maxRun: number): [T, number][] =>
-  values.reduce<[T, number][]>((runs, value) => {
-    const last = runs.at(-1);
-    if (last != null && last[0] === value && last[1] < maxRun) last[1]++;
-    else runs.push([value, 1]);
-    return runs;
-  }, []);
 
 const codArrayMode = codOneOf(["dynamic", "rle", "fixed", "fixedrle"]);
 
@@ -287,8 +275,14 @@ export const codArrayOf = <const T extends CodecValue>(
 
   const layout = (values: T[], rle: boolean) => {
     const units: [T, number][] = rle
-      ? groupRuns(values, maxRun)
+      ? values.reduce<[T, number][]>((runs, value) => {
+          const last = runs.at(-1);
+          if (last != null && last[0] === value && last[1] < maxRun) last[1]++;
+          else runs.push([value, 1]);
+          return runs;
+        }, [])
       : values.map(value => [value, 1]);
+
     const size =
       (isFixed ? 0 : codLength.size(0)) +
       units.reduce(

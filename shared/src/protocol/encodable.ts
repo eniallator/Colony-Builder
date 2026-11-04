@@ -135,7 +135,7 @@ export const encObjectOf = <
         ([key, { guard }]) => [String(key), guard]
       )
     ) as Guard<T>,
-    codObjectOf<T>(
+    codObjectOf(
       mapObject<typeof shape, { [K in keyof T]: Codec<T[K]> }>(
         shape,
         ([key, { codec }]) => [key, codec]

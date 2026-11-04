@@ -124,7 +124,18 @@ describe("encRegionId", () => {
 
 describe("encTile", () => {
   it("lists every tile", () => {
-    expect(tiles).toEqual(["grass", "dirt", "water", "sand", "stone"]);
+    expect(tiles).toEqual([
+      "grass",
+      "swampland",
+      "jungle",
+      "water",
+      "sand",
+      "stone",
+      "conveyor_up",
+      "conveyor_down",
+      "conveyor_left",
+      "conveyor_right",
+    ]);
   });
 
   it.each(tiles)("round-trips %s", tile => {

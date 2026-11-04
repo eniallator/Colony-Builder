@@ -60,6 +60,17 @@ export const encRegionId = encodable<RegionId>(
   codRegionId
 );
 
-export const tiles = tuple("grass", "dirt", "water", "sand", "stone");
+export const tiles = tuple(
+  "grass",
+  "swampland",
+  "jungle",
+  "water",
+  "sand",
+  "stone",
+  "conveyor_up",
+  "conveyor_down",
+  "conveyor_left",
+  "conveyor_right"
+);
 export type Tile = (typeof tiles)[number];
 export const encTile = encOneOf(tiles);

@@ -12,6 +12,10 @@ import {
   type Tile,
 } from "../terrain/index.ts";
 
+const flatRegionIdx = (x: number, y: number): number =>
+  positiveMod(Math.floor(y), REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
+  positiveMod(Math.floor(x), REGION_SIDE_LENGTH);
+
 export class TerrainStore {
   private readonly regions: Map<RegionId, RegionTiles> = new Map();
 
@@ -25,6 +29,13 @@ export class TerrainStore {
 
   add(id: RegionId, region: RegionTiles) {
     this.regions.set(id, region);
+  }
+
+  addTile(x: number, y: number, tile: Tile): void {
+    const { tiles } =
+      this.regions.get(regionPosToId(...worldToRegionPos(x, y))) ??
+      raise(new Error(`No region exists for world pos ${x},${y}`));
+    tiles[flatRegionIdx(x, y)] = tile;
   }
 
   optGet(id: RegionId): RegionTiles | undefined {
@@ -44,8 +55,7 @@ export class TerrainStore {
 
   optTileAt(x: number, y: number): Tile | undefined {
     return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.tiles[
-      positiveMod(y, REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
-        positiveMod(x, REGION_SIDE_LENGTH)
+      flatRegionIdx(x, y)
     ];
   }
 
@@ -85,7 +95,13 @@ export class TerrainStore {
         this.regions.set(id, {
           tiles: Array.from(
             { length: REGION_SIDE_LENGTH ** 2 },
-            (_, i): Tile => (i % 2 ? "dirt" : "grass")
+            (_, i): Tile =>
+              [
+                "conveyor_up",
+                "conveyor_down",
+                "conveyor_left",
+                "conveyor_right",
+              ][(i + Math.floor(i / REGION_SIDE_LENGTH) * 2) % 4] as Tile
           ),
         });
       }
@@ -111,13 +127,6 @@ export class TerrainStore {
   }
 }
 
-// A region is a collection of terrain, bounded to a specific area.
-// It contains tile entities which are stored in an efficient structure like a quad tree, or using binary space partitioning.
-//
-// It's sent run length encoded/some efficient compression scheme
-//   Uses oneOf for each tile in the terrain grid
-//   Has a lookup of each tile per region
-//
-// Different sized grids, one per power of 2.
+// TODO: Different sized grids, one per power of 2.
 //   Each grid has specific structures you can place at each level.
 //   They snap to the current grid

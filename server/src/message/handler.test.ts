@@ -21,7 +21,6 @@ const stateWith = (
   ...players: [EntityId, RegionId[]][]
 ): State => ({
   world,
-  entityRegions: new Map(),
   players: new Map(
     players.map(([id, regions]) => [
       id,

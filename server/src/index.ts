@@ -3,6 +3,7 @@ import {
   createPlayer,
   encClientMessage,
   encServerMessage,
+  LOADED_SIDE_LENGTH,
   SOCKET_PORT,
   TPS,
   World,
@@ -13,14 +14,12 @@ import { Vector } from "vectyped";
 import { WebSocketServer, type WebSocket } from "ws";
 
 import { messageHandler } from "./message/handler.ts";
-import { entitiesAround } from "./spatial.ts";
 import type { State } from "./state.ts";
 import { serverSystems, type ServerSystem } from "./system.ts";
 
 const state: State = {
   world: new World(),
   players: new Map(),
-  entityRegions: new Map(),
 };
 
 createItem(state.world, Vector.UP.multiply(5));
@@ -80,7 +79,9 @@ setInterval(() => {
     const [x, y] = state.world.entities.get(id, "position").toArray();
     const entities: EntitiesMessage = {
       type: "entities",
-      snapshot: state.world.entities.takeSnapshot(entitiesAround(state, x, y)),
+      snapshot: state.world.entities.takeSnapshot(
+        state.world.entitiesAround(x, y, LOADED_SIDE_LENGTH)
+      ),
     };
     send(playerState.socket, entities);
   }

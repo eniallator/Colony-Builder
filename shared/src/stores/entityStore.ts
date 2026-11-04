@@ -93,9 +93,7 @@ export class EntityStore {
     }
 
     for (const id of this.ids) {
-      if (!seen.has(id)) {
-        for (const name of componentNames) this.stores[name].delete(id);
-      }
+      if (!seen.has(id)) this.despawn(id);
     }
   }
 }

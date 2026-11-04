@@ -3,7 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import { unsafeEntityId } from "../entity/index.ts";
-import { regionPosToId, type Tile } from "../terrain/index.ts";
+import { regionPosToId, tiles, type Tile } from "../terrain/index.ts";
 import {
   encClientMessage,
   encComponentSnapshot,
@@ -54,11 +54,13 @@ const region = (tileAt: (i: number) => Tile): RegionTiles => ({
   tiles: Array.from({ length: REGION_TILE_COUNT }, (_, i) => tileAt(i)),
 });
 
-const grass = region(() => "grass");
-const checkerboard = region(i => (i % 2 ? "dirt" : "grass"));
+const [firstTile, secondTile] = tiles;
+
+const uniform = region(() => firstTile);
+const checkerboard = region(i => (i % 2 ? secondTile : firstTile));
 
 const terrain: TerrainSnapshot = new Map([
-  [regionPosToId(0, 0), grass],
+  [regionPosToId(0, 0), uniform],
   [regionPosToId(-3, 7), checkerboard],
 ]);
 
@@ -112,15 +114,17 @@ describe("encEntitySnapshot", () => {
 
 describe("encRegionTiles", () => {
   it("round-trips a region", () => {
-    expect(encRegionTiles.decode(encRegionTiles.encode(grass))).toEqual(grass);
+    expect(encRegionTiles.decode(encRegionTiles.encode(uniform))).toEqual(
+      uniform
+    );
     expect(encRegionTiles.decode(encRegionTiles.encode(checkerboard))).toEqual(
       checkerboard
     );
   });
 
   it("run-length encodes runs of the same tile", () => {
-    // The fixedrle mode, then 256 grass tiles as a run of 255 and a run of 1.
-    expect(encRegionTiles.encode(grass)).toEqual(
+    // The fixedrle mode, then 256 uniform tiles as a run of 255 and a run of 1.
+    expect(encRegionTiles.encode(uniform)).toEqual(
       Uint8Array.of(3, 255, 0, 1, 0)
     );
   });
@@ -134,16 +138,16 @@ describe("encRegionTiles", () => {
   });
 
   it("rejects a region with the wrong number of tiles", () => {
-    expect(encRegionTiles.guard({ tiles: grass.tiles.slice(1) })).toBe(false);
-    expect(encRegionTiles.guard({ tiles: [...grass.tiles, "grass"] })).toBe(
+    expect(encRegionTiles.guard({ tiles: uniform.tiles.slice(1) })).toBe(false);
+    expect(encRegionTiles.guard({ tiles: [...uniform.tiles, firstTile] })).toBe(
       false
     );
   });
 
   it("rejects an unknown tile", () => {
-    expect(encRegionTiles.guard({ tiles: grass.tiles.map(() => "lava") })).toBe(
-      false
-    );
+    expect(
+      encRegionTiles.guard({ tiles: uniform.tiles.map(() => "lava") })
+    ).toBe(false);
   });
 });
 
@@ -161,8 +165,8 @@ describe("encTerrainSnapshot", () => {
   });
 
   it("rejects a malformed region id", () => {
-    expect(encTerrainSnapshot.guard(new Map([["0;0", grass]]))).toBe(false);
-    expect(encTerrainSnapshot.guard(new Map([["01,0", grass]]))).toBe(false);
+    expect(encTerrainSnapshot.guard(new Map([["0;0", uniform]]))).toBe(false);
+    expect(encTerrainSnapshot.guard(new Map([["01,0", uniform]]))).toBe(false);
   });
 });
 

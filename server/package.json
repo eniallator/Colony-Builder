@@ -16,6 +16,7 @@
   },
   "scripts": {
     "start": "node src/index.ts",
+    "watch": "node --watch --watch-preserve-output src/index.ts",
     "typecheck": "tsc"
   }
 }
