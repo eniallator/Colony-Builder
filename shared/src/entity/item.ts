@@ -11,4 +11,5 @@ export const createItem = (
     type: "item",
     position,
     conveyable: true,
+    inventory: new Map(),
   });

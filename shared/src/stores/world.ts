@@ -1,4 +1,4 @@
-import type { EntityId } from "../entity/index.ts";
+import type { ComponentName, EntityId } from "../entity/index.ts";
 import {
   regionPosToId,
   regionsAround,
@@ -32,11 +32,16 @@ export class World {
   entitiesAround(
     worldX: number,
     worldY: number,
-    regionSideLength: number
+    regionSideLength: number,
+    componentNames: ComponentName[] = []
   ): EntityId[] {
-    return regionsAround(
+    const ids = regionsAround(
       ...worldToRegionPos(worldX, worldY),
       regionSideLength
     ).flatMap(id => this.entityRegions.get(id) ?? []);
+
+    return componentNames.length === 0
+      ? ids
+      : this.entityStore.queryWithIds(ids, ...componentNames);
   }
 }

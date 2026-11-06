@@ -17,6 +17,7 @@ import {
   codOneOf,
   codOptional,
   codRecordOf,
+  codSetOf,
   codStringOf,
   codTagged,
   codTupleOf,
@@ -750,6 +751,80 @@ describe("codEntries reading", () => {
     expect(() => read(codEntries(codU8, codU8), [2, 0, 0, 0, 1, 2])).toThrow(
       RangeError
     );
+  });
+});
+
+describe("codSetOf", () => {
+  it("writes a u8 length then each member", () => {
+    const set = codSetOf(codU8);
+
+    expect(write(set, new Set([7, 9]))).toEqual([2, 7, 9]);
+    expect(read(set, [2, 7, 9]).value).toEqual(new Set([7, 9]));
+  });
+
+  it("honours the length precision", () => {
+    expect(write(codSetOf(codU8, "u16"), new Set([7]))).toEqual([1, 0, 7]);
+  });
+
+  it("throws when it overflows its length precision", () => {
+    const big = new Set(Array.from({ length: 256 }, (_, i) => i));
+
+    expect(() => write(codSetOf(codU8, "u8"), big)).toThrow(RangeError);
+  });
+});
+
+describe("collection sizes", () => {
+  it("count the length prefix, matching the bytes written", () => {
+    const entries: [number, number][] = [
+      [1, 2],
+      [3, 4],
+    ];
+    const cases = [
+      [codSetOf(codU16), new Set([1, 2, 3])],
+      [codMapOf(codU8, codU16), new Map([[1, 2]])],
+      [codEntries(codU8, codU16), entries],
+      [codRecordOf(codU8, codU16), { 1: 2, 3: 4 }],
+      [codArrayOf(codU16), [1, 2, 3]],
+      [codObjectOf({ a: codU8, b: codU16 }), { a: 1, b: 2 }],
+    ] as const;
+
+    for (const [codec, value] of cases) {
+      // oxlint-disable-next-line typescript/no-explicit-any
+      const c: Codec<any> = codec;
+      expect(c.size(value)).toBe(write(c, value).length);
+    }
+  });
+});
+
+describe("remaining-bytes guard", () => {
+  const hugeU32 = [0xff, 0xff, 0xff, 0xff];
+
+  it("rejects a set length that cannot fit", () => {
+    expect(() => read(codSetOf(codU8, "u32"), hugeU32)).toThrow(
+      "Set length exceeds remaining bytes"
+    );
+  });
+
+  it("rejects a map length that cannot fit", () => {
+    expect(() => read(codMapOf(codU8, codU8), hugeU32)).toThrow(
+      "Map length exceeds remaining bytes"
+    );
+  });
+
+  it("rejects an entries length that cannot fit", () => {
+    expect(() => read(codEntries(codU8, codU8), hugeU32)).toThrow(
+      "Entries length exceeds remaining bytes"
+    );
+  });
+
+  it("rejects a record length that cannot fit", () => {
+    expect(() => read(codRecordOf(codU8, codU8), hugeU32)).toThrow(
+      "Record length exceeds remaining bytes"
+    );
+  });
+
+  it("accepts a length that exactly fits the remaining bytes", () => {
+    expect(read(codSetOf(codU8), [2, 7, 9]).value).toEqual(new Set([7, 9]));
   });
 });
 

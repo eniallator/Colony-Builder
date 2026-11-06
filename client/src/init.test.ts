@@ -1,5 +1,6 @@
 import { World } from "@colony-builder/shared";
-import { getElement, raise, toElement } from "niall-utils";
+import { raise } from "niall-utils/core";
+import { getElement, toElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 import {
   afterEach,

@@ -1,10 +1,5 @@
-import {
-  addListener,
-  getElement,
-  raise,
-  toAttrs,
-  toElement,
-} from "niall-utils";
+import { raise } from "niall-utils/core";
+import { addListener, getElement, toAttrs, toElement } from "niall-utils/ui";
 
 import { app } from "./index.ts";
 import {

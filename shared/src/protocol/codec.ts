@@ -165,6 +165,21 @@ export const codUInt = (precision: Precision): Codec<number> => {
   };
 };
 
+const sumSizes = <T>(
+  items: Iterable<T>,
+  size: (item: T) => number,
+  acc: number = 0
+): number => {
+  for (const item of items) acc += size(item);
+  return acc;
+};
+
+const assertFits = (cursor: Cursor, length: number, name: string): void => {
+  if (length > cursor.view.byteLength - cursor.pos) {
+    throw new RangeError(`${name} length exceeds remaining bytes`);
+  }
+};
+
 const textEncoder = new TextEncoder();
 const textDecoder = new TextDecoder("utf-8", { fatal: true });
 
@@ -187,9 +202,7 @@ export const codStringOf = (
     },
     read: cursor => {
       const length = codLength.read(cursor);
-      if (length > cursor.view.byteLength - cursor.pos) {
-        throw new RangeError("String length exceeds remaining bytes");
-      }
+      assertFits(cursor, length, "String");
       const bytes = new Uint8Array(
         cursor.view.buffer,
         cursor.view.byteOffset + cursor.pos,
@@ -252,6 +265,29 @@ export const codTupleOf = <const T extends readonly CodecValue[]>(
   read: cursor => codecs.map(codec => codec.read(cursor)) as unknown as T,
 });
 
+export const codSetOf = <const T extends CodecValue>(
+  codec: Codec<T>,
+  lengthPrecision: Precision = "u8"
+): Codec<Set<T>> => {
+  const codLength = codUInt(lengthPrecision);
+
+  return {
+    size: values =>
+      sumSizes(values, value => codec.size(value), codLength.size(0)),
+    write: (cursor, values) => {
+      codLength.write(cursor, values.size);
+      for (const value of values) codec.write(cursor, value);
+    },
+    read: cursor => {
+      const length = codLength.read(cursor);
+      assertFits(cursor, length, "Set");
+      const set = new Set<T>();
+      for (let i = 0; i < length; i++) set.add(codec.read(cursor));
+      return set;
+    },
+  };
+};
+
 const codArrayMode = codOneOf(["dynamic", "rle", "fixed", "fixedrle"]);
 
 export interface ArrayOptions {
@@ -285,9 +321,9 @@ export const codArrayOf = <const T extends CodecValue>(
 
     const size =
       (isFixed ? 0 : codLength.size(0)) +
-      units.reduce(
-        (acc, [value]) => acc + (rle ? codRun.size(0) : 0) + codec.size(value),
-        0
+      sumSizes(
+        units,
+        ([value]) => (rle ? codRun.size(0) : 0) + codec.size(value)
       );
 
     return { rle, units, size };
@@ -323,12 +359,7 @@ export const codArrayOf = <const T extends CodecValue>(
       }
 
       const unitCount = fixedLength ?? codLength.read(cursor);
-      if (
-        !(isFixed && rle) &&
-        unitCount > cursor.view.byteLength - cursor.pos
-      ) {
-        throw new RangeError("Array length exceeds remaining bytes");
-      }
+      if (!(isFixed && rle)) assertFits(cursor, unitCount, "Array");
 
       const values: T[] = [];
       for (
@@ -361,8 +392,9 @@ export const codEntries = <
 
   return {
     size: value =>
-      value.reduce(
-        (acc, [key, val]) => acc + codKey.size(key) + codVal.size(val),
+      sumSizes(
+        value,
+        ([key, val]) => codKey.size(key) + codVal.size(val),
         codLength.size(0)
       ),
     write: (cursor, value) => {
@@ -375,6 +407,7 @@ export const codEntries = <
     read: cursor => {
       const entries: [K, V][] = [];
       const length = codLength.read(cursor);
+      assertFits(cursor, length, "Entries");
       for (let i = 0; i < length; i++) {
         entries.push([codKey.read(cursor), codVal.read(cursor)]);
       }
@@ -395,8 +428,9 @@ export const codRecordOf = <
 
   return {
     size: value =>
-      typedToEntries(value).reduce(
-        (acc, [key, val]) => acc + codKey.size(key) + codVal.size(val),
+      sumSizes(
+        typedToEntries(value),
+        ([key, val]) => codKey.size(key) + codVal.size(val),
         codLength.size(0)
       ),
     write: (cursor, value) => {
@@ -410,6 +444,7 @@ export const codRecordOf = <
     read: cursor => {
       const rec: Partial<Record<K, V>> = {};
       const length = codLength.read(cursor);
+      assertFits(cursor, length, "Record");
       for (let i = 0; i < length; i++) {
         rec[codKey.read(cursor)] = codVal.read(cursor);
       }
@@ -426,8 +461,7 @@ export const codObjectOf = <
   const fields = typedToEntries(shape);
 
   return {
-    size: value =>
-      fields.reduce((acc, [key, codec]) => acc + codec.size(value[key]), 0),
+    size: value => sumSizes(fields, ([key, codec]) => codec.size(value[key])),
     write: (cursor, value) => {
       for (const [key, codec] of fields) codec.write(cursor, value[key]);
     },
@@ -454,12 +488,11 @@ export const codMapOf = <
 
   return {
     size: value =>
-      value
-        .entries()
-        .reduce(
-          (acc, [key, val]) => acc + codKey.size(key) + codVal.size(val),
-          codLength.size(0)
-        ),
+      sumSizes(
+        value,
+        ([key, val]) => codKey.size(key) + codVal.size(val),
+        codLength.size(0)
+      ),
     write: (cursor, value) => {
       codLength.write(cursor, value.size);
       value.forEach((val, key) => {
@@ -470,6 +503,7 @@ export const codMapOf = <
     read: cursor => {
       const map = new Map<K, V>();
       const length = codLength.read(cursor);
+      assertFits(cursor, length, "Map");
       for (let i = 0; i < length; i++) {
         map.set(codKey.read(cursor), codVal.read(cursor));
       }

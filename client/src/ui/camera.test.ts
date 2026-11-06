@@ -1,4 +1,4 @@
-import { toElement } from "niall-utils";
+import { toElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 

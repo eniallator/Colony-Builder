@@ -12,4 +12,8 @@ export const createPlayer = (
     type: "player",
     position,
     speed: PLAYER_SPEED,
+    inventory: new Map([
+      ["iron_ore", { count: 20 }],
+      ["log", { count: 10 }],
+    ]),
   });

@@ -10,5 +10,8 @@
     "**/node_modules/**": true,
     "**/dist/**": true,
     "**/.claude/lib-docs/**": true
+  },
+  "[html]": {
+    "editor.defaultFormatter": "esbenp.prettier-vscode"
   }
 }

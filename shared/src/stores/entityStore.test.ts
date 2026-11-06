@@ -1,4 +1,4 @@
-import { raise } from "niall-utils";
+import { raise } from "niall-utils/core";
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
@@ -8,13 +8,10 @@ import {
   createItem,
   createPlayer,
   unsafeEntityId,
+  type Components,
   type EntityId,
 } from "../entity/index.ts";
-import {
-  encEntitySnapshot,
-  type ComponentSnapshot,
-  type EntitySnapshot,
-} from "../protocol/index.ts";
+import { encEntitySnapshot, type EntitySnapshot } from "../protocol/index.ts";
 import { EntityStore } from "./entityStore.ts";
 import { World } from "./world.ts";
 
@@ -22,20 +19,18 @@ const a = unsafeEntityId(0);
 const b = unsafeEntityId(1);
 const c = unsafeEntityId(2);
 
-const component = (
-  overrides: Partial<ComponentSnapshot> = {}
-): ComponentSnapshot => ({
+const component = (overrides: Partial<Components> = {}): Components => ({
   type: "player",
   position: Vector.create(1, 2),
   destination: undefined,
   speed: undefined,
   conveyable: undefined,
+  inventory: undefined,
   ...overrides,
 });
 
-const snapshotOf = (
-  ...entities: [EntityId, ComponentSnapshot][]
-): EntitySnapshot => new Map(entities);
+const snapshotOf = (...entities: [EntityId, Components][]): EntitySnapshot =>
+  new Map(entities);
 
 describe("EntityStore", () => {
   describe("add / optGet / get", () => {
@@ -182,6 +177,8 @@ describe("EntityStore", () => {
               destination: undefined,
               speed: PLAYER_SPEED,
               conveyable: undefined,
+              // Starting inventory contents are temporary
+              inventory: world.entities.get(player, "inventory"),
             },
           ],
           [
@@ -192,10 +189,35 @@ describe("EntityStore", () => {
               destination: undefined,
               speed: undefined,
               conveyable: true,
+              inventory: new Map(),
             },
           ],
         ])
       );
+    });
+
+    it("captures the contents of an inventory", () => {
+      const world = new World();
+      const item = createItem(world);
+      const contents = { data: undefined, count: 3 };
+      world.entities.get(item, "inventory").set("iron_ore", contents);
+
+      expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual(
+        new Map([["iron_ore", contents]])
+      );
+    });
+
+    it("round-trips an inventory with items in it", () => {
+      const world = new World();
+      const item = createItem(world);
+      world.entities
+        .get(item, "inventory")
+        .set("iron_ore", { data: undefined, count: 3 });
+      const snapshot = world.entities.takeSnapshot([item]);
+
+      expect(
+        encEntitySnapshot.decode(encEntitySnapshot.encode(snapshot))
+      ).toEqual(snapshot);
     });
 
     it("includes the destination when there is one", () => {
@@ -383,6 +405,21 @@ describe("EntityStore", () => {
         store.applySnapshot(snapshotOf([b, component({ type: "item" })]));
 
         expect(store.query("conveyable")).toEqual([]);
+      });
+
+      it("stores and then clears an inventory", () => {
+        const store = populated();
+        const inventory = new Map([
+          ["iron_ore" as const, { data: undefined, count: 2 }],
+        ]);
+
+        store.applySnapshot(
+          snapshotOf([b, component({ type: "item", inventory })])
+        );
+        expect(store.get(b, "inventory")).toEqual(inventory);
+
+        store.applySnapshot(snapshotOf([b, component({ type: "item" })]));
+        expect(store.query("inventory")).toEqual([]);
       });
 
       it("clears components omitted from a decoded snapshot", () => {

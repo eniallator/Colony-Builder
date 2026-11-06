@@ -12,12 +12,13 @@ import {
   unsafeEntityId,
   World,
   type ClientMessage,
-  type ComponentSnapshot,
+  type Components,
   type EntityId,
   type RegionTiles,
   type ServerMessage,
 } from "@colony-builder/shared";
-import { raise, toElement } from "niall-utils";
+import { raise } from "niall-utils/core";
+import { toElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 import {
   afterEach,
@@ -68,6 +69,13 @@ const createAppContext = (): AppContext => {
   canvas.width = 100;
   canvas.height = 50;
 
+  document.body.replaceChildren(
+    toElement('<button id="inventory-btn"></button>'),
+    toElement(
+      '<dialog id="inventory-modal"><input class="search" /><ul></ul></dialog>'
+    )
+  );
+
   return {
     canvas,
     ctx: canvas.getContext("2d") ?? raise(new Error("No 2d context")),
@@ -82,9 +90,10 @@ const message = (data: unknown) => new MessageEvent("message", { data });
 const serverMessage = (serverMsg: ServerMessage) =>
   message(encServerMessage.encode(serverMsg).buffer);
 
-const grass: RegionTiles = {
-  tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => "grass"),
-};
+const grass: RegionTiles = Array.from(
+  { length: REGION_SIDE_LENGTH ** 2 },
+  () => "grass"
+);
 
 beforeEach(() => {
   FakeWebSocket.instances = [];
@@ -152,12 +161,13 @@ describe("app.init", () => {
     it("applies entities messages to the world", () => {
       const state = app.init(createAppContext());
       const id = unsafeEntityId(2);
-      const entity: ComponentSnapshot = {
+      const entity: Components = {
         type: "item",
         position: Vector.create(3, 4),
         destination: undefined,
         speed: undefined,
         conveyable: true,
+        inventory: undefined,
       };
 
       lastSocket().dispatchEvent(

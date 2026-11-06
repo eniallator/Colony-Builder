@@ -2,11 +2,14 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { unsafeEntityId } from "../entity/index.ts";
+import {
+  encComponents,
+  unsafeEntityId,
+  type Components,
+} from "../entity/index.ts";
 import { regionPosToId, tiles, type Tile } from "../terrain/index.ts";
 import {
   encClientMessage,
-  encComponentSnapshot,
   encEntitiesMessage,
   encEntitySnapshot,
   encInitMessage,
@@ -17,7 +20,6 @@ import {
   encTerrainSnapshot,
   encUnloadMessage,
   type ClientMessage,
-  type ComponentSnapshot,
   type EntitySnapshot,
   type RegionTiles,
   type ServerMessage,
@@ -27,20 +29,22 @@ import {
 const playerId = unsafeEntityId(1);
 const itemId = unsafeEntityId(2);
 
-const player: ComponentSnapshot = {
+const player: Components = {
   type: "player",
   position: Vector.create(1.5, -2.25),
   destination: Vector.create(4, 8),
   speed: 3,
   conveyable: undefined,
+  inventory: new Map([["iron_ore", { data: undefined, count: 5 }]]),
 };
 
-const item: ComponentSnapshot = {
+const item: Components = {
   type: "item",
   position: Vector.create(0, 0),
   destination: undefined,
   speed: undefined,
   conveyable: true,
+  inventory: undefined,
 };
 
 const entities: EntitySnapshot = new Map([
@@ -50,9 +54,8 @@ const entities: EntitySnapshot = new Map([
 
 const REGION_TILE_COUNT = REGION_SIDE_LENGTH ** 2;
 
-const region = (tileAt: (i: number) => Tile): RegionTiles => ({
-  tiles: Array.from({ length: REGION_TILE_COUNT }, (_, i) => tileAt(i)),
-});
+const region = (tileAt: (i: number) => Tile): RegionTiles =>
+  Array.from({ length: REGION_TILE_COUNT }, (_, i) => tileAt(i));
 
 const [firstTile, secondTile] = tiles;
 
@@ -64,32 +67,45 @@ const terrain: TerrainSnapshot = new Map([
   [regionPosToId(-3, 7), checkerboard],
 ]);
 
-describe("encComponentSnapshot", () => {
+describe("encComponents", () => {
   it("round-trips an entity with every field", () => {
-    expect(
-      encComponentSnapshot.decode(encComponentSnapshot.encode(player))
-    ).toEqual(player);
+    expect(encComponents.decode(encComponents.encode(player))).toEqual(player);
   });
 
   it("round-trips an entity without its optional fields", () => {
-    expect(
-      encComponentSnapshot.decode(encComponentSnapshot.encode(item))
-    ).toEqual(item);
+    expect(encComponents.decode(encComponents.encode(item))).toEqual(item);
   });
 
   it("rejects non-finite numbers when decoding", () => {
-    const nan = encComponentSnapshot.encode({
+    const nan = encComponents.encode({
       ...item,
       position: Vector.create(Number.NaN, 0),
     });
-    const infinite = encComponentSnapshot.encode({ ...item, speed: Infinity });
+    const infinite = encComponents.encode({ ...item, speed: Infinity });
 
-    expect(encComponentSnapshot.decode(nan)).toBeUndefined();
-    expect(encComponentSnapshot.decode(infinite)).toBeUndefined();
+    expect(encComponents.decode(nan)).toBeUndefined();
+    expect(encComponents.decode(infinite)).toBeUndefined();
+  });
+
+  it("round-trips an empty inventory", () => {
+    const empty = { ...item, inventory: new Map() };
+
+    expect(encComponents.decode(encComponents.encode(empty))).toEqual(empty);
+  });
+
+  it("rejects an unknown item id or a negative item count", () => {
+    const withItem = (id: string, count: number) => ({
+      ...item,
+      inventory: new Map([[id, { data: undefined, count }]]),
+    });
+
+    expect(encComponents.guard(withItem("gold", 1))).toBe(false);
+    expect(encComponents.guard(withItem("iron_ore", -1))).toBe(false);
+    expect(encComponents.guard(withItem("iron_ore", 1.5))).toBe(false);
   });
 
   it("rejects an unknown entity type", () => {
-    expect(encComponentSnapshot.guard({ ...item, type: "dragon" })).toBe(false);
+    expect(encComponents.guard({ ...item, type: "dragon" })).toBe(false);
   });
 });
 
@@ -138,16 +154,12 @@ describe("encRegionTiles", () => {
   });
 
   it("rejects a region with the wrong number of tiles", () => {
-    expect(encRegionTiles.guard({ tiles: uniform.tiles.slice(1) })).toBe(false);
-    expect(encRegionTiles.guard({ tiles: [...uniform.tiles, firstTile] })).toBe(
-      false
-    );
+    expect(encRegionTiles.guard(uniform.slice(1))).toBe(false);
+    expect(encRegionTiles.guard([...uniform, firstTile])).toBe(false);
   });
 
   it("rejects an unknown tile", () => {
-    expect(
-      encRegionTiles.guard({ tiles: uniform.tiles.map(() => "lava") })
-    ).toBe(false);
+    expect(encRegionTiles.guard(uniform.map(() => "lava"))).toBe(false);
   });
 });
 

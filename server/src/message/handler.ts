@@ -9,9 +9,10 @@ export const messageHandler = (
   message: ClientMessage
 ): void => {
   switch (message.type) {
-    case "move":
+    case "move": {
       state.world.entities.add(playerId, "destination", message.position);
       break;
+    }
 
     case "unload": {
       const playerState =

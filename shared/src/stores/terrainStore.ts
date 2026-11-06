@@ -1,5 +1,5 @@
-import { positiveMod } from "niall-utils";
 import { raise, tuple } from "niall-utils/core";
+import { positiveMod } from "niall-utils/math";
 
 import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import type { RegionTiles, TerrainSnapshot } from "../protocol/message.ts";
@@ -7,14 +7,21 @@ import {
   regionIdToPos,
   regionPosToId,
   regionsAround,
+  regionToWorldPos,
   worldToRegionPos,
   type RegionId,
+  type TerrainGenerator,
   type Tile,
 } from "../terrain/index.ts";
 
 const flatRegionIdx = (x: number, y: number): number =>
   positiveMod(Math.floor(y), REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
   positiveMod(Math.floor(x), REGION_SIDE_LENGTH);
+
+const idxToDeltaXY = (idx: number): [x: number, y: number] => [
+  idx % REGION_SIDE_LENGTH,
+  Math.floor(idx / REGION_SIDE_LENGTH),
+];
 
 export class TerrainStore {
   private readonly regions: Map<RegionId, RegionTiles> = new Map();
@@ -32,7 +39,7 @@ export class TerrainStore {
   }
 
   addTile(x: number, y: number, tile: Tile): void {
-    const { tiles } =
+    const tiles =
       this.regions.get(regionPosToId(...worldToRegionPos(x, y))) ??
       raise(new Error(`No region exists for world pos ${x},${y}`));
     tiles[flatRegionIdx(x, y)] = tile;
@@ -54,7 +61,7 @@ export class TerrainStore {
   }
 
   optTileAt(x: number, y: number): Tile | undefined {
-    return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.tiles[
+    return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.[
       flatRegionIdx(x, y)
     ];
   }
@@ -84,7 +91,11 @@ export class TerrainStore {
     for (const [id, tiles] of snapshot) this.regions.set(id, tiles);
   }
 
-  loadTerrain(worldX: number, worldY: number): Set<RegionId> {
+  loadTerrain(
+    worldX: number,
+    worldY: number,
+    generator: TerrainGenerator
+  ): Set<RegionId> {
     const ids = regionsAround(
       ...worldToRegionPos(worldX, worldY),
       LOADED_SIDE_LENGTH
@@ -92,18 +103,14 @@ export class TerrainStore {
 
     for (const id of ids) {
       if (this.regions.get(id) == null) {
-        this.regions.set(id, {
-          tiles: Array.from(
-            { length: REGION_SIDE_LENGTH ** 2 },
-            (_, i): Tile =>
-              [
-                "conveyor_up",
-                "conveyor_down",
-                "conveyor_left",
-                "conveyor_right",
-              ][(i + Math.floor(i / REGION_SIDE_LENGTH) * 2) % 4] as Tile
-          ),
-        });
+        const [x, y] = regionToWorldPos(...regionIdToPos(id));
+        this.regions.set(
+          id,
+          Array.from({ length: REGION_SIDE_LENGTH ** 2 }, (_, i): Tile => {
+            const [dx, dy] = idxToDeltaXY(i);
+            return generator(x + dx, y + dy);
+          })
+        );
       }
     }
 

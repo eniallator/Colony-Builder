@@ -20,9 +20,8 @@ const createState = (): State => ({
   send: vi.fn(),
 });
 
-const region = (tile: Tile): RegionTiles => ({
-  tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile),
-});
+const region = (tile: Tile): RegionTiles =>
+  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile);
 
 describe("messageHandler", () => {
   it("stores the player id from an init message", () => {

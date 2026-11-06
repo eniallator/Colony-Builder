@@ -9,7 +9,6 @@ import {
   isUnionOf,
   type Guard,
 } from "deep-guards";
-import { mapFind } from "niall-utils";
 import {
   attempt,
   raise,
@@ -17,16 +16,21 @@ import {
   type ReadonlyNonEmptyArray,
 } from "niall-utils/core";
 import { mapObject } from "niall-utils/data";
+import { mapFind } from "niall-utils/functional";
+import { Vector } from "vectyped";
 
 import {
   chooseUIntCod,
   codArrayOf,
   codExact,
+  codF32,
+  codMap,
   codMapOf,
   codObjectOf,
   codOneOf,
   codOptional,
   codRecordOf,
+  codSetOf,
   codTupleOf,
   type ArrayOptions,
   type Codec,
@@ -70,9 +74,30 @@ export const encodable = <const T extends CodecValue>(
   },
 });
 
+const isVec =
+  <const N extends number>(size: N): Guard<Vector<N>> =>
+  (value): value is Vector<N> =>
+    value instanceof Vector &&
+    value.isSize(size) &&
+    value.every(Number.isFinite);
+
+export const encVec2 = encodable<Vector<2>>(
+  isVec(2),
+  codMap(
+    codTupleOf(codF32, codF32),
+    vec => vec.toArray(),
+    ([x, y]) => Vector.create(x, y)
+  )
+);
+
 export const encExact = <const T extends string | number | boolean>(
   value: T
 ): Encodable<T> => encodable(isExact(value), codExact(value));
+
+export const encOptional = <const T extends CodecValue>(
+  inner: Encodable<T>
+): Encodable<T | undefined> =>
+  encodable(isOptional(inner.guard), codOptional(inner.codec));
 
 export const encOneOf = <
   const T extends ReadonlyNonEmptyArray<string | number | boolean>,
@@ -81,25 +106,6 @@ export const encOneOf = <
   precision?: Precision
 ): Encodable<T[number]> =>
   encodable(isOneOf(...values), codOneOf(values, precision));
-
-export const encOptional = <const T extends CodecValue>(
-  inner: Encodable<T>
-): Encodable<T | undefined> =>
-  encodable(isOptional(inner.guard), codOptional(inner.codec));
-
-export const encArrayOf = <const T extends CodecValue>(
-  inner: Encodable<T>,
-  opts: ArrayOptions = {}
-): Encodable<T[]> => {
-  const isItems = isArrayOf(inner.guard);
-
-  return encodable(
-    (value): value is T[] =>
-      isItems(value) &&
-      (opts.fixedLength == null || value.length === opts.fixedLength),
-    codArrayOf(inner.codec, opts)
-  );
-};
 
 export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
   ...inners: { [K in keyof T]: Encodable<T[K]> }
@@ -112,6 +118,30 @@ export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
       ...(inners.map(({ codec }) => codec) as { [K in keyof T]: Codec<T[K]> })
     )
   );
+
+export const encSetOf = <const T extends CodecValue>(
+  inner: Encodable<T>,
+  lengthPrecision?: Precision
+): Encodable<Set<T>> =>
+  encodable(
+    (value): value is Set<T> =>
+      value instanceof Set && value.values().every(item => inner.guard(item)),
+    codSetOf(inner.codec, lengthPrecision)
+  );
+
+export const encArrayOf = <const T extends CodecValue>(
+  inner: Encodable<T>,
+  opts?: ArrayOptions
+): Encodable<T[]> => {
+  const isItems = isArrayOf(inner.guard);
+
+  return encodable(
+    (value): value is T[] =>
+      isItems(value) &&
+      (opts?.fixedLength == null || value.length === opts.fixedLength),
+    codArrayOf(inner.codec, opts)
+  );
+};
 
 export const encRecordOf = <
   const K extends string | number,

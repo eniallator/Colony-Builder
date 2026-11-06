@@ -10,13 +10,17 @@ import {
   worldToRegionPos,
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
-import { clamp } from "niall-utils";
+import { clamp } from "niall-utils/math";
 import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { clientSystems, type ClientSystem } from "./system.ts";
-import { appMethods, fromCanvasCoords } from "./ui/index.ts";
+import {
+  appMethods,
+  fromCanvasCoords,
+  setupInventoryDialog,
+} from "./ui/index.ts";
 
 const isArrayBuffer = isInstance(ArrayBuffer);
 
@@ -51,6 +55,12 @@ export const app = appMethods<State>({
 
       if (message != null) messageHandler(state, message);
     });
+
+    setupInventoryDialog(() =>
+      state.playerId != null
+        ? state.world.entities.optGet(state.playerId, "inventory")
+        : undefined
+    );
 
     mouse.setOnDown(() => {
       const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);

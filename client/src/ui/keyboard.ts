@@ -1,4 +1,6 @@
-import { addListener, mapFilter, raise } from "niall-utils";
+import { raise } from "niall-utils/core";
+import { mapFilter } from "niall-utils/functional";
+import { addListener } from "niall-utils/ui";
 import { Vector } from "vectyped";
 
 type KeyCallback = (this: Keyboard, evt: KeyboardEvent) => void;

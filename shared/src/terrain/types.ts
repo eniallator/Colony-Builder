@@ -74,3 +74,5 @@ export const tiles = tuple(
 );
 export type Tile = (typeof tiles)[number];
 export const encTile = encOneOf(tiles);
+
+export type TerrainGenerator = (x: number, y: number) => Tile;

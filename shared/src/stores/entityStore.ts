@@ -50,10 +50,14 @@ export class EntityStore {
     return this.stores[name].delete(id);
   }
 
+  queryWithIds<
+    Coll extends { filter: (predicate: (id: EntityId) => boolean) => Coll },
+  >(ids: Coll, ...names: readonly ComponentName[]): Coll {
+    return ids.filter(id => names.every(name => this.stores[name].has(id)));
+  }
+
   query(...[first, ...rest]: ReadonlyNonEmptyArray<ComponentName>): EntityId[] {
-    return [...this.stores[first].keys()].filter(id =>
-      rest.every(name => this.stores[name].has(id))
-    );
+    return [...this.queryWithIds(this.stores[first].keys(), ...rest)];
   }
 
   spawn(components: Partial<Components> = {}): EntityId {

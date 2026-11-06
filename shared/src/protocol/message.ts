@@ -1,58 +1,21 @@
-import { isNumber, type Guard } from "deep-guards";
-import { Vector } from "vectyped";
-
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import type { Components } from "../entity/component.ts";
-import { encEntityId, encEntityType } from "../entity/index.ts";
+import { encComponents, encEntityId } from "../entity/index.ts";
 import { encRegionId, encTile } from "../terrain/types.ts";
-import { codF32, codMap, codTupleOf } from "./codec.ts";
 import {
   encArrayOf,
   encExact,
   encMapOf,
   encObjectOf,
-  encodable,
-  encOneOf,
-  encOptional,
   encUnionOf,
+  encVec2,
   type EncodableType,
 } from "./encodable.ts";
 
-const encFiniteNumber = encodable(
-  (value): value is number => isNumber(value) && Number.isFinite(value),
-  codF32
-);
-
-const isVec =
-  <const N extends number>(size: N): Guard<Vector<N>> =>
-  (value): value is Vector<N> =>
-    value instanceof Vector &&
-    value.isSize(size) &&
-    value.every(Number.isFinite);
-
-const encVec2 = encodable<Vector<2>>(
-  isVec(2),
-  codMap(
-    codTupleOf(codF32, codF32),
-    vec => vec.toArray(),
-    ([x, y]) => Vector.create(x, y)
-  )
-);
-
-export const encComponentSnapshot = encObjectOf<Components>({
-  type: encEntityType,
-  position: encVec2,
-  destination: encOptional(encVec2),
-  speed: encOptional(encFiniteNumber),
-  conveyable: encOptional(encOneOf([true])),
-});
-export type ComponentSnapshot = EncodableType<typeof encComponentSnapshot>;
-
-export const encEntitySnapshot = encMapOf(encEntityId, encComponentSnapshot);
+export const encEntitySnapshot = encMapOf(encEntityId, encComponents);
 export type EntitySnapshot = EncodableType<typeof encEntitySnapshot>;
 
-export const encRegionTiles = encObjectOf({
-  tiles: encArrayOf(encTile, { fixedLength: REGION_SIDE_LENGTH ** 2 }),
+export const encRegionTiles = encArrayOf(encTile, {
+  fixedLength: REGION_SIDE_LENGTH ** 2,
 });
 export type RegionTiles = EncodableType<typeof encRegionTiles>;
 

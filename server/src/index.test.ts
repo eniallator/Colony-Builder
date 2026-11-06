@@ -11,7 +11,9 @@ import {
   TPS,
   type RegionId,
 } from "@colony-builder/shared";
-import { mapFilter, mapFind, partition, raise } from "niall-utils";
+import { raise } from "niall-utils/core";
+import { partition } from "niall-utils/data";
+import { mapFilter, mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 

@@ -1,5 +1,5 @@
 import type { Tile } from "@colony-builder/shared";
-import { checkExhausted } from "niall-utils";
+import { checkExhausted } from "niall-utils/core";
 import { Vector } from "vectyped";
 
 import type { ClientSystem } from "../system.ts";

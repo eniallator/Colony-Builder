@@ -1,5 +1,5 @@
 import type { ServerMessage } from "@colony-builder/shared";
-import { checkExhausted } from "niall-utils";
+import { checkExhausted } from "niall-utils/core";
 
 import type { State } from "../state.ts";
 
