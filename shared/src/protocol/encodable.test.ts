@@ -10,6 +10,7 @@ import {
   encOneOf,
   encOptional,
   encRecordOf,
+  encSetOf,
   encTupleOf,
   encUnionOf,
   type Encodable,
@@ -232,6 +233,24 @@ describe("encArrayOf", () => {
       expect(triple.guard([1, 2, 3, 4])).toBe(false);
       expect(triple.guard([1, 2, "3"])).toBe(false);
     });
+  });
+});
+
+describe("encSetOf", () => {
+  const bytes = encSetOf(byte);
+
+  it("round-trips", () => {
+    const value = new Set([1, 2, 3]);
+
+    expect(bytes.decode(bytes.encode(value))).toEqual(value);
+    expect(bytes.decode(bytes.encode(new Set()))).toEqual(new Set());
+  });
+
+  it("guards the set and every item", () => {
+    expect(bytes.guard(new Set([1, 2]))).toBe(true);
+    expect(bytes.guard(new Set([1, "2"]))).toBe(false);
+    expect(bytes.guard([1, 2])).toBe(false);
+    expect(bytes.guard(null)).toBe(false);
   });
 });
 

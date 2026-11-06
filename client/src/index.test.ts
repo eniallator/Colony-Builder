@@ -212,6 +212,47 @@ describe("app.init", () => {
     });
   });
 
+  describe("inventory dialog", () => {
+    const openInventory = () => {
+      const dialog = document.querySelector("dialog");
+      if (dialog == null) throw new Error("No dialog");
+      dialog.showModal = vi.fn();
+      document.querySelector<HTMLButtonElement>("#inventory-btn")?.click();
+      return dialog;
+    };
+
+    it("lists the player's inventory", () => {
+      app.init(createAppContext());
+      const id = unsafeEntityId(1);
+      const player: Components = {
+        type: "player",
+        position: Vector.zero(2),
+        destination: undefined,
+        speed: 1,
+        canPickup: undefined,
+        conveyable: undefined,
+        inventory: new Map([["log", { count: 3 }]]),
+      };
+      lastSocket().dispatchEvent(serverMessage({ type: "init", id }));
+      lastSocket().dispatchEvent(
+        serverMessage({ type: "entities", snapshot: new Map([[id, player]]) })
+      );
+
+      const dialog = openInventory();
+
+      expect(dialog.querySelector(".label")?.textContent).toBe("Log");
+      expect(dialog.querySelector(".count")?.textContent).toBe("3");
+    });
+
+    it("is empty before the player is known", () => {
+      app.init(createAppContext());
+
+      const dialog = openInventory();
+
+      expect(dialog.querySelector(".empty")?.textContent).toBe("Empty");
+    });
+  });
+
   describe("mouse", () => {
     it("sends the clicked world position as the destination", () => {
       const ctx = createAppContext();

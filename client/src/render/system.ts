@@ -1,14 +1,10 @@
-import {
-  ITEM_TILES,
-  itemDataRegistry,
-  type ItemId,
-  type Tile,
-} from "@colony-builder/shared";
+import { ITEM_TILES, type ItemId, type Tile } from "@colony-builder/shared";
 import { checkExhausted } from "niall-utils/core";
 import { Vector } from "vectyped";
 
 import type { ClientSystem } from "../system.ts";
 import { fromCanvasCoords, toCanvasCoords } from "../ui/camera.ts";
+import { ITEM_RENDER_DATA } from "../ui/index.ts";
 
 export const prepareRender: ClientSystem = ({
   ctx,
@@ -90,7 +86,7 @@ const getItemImage = (id: ItemId): HTMLImageElement => {
   const cached = itemImages.get(id);
   if (cached != null) return cached;
 
-  const { color, icon } = itemDataRegistry[id];
+  const { color, icon } = ITEM_RENDER_DATA[id];
   const image = new Image();
   image.src = `data:image/svg+xml,${encodeURIComponent(
     icon.replace("<svg ", `<svg fill="${color}" `)
@@ -105,7 +101,7 @@ const renderItem = (
   centre: Vector<2>,
   size: number
 ) => {
-  const { color } = itemDataRegistry[id];
+  const { color } = ITEM_RENDER_DATA[id];
   const [x, y] = centre.toArray();
 
   // Colour glow: fully opaque in the centre, fully transparent at the edge.

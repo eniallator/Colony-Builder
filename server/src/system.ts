@@ -11,8 +11,7 @@ export type ServerSystem = System<{ state: State }>;
 
 export const pickupSystem: ServerSystem = ({ world }) => {
   for (const id of world.entities.query("type", "position", "inventory")) {
-    const type = world.entities.get(id, "type");
-    if (type !== "player") continue;
+    if (world.entities.optGet(id, "type") !== "player") continue;
 
     const pos = world.entities.get(id, "position");
     const inventory = world.entities.get(id, "inventory");
