@@ -24,10 +24,13 @@ const component = (overrides: Partial<Components> = {}): Components => ({
   position: Vector.create(1, 2),
   destination: undefined,
   speed: undefined,
+  canPickup: undefined,
   conveyable: undefined,
   inventory: undefined,
   ...overrides,
 });
+
+const sampleItem = { id: "log" as const, count: 1 };
 
 const snapshotOf = (...entities: [EntityId, Components][]): EntitySnapshot =>
   new Map(entities);
@@ -165,7 +168,7 @@ describe("EntityStore", () => {
     it("captures players and items by id", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, Vector.create(3, 4));
+      const item = createItem(world, sampleItem, Vector.create(3, 4));
 
       expect(world.entities.takeSnapshot([player, item])).toEqual(
         new Map([
@@ -176,6 +179,7 @@ describe("EntityStore", () => {
               position: Vector.create(1, 2),
               destination: undefined,
               speed: PLAYER_SPEED,
+              canPickup: undefined,
               conveyable: undefined,
               // Starting inventory contents are temporary
               inventory: world.entities.get(player, "inventory"),
@@ -188,8 +192,9 @@ describe("EntityStore", () => {
               position: Vector.create(3, 4),
               destination: undefined,
               speed: undefined,
+              canPickup: true,
               conveyable: true,
-              inventory: new Map(),
+              inventory: new Map([["log", { count: 1 }]]),
             },
           ],
         ])
@@ -198,9 +203,12 @@ describe("EntityStore", () => {
 
     it("captures the contents of an inventory", () => {
       const world = new World();
-      const item = createItem(world);
       const contents = { data: undefined, count: 3 };
-      world.entities.get(item, "inventory").set("iron_ore", contents);
+      const item = createItem(
+        world,
+        { id: "iron_ore", ...contents },
+        Vector.zero(2)
+      );
 
       expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual(
         new Map([["iron_ore", contents]])
@@ -209,10 +217,11 @@ describe("EntityStore", () => {
 
     it("round-trips an inventory with items in it", () => {
       const world = new World();
-      const item = createItem(world);
-      world.entities
-        .get(item, "inventory")
-        .set("iron_ore", { data: undefined, count: 3 });
+      const item = createItem(
+        world,
+        { id: "iron_ore", data: undefined, count: 3 },
+        Vector.zero(2)
+      );
       const snapshot = world.entities.takeSnapshot([item]);
 
       expect(
@@ -233,7 +242,7 @@ describe("EntityStore", () => {
     it("only captures the requested ids", () => {
       const world = new World();
       createPlayer(world);
-      const item = createItem(world);
+      const item = createItem(world, sampleItem, Vector.zero(2));
 
       expect([...world.entities.takeSnapshot([item]).keys()]).toEqual([item]);
     });
@@ -248,7 +257,7 @@ describe("EntityStore", () => {
     it("survives an encode / decode round trip", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1.5, 2.5));
-      const item = createItem(world);
+      const item = createItem(world, sampleItem, Vector.zero(2));
 
       const snapshot = world.entities.takeSnapshot([player, item]);
 
@@ -260,7 +269,7 @@ describe("EntityStore", () => {
     it("can be applied to another EntityStore", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, Vector.create(3, 4));
+      const item = createItem(world, sampleItem, Vector.create(3, 4));
       const store = new EntityStore();
 
       store.applySnapshot(world.entities.takeSnapshot([player, item]));

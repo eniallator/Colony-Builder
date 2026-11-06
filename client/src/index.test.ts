@@ -166,6 +166,7 @@ describe("app.init", () => {
         position: Vector.create(3, 4),
         destination: undefined,
         speed: undefined,
+        canPickup: true,
         conveyable: true,
         inventory: undefined,
       };

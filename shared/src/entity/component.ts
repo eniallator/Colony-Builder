@@ -19,11 +19,19 @@ const encFiniteNumber = encodable(
 );
 
 export const encComponents = encObjectOf({
+  // What kind of entity this is (e.g. "player"); used to pick behaviour and rendering.
   type: encEntityType,
+  // World-space location of the entity.
   position: encVec2,
+  // Point the entity is walking towards; selfMovementSystem removes it on arrival.
   destination: encOptional(encVec2),
+  // Self-propelled movement speed towards the destination, scaled by dt each tick.
   speed: encOptional(encFiniteNumber),
+  // Marks an item entity that a nearby player can pick up into their inventory.
+  canPickup: encOptional(encOneOf([true])),
+  // Marks an entity that gets carried along by conveyor belts it stands on.
   conveyable: encOptional(encOneOf([true])),
+  // Items held by the entity (a player's bag, or the contents of a pickup).
   inventory: encOptional(encInventory),
 });
 export type Components = EncodableType<typeof encComponents>;
@@ -56,6 +64,7 @@ export const componentNames = tuple(
   "position",
   "destination",
   "speed",
+  "canPickup",
   "conveyable",
   "inventory"
 );
@@ -66,6 +75,7 @@ type _ComponentNamesComplete = AssertTrue<
 export const optionalComponentNames = tuple(
   "destination",
   "speed",
+  "canPickup",
   "conveyable",
   "inventory"
 );

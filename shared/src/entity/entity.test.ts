@@ -32,19 +32,23 @@ describe("createPlayer", () => {
 });
 
 describe("createItem", () => {
-  it("spawns a conveyable item at the origin by default", () => {
+  it("spawns a pickable, conveyable item holding the given item", () => {
     const world = new World();
-    const id = createItem(world);
+    const id = createItem(world, { id: "log", count: 4 }, Vector.zero(2));
 
     expect(world.entities.get(id, "type")).toBe("item");
     expect(world.entities.get(id, "position").toArray()).toEqual([0, 0]);
+    expect(world.entities.get(id, "canPickup")).toBe(true);
     expect(world.entities.get(id, "conveyable")).toBe(true);
+    expect(world.entities.get(id, "inventory")).toEqual(
+      new Map([["log", { count: 4 }]])
+    );
     expect(world.entities.optGet(id, "speed")).toBeUndefined();
   });
 
   it("spawns at the given position", () => {
     const world = new World();
-    const id = createItem(world, Vector.create(-1, 2));
+    const id = createItem(world, { id: "log", count: 1 }, Vector.create(-1, 2));
 
     expect(world.entities.get(id, "position").toArray()).toEqual([-1, 2]);
   });

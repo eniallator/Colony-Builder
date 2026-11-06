@@ -23,7 +23,7 @@ const state: State = {
   players: new Map(),
 };
 
-createItem(state.world, Vector.UP.multiply(5));
+createItem(state.world, { id: "log", count: 10 }, Vector.UP.multiply(5));
 
 const send = (socket: WebSocket, message: ServerMessage) => {
   socket.send(encServerMessage.encode(message));

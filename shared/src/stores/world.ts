@@ -33,15 +33,14 @@ export class World {
     worldX: number,
     worldY: number,
     regionSideLength: number,
-    componentNames: ComponentName[] = []
+    componentNames: Exclude<ComponentName, "position">[] = []
   ): EntityId[] {
     const ids = regionsAround(
       ...worldToRegionPos(worldX, worldY),
       regionSideLength
     ).flatMap(id => this.entityRegions.get(id) ?? []);
 
-    return componentNames.length === 0
-      ? ids
-      : this.entityStore.queryWithIds(ids, ...componentNames);
+    // Entities may not exist since the index was built, so re-querying
+    return this.entityStore.queryWithIds(ids, "position", ...componentNames);
   }
 }

@@ -34,6 +34,7 @@ const player: Components = {
   position: Vector.create(1.5, -2.25),
   destination: Vector.create(4, 8),
   speed: 3,
+  canPickup: undefined,
   conveyable: undefined,
   inventory: new Map([["iron_ore", { data: undefined, count: 5 }]]),
 };
@@ -43,6 +44,7 @@ const item: Components = {
   position: Vector.create(0, 0),
   destination: undefined,
   speed: undefined,
+  canPickup: true,
   conveyable: true,
   inventory: undefined,
 };

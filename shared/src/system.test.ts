@@ -1,7 +1,7 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { REGION_SIDE_LENGTH } from "./constants.ts";
+import { CONVEYOR_SPEED, REGION_SIDE_LENGTH } from "./constants.ts";
 import { World } from "./stores/world.ts";
 import {
   conveyorMovementSystem,
@@ -114,7 +114,10 @@ describe("conveyorMovementSystem", () => {
 
     conveyorMovementSystem({ world, dt: 0.5 });
 
-    expect(world.entities.get(id, "position").toArray()).toEqual([2, 1.5]);
+    expect(world.entities.get(id, "position").toArray()).toEqual([
+      1.5 + 0.5 * CONVEYOR_SPEED,
+      1.5,
+    ]);
   });
 
   it("leaves an entity on a non-conveyor tile where it is", () => {

@@ -1,4 +1,9 @@
-import type { Tile } from "@colony-builder/shared";
+import {
+  ITEM_TILES,
+  itemDataRegistry,
+  type ItemId,
+  type Tile,
+} from "@colony-builder/shared";
 import { checkExhausted } from "niall-utils/core";
 import { Vector } from "vectyped";
 
@@ -78,6 +83,46 @@ export const renderTiles: ClientSystem = ({ canvas, ctx, camera, world }) => {
   }
 };
 
+const itemImages = new Map<ItemId, HTMLImageElement>();
+
+// Icons carry no fill of their own, so the item colour is injected on the root <svg>.
+const getItemImage = (id: ItemId): HTMLImageElement => {
+  const cached = itemImages.get(id);
+  if (cached != null) return cached;
+
+  const { color, icon } = itemDataRegistry[id];
+  const image = new Image();
+  image.src = `data:image/svg+xml,${encodeURIComponent(
+    icon.replace("<svg ", `<svg fill="${color}" `)
+  )}`;
+  itemImages.set(id, image);
+  return image;
+};
+
+const renderItem = (
+  ctx: CanvasRenderingContext2D,
+  id: ItemId,
+  centre: Vector<2>,
+  size: number
+) => {
+  const { color } = itemDataRegistry[id];
+  const [x, y] = centre.toArray();
+
+  // Colour glow: fully opaque in the centre, fully transparent at the edge.
+  const glow = ctx.createRadialGradient(x, y, 0, x, y, size);
+  glow.addColorStop(0, color);
+  glow.addColorStop(1, `${color}00`);
+  ctx.fillStyle = glow;
+  ctx.beginPath();
+  ctx.arc(x, y, size, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // The image decodes asynchronously, so skip it until it is ready.
+  const image = getItemImage(id);
+  if (image.complete && image.naturalWidth > 0)
+    ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+};
+
 export const renderEntities: ClientSystem = ({
   canvas,
   ctx,
@@ -101,11 +146,12 @@ export const renderEntities: ClientSystem = ({
       }
 
       case "item": {
-        ctx.fillStyle = "blue";
-
-        ctx.beginPath();
-        ctx.arc(drawPos.x(), drawPos.y(), 5, 0, 2 * Math.PI);
-        ctx.fill();
+        const itemId = world.entities
+          .optGet(id, "inventory")
+          ?.keys()
+          .next().value;
+        if (itemId != null)
+          renderItem(ctx, itemId, drawPos, ITEM_TILES * 2 ** camera.zoom);
 
         break;
       }

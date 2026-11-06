@@ -1,5 +1,6 @@
 import { Vector } from "vectyped";
 
+import { CONVEYOR_SPEED } from "./constants.ts";
 import type { World } from "./stores/world.ts";
 import type { Tile } from "./terrain/types.ts";
 
@@ -56,7 +57,7 @@ export const conveyorMovementSystem: System = ({ world, dt }) => {
       position.add(
         toCenter
           .lerp((1 - 2 * Math.abs(toCenter.sum())) ** 2, direction)
-          .multiply(dt)
+          .multiply(dt, CONVEYOR_SPEED)
       );
     }
   }
