@@ -195,7 +195,8 @@ describe("snapshots", () => {
     const nearTraveller = [...latestEntities(traveller).keys()];
     expect(nearStayer).toContain(playerIdOf(stayer));
     expect(nearStayer).not.toContain(playerIdOf(traveller));
-    expect(nearTraveller).toEqual([playerIdOf(traveller)]);
+    expect(nearTraveller).toContain(playerIdOf(traveller));
+    expect(nearTraveller).not.toContain(playerIdOf(stayer));
   });
 
   it("skips sockets that are not open", async () => {

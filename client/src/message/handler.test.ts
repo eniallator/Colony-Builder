@@ -35,11 +35,7 @@ describe("messageHandler", () => {
   it("applies the entities from an entities message", () => {
     const server = new World();
     const player = createPlayer(server, Vector.create(1, 2));
-    const item = createItem(
-      server,
-      { id: "log", count: 1 },
-      Vector.create(3, 4)
-    );
+    const item = createItem(server, "log", { count: 1 }, Vector.create(3, 4));
     const state = createState();
 
     messageHandler(state, {

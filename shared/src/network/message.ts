@@ -20,6 +20,7 @@ export const encUnloadMessage = encObjectOf({
   type: encExact("unload"),
   ids: encArrayOf(encRegionId, { runPrecision: "u16" }),
 });
+export type UnloadMessage = EncodableType<typeof encUnloadMessage>;
 
 export const encInitMessage = encObjectOf({
   type: encExact("init"),

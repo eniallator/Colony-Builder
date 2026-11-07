@@ -43,6 +43,24 @@ const player: Components = {
   canPickup: undefined,
   conveyable: undefined,
   inventory: new Map([["iron_ore", { data: undefined, count: 5 }]]),
+  taskList: undefined,
+};
+
+const robot: Components = {
+  type: "robot",
+  position: Vector.create(2, 3),
+  destination: undefined,
+  speed: 2,
+  canPickup: undefined,
+  conveyable: undefined,
+  inventory: new Map(),
+  taskList: {
+    tasks: [
+      { type: "gatherResource", target: Vector.create(3, 4), progress: 0.5 },
+      { type: "dropInventory", target: Vector.create(-1, 2) },
+    ],
+    repeat: true,
+  },
 };
 
 const item: Components = {
@@ -53,6 +71,7 @@ const item: Components = {
   canPickup: true,
   conveyable: true,
   inventory: undefined,
+  taskList: undefined,
 };
 
 const entities: EntitySnapshot = new Map([
@@ -78,6 +97,10 @@ const terrain: TerrainSnapshot = new Map([
 describe("encComponents", () => {
   it("round-trips an entity with every field", () => {
     expect(encComponents.decode(encComponents.encode(player))).toEqual(player);
+  });
+
+  it("round-trips a robot with a task list", () => {
+    expect(encComponents.decode(encComponents.encode(robot))).toEqual(robot);
   });
 
   it("round-trips an entity without its optional fields", () => {

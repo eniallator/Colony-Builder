@@ -6,6 +6,9 @@ export const PLAYER_SPEED = 10;
 export const ROBOT_SPEED = 5;
 export const CONVEYOR_SPEED = 3;
 
+export const TASK_DURATION = 3;
+export const TASK_RADIUS = 1;
+
 export const PICKUP_SQR_RADIUS = 1;
 
 export const ITEM_TILES = 0.5;

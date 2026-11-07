@@ -169,6 +169,7 @@ describe("app.init", () => {
         canPickup: true,
         conveyable: true,
         inventory: undefined,
+        taskList: undefined,
       };
 
       lastSocket().dispatchEvent(
@@ -232,6 +233,7 @@ describe("app.init", () => {
         canPickup: undefined,
         conveyable: undefined,
         inventory: new Map([["log", { count: 3 }]]),
+        taskList: undefined,
       };
       lastSocket().dispatchEvent(serverMessage({ type: "init", id }));
       lastSocket().dispatchEvent(

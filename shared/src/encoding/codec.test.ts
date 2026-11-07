@@ -8,6 +8,7 @@ import {
   codExact,
   codF16,
   codF32,
+  codF64,
   codI8,
   codI16,
   codI32,
@@ -185,6 +186,24 @@ describe("codF32", () => {
   it("round-trips non-finite values", () => {
     expect(read(codF32, write(codF32, Infinity)).value).toBe(Infinity);
     expect(read(codF32, write(codF32, Number.NaN)).value).toBeNaN();
+  });
+});
+
+describe("codF64", () => {
+  it("is eight bytes wide, little-endian", () => {
+    expect(codF64.size(0)).toBe(8);
+    expect(write(codF64, 1)).toEqual([0, 0, 0, 0, 0, 0, 0xf0, 0x3f]);
+  });
+
+  it("reads little-endian and advances the cursor", () => {
+    expect(read(codF64, [0, 0, 0, 0, 0, 0, 0xf8, 0x3f])).toEqual({
+      value: 1.5,
+      pos: 8,
+    });
+  });
+
+  it("keeps precision that f32 would lose", () => {
+    expect(read(codF64, write(codF64, 0.1)).value).toBe(0.1);
   });
 });
 

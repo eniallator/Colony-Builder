@@ -7,7 +7,8 @@ import type { EntityId } from "./types.ts";
 
 export const createItem = (
   world: World,
-  { id, ...item }: { id: ItemId } & Item,
+  id: ItemId,
+  item: Item,
   position: Vector<2>
 ): EntityId =>
   world.entities.spawn({

@@ -1,5 +1,6 @@
 import {
   isArrayOf,
+  isBoolean,
   isExact,
   isExactObjectOf,
   isOneOf,
@@ -22,6 +23,7 @@ import { Vector } from "vectyped";
 import {
   chooseUIntCod,
   codArrayOf,
+  codBoolean,
   codExact,
   codF32,
   codMap,
@@ -51,6 +53,23 @@ export interface Encodable<
 export type EncodableType<E extends Encodable> =
   E extends Encodable<infer T> ? T : never;
 
+type DeepWritable<T> =
+  T extends Vector<infer _N extends number>
+    ? T
+    : T extends (...args: never[]) => unknown
+      ? T
+      : T extends Map<infer K, infer V>
+        ? Map<DeepWritable<K>, DeepWritable<V>>
+        : T extends Set<infer U>
+          ? Set<DeepWritable<U>>
+          : T extends object
+            ? { -readonly [K in keyof T]: DeepWritable<T[K]> }
+            : T;
+
+export type EncodableWritableType<E extends Encodable> = DeepWritable<
+  EncodableType<E>
+>;
+
 export const encodable = <const T extends CodecValue>(
   guard: Guard<T>,
   codec: Codec<T>
@@ -73,6 +92,8 @@ export const encodable = <const T extends CodecValue>(
       : undefined;
   },
 });
+
+export const encBoolean = encodable(isBoolean, codBoolean);
 
 const isVec =
   <const N extends number>(size: N): Guard<Vector<N>> =>

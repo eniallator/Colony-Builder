@@ -5,4 +5,6 @@ export * from "./item/index.ts";
 export * from "./network/index.ts";
 export * from "./stores/index.ts";
 export * from "./system.ts";
+export * from "./system/index.ts";
+export * from "./task/index.ts";
 export * from "./terrain/index.ts";

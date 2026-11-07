@@ -126,6 +126,13 @@ export const codF32 = fixedCodec(
   },
   (view, pos) => view.getFloat32(pos, LITTLE_ENDIAN)
 );
+export const codF64 = fixedCodec(
+  8,
+  (view, pos, value) => {
+    view.setFloat64(pos, value, LITTLE_ENDIAN);
+  },
+  (view, pos) => view.getFloat64(pos, LITTLE_ENDIAN)
+);
 
 const U8_MAX = 2 ** 8;
 const U16_MAX = 2 ** 16;

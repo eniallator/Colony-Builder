@@ -34,7 +34,7 @@ describe("createPlayer", () => {
 describe("createItem", () => {
   it("spawns a pickable, conveyable item holding the given item", () => {
     const world = new World();
-    const id = createItem(world, { id: "log", count: 4 }, Vector.zero(2));
+    const id = createItem(world, "log", { count: 4 }, Vector.zero(2));
 
     expect(world.entities.get(id, "type")).toBe("item");
     expect(world.entities.get(id, "position").toArray()).toEqual([0, 0]);
@@ -48,7 +48,7 @@ describe("createItem", () => {
 
   it("spawns at the given position", () => {
     const world = new World();
-    const id = createItem(world, { id: "log", count: 1 }, Vector.create(-1, 2));
+    const id = createItem(world, "log", { count: 1 }, Vector.create(-1, 2));
 
     expect(world.entities.get(id, "position").toArray()).toEqual([-1, 2]);
   });

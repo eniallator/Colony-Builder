@@ -11,6 +11,7 @@ import {
   type EncodableType,
 } from "../encoding/index.ts";
 import { encInventory } from "../item/index.ts";
+import { encTaskList } from "../task/types.ts";
 import { encEntityType } from "./types.ts";
 
 const encFiniteNumber = encodable(
@@ -33,6 +34,7 @@ export const encComponents = encObjectOf({
   conveyable: encOptional(encOneOf([true])),
   // Items held by the entity (a player's bag, or the contents of a pickup).
   inventory: encOptional(encInventory),
+  taskList: encOptional(encTaskList),
 });
 export type Components = EncodableType<typeof encComponents>;
 
@@ -66,7 +68,8 @@ export const componentNames = tuple(
   "speed",
   "canPickup",
   "conveyable",
-  "inventory"
+  "inventory",
+  "taskList"
 );
 type _ComponentNamesComplete = AssertTrue<
   IsCompleteTuple<typeof componentNames, ComponentName>
@@ -77,7 +80,8 @@ export const optionalComponentNames = tuple(
   "speed",
   "canPickup",
   "conveyable",
-  "inventory"
+  "inventory",
+  "taskList"
 );
 type _OptionalComponentNamesComplete = AssertTrue<
   IsCompleteTuple<typeof optionalComponentNames, OptionalComponentName>

@@ -4,6 +4,7 @@ import {
   mergeInventories,
   PICKUP_SQR_RADIUS,
   selfMovementSystem,
+  taskSystem,
   World,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
@@ -32,6 +33,10 @@ describe("serverSystems", () => {
     expect(serverSystems).toContain(selfMovementSystem);
   });
 
+  it("includes the task system", () => {
+    expect(serverSystems).toContain(taskSystem);
+  });
+
   it("includes the pickup system", () => {
     expect(serverSystems).toContain(pickupSystem);
   });
@@ -41,11 +46,7 @@ describe("pickupSystem", () => {
   it("moves nearby items into the player's inventory and despawns them", () => {
     const world = new World();
     const player = createPlayer(world, Vector.create(5, 5));
-    const item = createItem(
-      world,
-      { id: "log", count: 3 },
-      Vector.create(5, 5)
-    );
+    const item = createItem(world, "log", { count: 3 }, Vector.create(5, 5));
 
     runPickup(world);
 
@@ -59,7 +60,7 @@ describe("pickupSystem", () => {
     const world = new World();
     const player = createPlayer(world, Vector.create(5, 5));
     world.entities.get(player, "inventory").set("log", { count: 2 });
-    createItem(world, { id: "log", count: 3 }, Vector.create(5, 5));
+    createItem(world, "log", { count: 3 }, Vector.create(5, 5));
 
     runPickup(world);
 
@@ -73,7 +74,8 @@ describe("pickupSystem", () => {
     const player = createPlayer(world, Vector.create(5, 5));
     const item = createItem(
       world,
-      { id: "log", count: 3 },
+      "log",
+      { count: 3 },
       Vector.create(5 + Math.sqrt(PICKUP_SQR_RADIUS) + 0.5, 5)
     );
 
@@ -85,8 +87,8 @@ describe("pickupSystem", () => {
 
   it("ignores non-player entities with an inventory", () => {
     const world = new World();
-    const holder = createItem(world, { id: "log", count: 1 }, Vector.zero(2));
-    const other = createItem(world, { id: "log", count: 4 }, Vector.zero(2));
+    const holder = createItem(world, "log", { count: 1 }, Vector.zero(2));
+    const other = createItem(world, "log", { count: 4 }, Vector.zero(2));
 
     runPickup(world);
 
@@ -99,7 +101,7 @@ describe("pickupSystem", () => {
   it("keeps the pickup with what is left over when not everything fits", () => {
     const world = new World();
     createPlayer(world, Vector.zero(2));
-    const item = createItem(world, { id: "log", count: 3 }, Vector.zero(2));
+    const item = createItem(world, "log", { count: 3 }, Vector.zero(2));
     const leftover = new Map([["log", { count: 1 }]] as const);
     vi.mocked(mergeInventories).mockReturnValueOnce(leftover);
 

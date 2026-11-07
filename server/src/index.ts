@@ -1,6 +1,6 @@
 import {
-  createItem,
   createPlayer,
+  createRobot,
   encClientMessage,
   encServerMessage,
   LOADED_SIDE_LENGTH,
@@ -23,8 +23,10 @@ const state: State = {
   players: new Map(),
 };
 
-createItem(state.world, { id: "log", count: 10 }, Vector.UP.multiply(5));
-createItem(state.world, { id: "iron_ore", count: 10 }, Vector.DOWN.multiply(5));
+createRobot(state.world, Vector.zero(2), [
+  { type: "gatherResource", target: Vector.create(30, -10), progress: 0 },
+  { type: "dropInventory", target: Vector.create(30.5, -4.5) },
+]);
 
 const send = (socket: WebSocket, message: ServerMessage) => {
   socket.send(encServerMessage.encode(message));
