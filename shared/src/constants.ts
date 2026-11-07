@@ -3,7 +3,7 @@ export const SOCKET_PORT = 3000;
 export const TPS = 20;
 
 export const PLAYER_SPEED = 10;
-
+export const ROBOT_SPEED = 5;
 export const CONVEYOR_SPEED = 3;
 
 export const PICKUP_SQR_RADIUS = 1;

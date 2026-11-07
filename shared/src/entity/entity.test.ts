@@ -77,7 +77,7 @@ describe("encEntityId", () => {
 
 describe("encEntityType", () => {
   it("lists every entity type", () => {
-    expect(allEntityTypes).toEqual(["player", "item"]);
+    expect(allEntityTypes).toEqual(["player", "robot", "item"]);
   });
 
   it.each(allEntityTypes)("round-trips %s", type => {

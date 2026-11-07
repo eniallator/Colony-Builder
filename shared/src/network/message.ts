@@ -1,26 +1,14 @@
-import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { encComponents, encEntityId } from "../entity/index.ts";
-import { encRegionId, encTile } from "../terrain/types.ts";
 import {
   encArrayOf,
   encExact,
-  encMapOf,
   encObjectOf,
   encUnionOf,
   encVec2,
   type EncodableType,
-} from "./encodable.ts";
-
-export const encEntitySnapshot = encMapOf(encEntityId, encComponents);
-export type EntitySnapshot = EncodableType<typeof encEntitySnapshot>;
-
-export const encRegionTiles = encArrayOf(encTile, {
-  fixedLength: REGION_SIDE_LENGTH ** 2,
-});
-export type RegionTiles = EncodableType<typeof encRegionTiles>;
-
-export const encTerrainSnapshot = encMapOf(encRegionId, encRegionTiles);
-export type TerrainSnapshot = EncodableType<typeof encTerrainSnapshot>;
+} from "../encoding/index.ts";
+import { encEntityId } from "../entity/index.ts";
+import { encEntitySnapshot, encTerrainSnapshot } from "../stores/index.ts";
+import { encRegionId } from "../terrain/index.ts";
 
 export const encMoveMessage = encObjectOf({
   type: encExact("move"),

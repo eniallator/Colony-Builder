@@ -11,8 +11,8 @@ import {
   type Components,
   type EntityId,
 } from "../entity/index.ts";
-import { encEntitySnapshot, type EntitySnapshot } from "../protocol/index.ts";
 import { EntityStore } from "./entityStore.ts";
+import { encEntitySnapshot, type EntitySnapshot } from "./types.ts";
 import { World } from "./world.ts";
 
 const a = unsafeEntityId(0);

@@ -1,4 +1,5 @@
 import { ITEM_TILES, type ItemId, type Tile } from "@colony-builder/shared";
+import { memoize } from "niall-utils";
 import { checkExhausted } from "niall-utils/core";
 import { Vector } from "vectyped";
 
@@ -28,6 +29,7 @@ const TILE_COLOUR_LOOKUP: Record<Tile, string> = {
   water: "#2f6fdb",
   sand: "#e3d38a",
   stone: "#8a8a8a",
+  iron_deposit: "#8fa3b8",
   conveyor_up: "#7a7a86",
   conveyor_left: "#6b6b76",
   conveyor_right: "#4d4d56",
@@ -35,20 +37,17 @@ const TILE_COLOUR_LOOKUP: Record<Tile, string> = {
 };
 
 export const renderTiles: ClientSystem = ({ canvas, ctx, camera, world }) => {
-  const minWorld = fromCanvasCoords(canvas, camera, Vector.zero(2));
+  const minWorld = fromCanvasCoords(canvas, camera, Vector.zero(2)).floor();
   const maxWorld = fromCanvasCoords(
     canvas,
     camera,
     Vector.create(canvas.width, canvas.height)
-  );
-  const maxX = Math.floor(maxWorld.x());
-  const maxY = Math.floor(maxWorld.y());
+  ).floor();
 
-  // Batch every visible tile into one path per tile type, so each type is a single fill.
   const paths = new Map<Tile, Path2D>();
 
-  for (let y = Math.floor(minWorld.y()); y <= maxY; y++) {
-    for (let x = Math.floor(minWorld.x()); x <= maxX; x++) {
+  for (let y = minWorld.y(); y <= maxWorld.y(); y++) {
+    for (let x = minWorld.x(); x <= maxWorld.x(); x++) {
       const tile = world.terrain.optTileAt(x, y);
       if (tile == null) continue;
 
@@ -58,16 +57,12 @@ export const renderTiles: ClientSystem = ({ canvas, ctx, camera, world }) => {
         camera,
         Vector.create(x + 1, y + 1)
       );
-      // Snap outwards to whole pixels so neighbouring tiles leave no seams.
-      const left = Math.floor(topLeft.x());
-      const top = Math.floor(topLeft.y());
 
       const path = paths.get(tile) ?? new Path2D();
       path.rect(
-        left,
-        top,
-        Math.ceil(bottomRight.x()) - left,
-        Math.ceil(bottomRight.y()) - top
+        ...topLeft.floor().toArray(),
+        // The line above mutates topLeft with .floor
+        ...bottomRight.ceil().sub(topLeft).toArray()
       );
       paths.set(tile, path);
     }
@@ -79,21 +74,11 @@ export const renderTiles: ClientSystem = ({ canvas, ctx, camera, world }) => {
   }
 };
 
-const itemImages = new Map<ItemId, HTMLImageElement>();
-
-// Icons carry no fill of their own, so the item colour is injected on the root <svg>.
-const getItemImage = (id: ItemId): HTMLImageElement => {
-  const cached = itemImages.get(id);
-  if (cached != null) return cached;
-
-  const { color, icon } = ITEM_RENDER_DATA[id];
+const getItemImage = memoize((id: ItemId): HTMLImageElement => {
   const image = new Image();
-  image.src = `data:image/svg+xml,${encodeURIComponent(
-    icon.replace("<svg ", `<svg fill="${color}" `)
-  )}`;
-  itemImages.set(id, image);
+  image.src = `data:image/svg+xml,${encodeURIComponent(ITEM_RENDER_DATA[id].icon)}`;
   return image;
-};
+});
 
 const renderItem = (
   ctx: CanvasRenderingContext2D,
@@ -104,19 +89,19 @@ const renderItem = (
   const { color } = ITEM_RENDER_DATA[id];
   const [x, y] = centre.toArray();
 
-  // Colour glow: fully opaque in the centre, fully transparent at the edge.
   const glow = ctx.createRadialGradient(x, y, 0, x, y, size);
   glow.addColorStop(0, color);
   glow.addColorStop(1, `${color}00`);
   ctx.fillStyle = glow;
+
   ctx.beginPath();
   ctx.arc(x, y, size, 0, 2 * Math.PI);
   ctx.fill();
 
-  // The image decodes asynchronously, so skip it until it is ready.
   const image = getItemImage(id);
-  if (image.complete && image.naturalWidth > 0)
+  if (image.complete && image.naturalWidth > 0) {
     ctx.drawImage(image, x - size / 2, y - size / 2, size, size);
+  }
 };
 
 export const renderEntities: ClientSystem = ({
@@ -135,9 +120,14 @@ export const renderEntities: ClientSystem = ({
     switch (entityType) {
       case "player": {
         ctx.fillStyle = id === playerId ? "green" : "red";
-
         ctx.fillRect(drawPos.x() - 5, drawPos.y() - 5, 10, 10);
 
+        break;
+      }
+
+      case "robot": {
+        ctx.fillStyle = "blue";
+        ctx.fillRect(drawPos.x() - 5, drawPos.y() - 5, 10, 10);
         break;
       }
 
@@ -146,8 +136,10 @@ export const renderEntities: ClientSystem = ({
           .optGet(id, "inventory")
           ?.keys()
           .next().value;
-        if (itemId != null)
+
+        if (itemId != null) {
           renderItem(ctx, itemId, drawPos, ITEM_TILES * 2 ** camera.zoom);
+        }
 
         break;
       }

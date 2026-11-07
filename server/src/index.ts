@@ -24,6 +24,7 @@ const state: State = {
 };
 
 createItem(state.world, { id: "log", count: 10 }, Vector.UP.multiply(5));
+createItem(state.world, { id: "iron_ore", count: 10 }, Vector.DOWN.multiply(5));
 
 const send = (socket: WebSocket, message: ServerMessage) => {
   socket.send(encServerMessage.encode(message));

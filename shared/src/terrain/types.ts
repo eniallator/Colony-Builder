@@ -1,8 +1,14 @@
 import { tuple, type Tagged } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { codI32, type Codec } from "../protocol/codec.ts";
-import { encodable, encOneOf } from "../protocol/encodable.ts";
+import {
+  codI32,
+  encArrayOf,
+  encodable,
+  encOneOf,
+  type Codec,
+  type EncodableType,
+} from "../encoding/index.ts";
 
 /** Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32. */
 export type RegionId = Tagged<bigint, "RegionId">;
@@ -67,6 +73,7 @@ export const tiles = tuple(
   "water",
   "sand",
   "stone",
+  "iron_deposit",
   "conveyor_up",
   "conveyor_down",
   "conveyor_left",
@@ -76,3 +83,8 @@ export type Tile = (typeof tiles)[number];
 export const encTile = encOneOf(tiles);
 
 export type TerrainGenerator = (x: number, y: number) => Tile;
+
+export const encRegionTiles = encArrayOf(encTile, {
+  fixedLength: REGION_SIDE_LENGTH ** 2,
+});
+export type RegionTiles = EncodableType<typeof encRegionTiles>;

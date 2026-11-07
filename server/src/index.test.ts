@@ -12,7 +12,6 @@ import {
   type RegionId,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
-import { partition } from "niall-utils/data";
 import { mapFilter, mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
@@ -171,18 +170,16 @@ describe("snapshots", () => {
     expect(snapshots(b)).toHaveLength(2);
   });
 
-  it("includes the starting item and every player", async () => {
+  it("includes every player", async () => {
     const server = await load();
     const [a, b] = [connect(server), connect(server)];
 
     tick();
 
-    const [players, others] = partition(
-      [...latestEntities(a)],
+    const players = [...latestEntities(a)].filter(
       ([, { type }]) => type === "player"
     );
     expect(players.map(([id]) => id)).toEqual([playerIdOf(a), playerIdOf(b)]);
-    expect(others.map(([, { type }]) => type)).toEqual(["item"]);
   });
 
   it("only includes the entities near each player", async () => {
@@ -199,8 +196,6 @@ describe("snapshots", () => {
     expect(nearStayer).toContain(playerIdOf(stayer));
     expect(nearStayer).not.toContain(playerIdOf(traveller));
     expect(nearTraveller).toEqual([playerIdOf(traveller)]);
-    // The starting item is still beside the stayer.
-    expect(nearStayer).toHaveLength(2);
   });
 
   it("skips sockets that are not open", async () => {

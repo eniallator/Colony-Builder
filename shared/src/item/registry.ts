@@ -1,6 +1,6 @@
 import type { ReadonlyNonEmptyArray } from "niall-utils/core";
 
-import { encOneOf, type EncodableType } from "../protocol/encodable.ts";
+import { encOneOf, type EncodableType } from "../encoding/index.ts";
 
 export const itemDataRegistry = {
   iron_ore: { label: "Iron Ore" },

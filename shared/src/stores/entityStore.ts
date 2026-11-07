@@ -10,7 +10,7 @@ import {
   type OptionalComponentName,
   type StoreComponents,
 } from "../entity/index.ts";
-import type { EntitySnapshot } from "../protocol/message.ts";
+import type { EntitySnapshot } from "./types.ts";
 
 export class EntityStore {
   private entityCount: number = 0;

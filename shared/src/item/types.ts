@@ -1,12 +1,14 @@
 import { isExactObjectOf, isInteger, isOptional, isUnknown } from "deep-guards";
 import { tuple } from "niall-utils/core";
 
-import { codObjectOf, codOptional, codU32 } from "../protocol/codec.ts";
 import {
+  codObjectOf,
+  codOptional,
+  codU32,
   encMapOf,
   encodable,
   type EncodableType,
-} from "../protocol/encodable.ts";
+} from "../encoding/index.ts";
 import { encItemId } from "./registry.ts";
 
 export const itemTags = tuple("");

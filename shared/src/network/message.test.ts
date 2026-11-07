@@ -7,23 +7,29 @@ import {
   unsafeEntityId,
   type Components,
 } from "../entity/index.ts";
-import { regionPosToId, tiles, type Tile } from "../terrain/index.ts";
+import {
+  encEntitySnapshot,
+  encTerrainSnapshot,
+  type EntitySnapshot,
+  type TerrainSnapshot,
+} from "../stores/index.ts";
+import {
+  encRegionTiles,
+  regionPosToId,
+  tiles,
+  type RegionTiles,
+  type Tile,
+} from "../terrain/index.ts";
 import {
   encClientMessage,
   encEntitiesMessage,
-  encEntitySnapshot,
   encInitMessage,
   encMoveMessage,
-  encRegionTiles,
   encServerMessage,
   encTerrainMessage,
-  encTerrainSnapshot,
   encUnloadMessage,
   type ClientMessage,
-  type EntitySnapshot,
-  type RegionTiles,
   type ServerMessage,
-  type TerrainSnapshot,
 } from "./message.ts";
 
 const playerId = unsafeEntityId(1);

@@ -2,7 +2,6 @@ import { raise, tuple } from "niall-utils/core";
 import { positiveMod } from "niall-utils/math";
 
 import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
-import type { RegionTiles, TerrainSnapshot } from "../protocol/message.ts";
 import {
   regionIdToPos,
   regionPosToId,
@@ -10,9 +9,11 @@ import {
   regionToWorldPos,
   worldToRegionPos,
   type RegionId,
+  type RegionTiles,
   type TerrainGenerator,
   type Tile,
 } from "../terrain/index.ts";
+import type { TerrainSnapshot } from "./types.ts";
 
 const flatRegionIdx = (x: number, y: number): number =>
   positiveMod(Math.floor(y), REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +

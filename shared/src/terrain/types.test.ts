@@ -131,6 +131,7 @@ describe("encTile", () => {
       "water",
       "sand",
       "stone",
+      "iron_deposit",
       "conveyor_up",
       "conveyor_down",
       "conveyor_left",

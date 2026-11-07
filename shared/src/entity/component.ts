@@ -1,16 +1,16 @@
 import { isNumber, isOneOf } from "deep-guards";
 import { tuple, type UnionToTuple } from "niall-utils/core";
 
-import { encInventory } from "../item/index.ts";
-import { codF32 } from "../protocol/codec.ts";
 import {
+  codF32,
   encObjectOf,
   encodable,
   encOneOf,
   encOptional,
   encVec2,
   type EncodableType,
-} from "../protocol/encodable.ts";
+} from "../encoding/index.ts";
+import { encInventory } from "../item/index.ts";
 import { encEntityType } from "./types.ts";
 
 const encFiniteNumber = encodable(
