@@ -6,5 +6,6 @@ export interface State {
   camera: Camera;
   world: World;
   playerId?: EntityId;
+  inventoryId?: EntityId;
   send: (message: ClientMessage) => void;
 }

@@ -126,6 +126,7 @@ export const codF32 = fixedCodec(
   },
   (view, pos) => view.getFloat32(pos, LITTLE_ENDIAN)
 );
+
 export const codF64 = fixedCodec(
   8,
   (view, pos, value) => {

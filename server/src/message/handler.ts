@@ -1,4 +1,9 @@
-import type { ClientMessage, EntityId } from "@colony-builder/shared";
+import {
+  regionPosToId,
+  worldToRegionPos,
+  type ClientMessage,
+  type EntityId,
+} from "@colony-builder/shared";
 import { checkExhausted, raise } from "niall-utils/core";
 
 import type { State } from "../state.ts";
@@ -22,6 +27,21 @@ export const messageHandler = (
       playerState.loadedRegions = playerState.loadedRegions.difference(
         new Set(message.ids)
       );
+      break;
+    }
+
+    case "place": {
+      state.world.terrain.addTile(
+        message.position.x(),
+        message.position.y(),
+        message.tile
+      );
+      const regionId = regionPosToId(
+        ...worldToRegionPos(message.position.x(), message.position.y())
+      );
+      for (const playerState of state.players.values()) {
+        playerState.loadedRegions.delete(regionId);
+      }
       break;
     }
 

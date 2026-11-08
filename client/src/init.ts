@@ -1,5 +1,5 @@
 import { raise } from "niall-utils/core";
-import { addListener, getElement, toAttrs, toElement } from "niall-utils/ui";
+import { addListener, getElement } from "niall-utils/ui";
 
 import { app } from "./index.ts";
 import {
@@ -18,22 +18,6 @@ const updateCanvasBounds = (canvas: HTMLCanvasElement) => {
 const canvas = getElement<HTMLCanvasElement>("canvas");
 updateCanvasBounds(canvas);
 
-addListener(getElement("#download-btn"), "click", () => {
-  const title = document
-    .getElementsByTagName("title")[0]
-    ?.innerText.trim()
-    .toLocaleLowerCase()
-    .replace(/\s+/, "-");
-  const download = `${title != null && title.length > 0 ? title : "download"}.png`;
-
-  const attrs = toAttrs({ href: canvas.toDataURL(), download });
-  const anchor = toElement(`<a ${attrs}></a>`);
-
-  document.body.appendChild(anchor);
-  anchor.click();
-  anchor.remove();
-});
-
 addListener(getElement("#fullscreen-btn"), "click", () => {
   void (document.fullscreenElement != null
     ? document.exitFullscreen()
@@ -47,14 +31,6 @@ const ctx =
       `Could not get a 2D rendering context for element ${JSON.stringify(canvas)}`
     )
   );
-
-const modal = getElement<HTMLDialogElement>("#config-modal");
-addListener(getElement("#config-dropdown-btn"), "click", () => {
-  modal.showModal();
-});
-addListener(modal, "click", evt => {
-  if (evt.target === modal) modal.close();
-});
 
 const now = Date.now() / 1000;
 const appCtx: AppContext = {

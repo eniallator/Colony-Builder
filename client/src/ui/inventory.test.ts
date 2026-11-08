@@ -1,10 +1,20 @@
-import type { Inventory } from "@colony-builder/shared";
+import {
+  createPlayer,
+  unsafeEntityId,
+  World,
+  type EntityId,
+  type Inventory,
+} from "@colony-builder/shared";
+import { raise } from "niall-utils/core";
 import { getElement, toElement } from "niall-utils/ui";
+import { Vector } from "vectyped";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
+import type { State } from "../state.ts";
 import {
   createInventoryRow,
   ITEM_RENDER_DATA,
+  renderInventoryDialog,
   renderInventoryList,
   setupInventoryDialog,
 } from "./inventory.ts";
@@ -71,23 +81,107 @@ describe("renderInventoryList", () => {
     expect(texts(list)).toEqual(["Empty"]);
   });
 
-  it("replaces the previous rows", () => {
+  it("removes rows that no longer match", () => {
     renderInventoryList(list, "", inventory);
     renderInventoryList(list, "log", inventory);
 
     expect(list.children).toHaveLength(1);
+  });
+
+  it("updates existing rows in place", () => {
+    renderInventoryList(list, "", new Map([["log", { count: 2 }]]));
+    const row = list.children[0];
+
+    renderInventoryList(list, "", new Map([["log", { count: 5 }]]));
+
+    expect(list.children[0]).toBe(row);
+    expect(texts(list)).toEqual(["Log 5"]);
+  });
+
+  it("adds rows for new items without touching existing ones", () => {
+    renderInventoryList(list, "", new Map([["log", { count: 2 }]]));
+    const row = list.children[0];
+
+    renderInventoryList(list, "", inventory);
+
+    expect(list.children[1]).toBe(row);
+    expect(texts(list)).toEqual([
+      `Iron Ore ${(1234).toLocaleString()}`,
+      "Log 2",
+    ]);
+  });
+
+  it("replaces the placeholder once items arrive", () => {
+    renderInventoryList(list, "", new Map());
+    renderInventoryList(list, "", inventory);
+
+    expect(list.querySelector(".empty")).toBeNull();
+    expect(list.children).toHaveLength(2);
+  });
+});
+
+describe("renderInventoryDialog", () => {
+  const canvas = toElement("<canvas></canvas>");
+
+  const run = (inventoryId?: EntityId, world = new World()) => {
+    renderInventoryDialog({
+      inventoryId,
+      world,
+      canvas,
+      ctx: canvas.getContext("2d") ?? raise(new Error("No 2d context")),
+      camera: { center: Vector.zero(2), zoom: 0 },
+      time: { now: 1, start: 0, lastFrame: 0.99, delta: 0.01 },
+      dt: 0.01,
+    });
+  };
+
+  let dialog: HTMLDialogElement;
+
+  beforeEach(() => {
+    document.body.replaceChildren(
+      toElement(
+        '<dialog id="inventory-modal"><input class="search" /><ul></ul></dialog>'
+      )
+    );
+    dialog = getElement<HTMLDialogElement>("#inventory-modal");
+  });
+
+  it("does nothing while the dialog is closed", () => {
+    run();
+
+    expect(getElement("ul", dialog).children).toHaveLength(0);
+  });
+
+  it("shows the inspected entity's live inventory while open", () => {
+    const world = new World();
+    const id = createPlayer(world);
+    dialog.open = true;
+
+    run(id, world);
+    world.entities.optGet(id, "inventory")?.set("log", { count: 3 });
+    run(id, world);
+
+    expect(texts(getElement("ul", dialog))).toEqual(["Log 3"]);
+  });
+
+  it("is empty when no entity is being inspected", () => {
+    dialog.open = true;
+
+    run();
+
+    expect(texts(getElement("ul", dialog))).toEqual(["Empty"]);
   });
 });
 
 describe("setupInventoryDialog", () => {
   let dialog: HTMLDialogElement;
   let search: HTMLInputElement;
-  let list: HTMLUListElement;
-  let getInventory: () => Inventory | undefined;
   let showModal: Mock<() => void>;
   let close: Mock<() => void>;
+  let state: Pick<State, "playerId" | "inventoryId">;
 
   beforeEach(() => {
+    state = { playerId: unsafeEntityId(1) };
     document.body.replaceChildren(
       toElement('<button id="inventory-btn"></button>'),
       toElement(
@@ -96,38 +190,29 @@ describe("setupInventoryDialog", () => {
     );
     dialog = getElement<HTMLDialogElement>("#inventory-modal");
     search = getElement<HTMLInputElement>(".search", dialog);
-    list = getElement<HTMLUListElement>("ul", dialog);
     showModal = vi.fn();
     close = vi.fn();
     dialog.showModal = showModal;
     dialog.close = close;
-    getInventory = () => inventory;
-    setupInventoryDialog(() => getInventory());
+    setupInventoryDialog(state);
   });
 
-  it("opens with a cleared search and the current inventory", () => {
+  it("opens with a cleared search, inspecting the player", () => {
     search.value = "stale";
 
     getElement("#inventory-btn").click();
 
     expect(search.value).toBe("");
-    expect(texts(list)).toHaveLength(2);
+    expect(state.inventoryId).toBe(state.playerId);
     expect(showModal).toHaveBeenCalledOnce();
   });
 
-  it("shows an empty list when there is no inventory yet", () => {
-    getInventory = () => undefined;
-
+  it("stops inspecting an entity once closed", () => {
     getElement("#inventory-btn").click();
 
-    expect(texts(list)).toEqual(["Empty"]);
-  });
+    dialog.dispatchEvent(new Event("close"));
 
-  it("re-filters as the search changes", () => {
-    search.value = "iron";
-    search.dispatchEvent(new Event("input"));
-
-    expect(texts(list)).toEqual([`Iron Ore ${(1234).toLocaleString()}`]);
+    expect(state.inventoryId).toBeUndefined();
   });
 
   it("closes when the backdrop is clicked", () => {

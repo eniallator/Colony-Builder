@@ -214,54 +214,26 @@ describe("app.init", () => {
   });
 
   describe("inventory dialog", () => {
-    const openInventory = () => {
+    it("opens from the inventory button", () => {
+      app.init(createAppContext());
       const dialog = document.querySelector("dialog");
       if (dialog == null) throw new Error("No dialog");
-      dialog.showModal = vi.fn();
+      const showModal = vi.fn();
+      dialog.showModal = showModal;
+
       document.querySelector<HTMLButtonElement>("#inventory-btn")?.click();
-      return dialog;
-    };
 
-    it("lists the player's inventory", () => {
-      app.init(createAppContext());
-      const id = unsafeEntityId(1);
-      const player: Components = {
-        type: "player",
-        position: Vector.zero(2),
-        destination: undefined,
-        speed: 1,
-        canPickup: undefined,
-        conveyable: undefined,
-        inventory: new Map([["log", { count: 3 }]]),
-        taskList: undefined,
-      };
-      lastSocket().dispatchEvent(serverMessage({ type: "init", id }));
-      lastSocket().dispatchEvent(
-        serverMessage({ type: "entities", snapshot: new Map([[id, player]]) })
-      );
-
-      const dialog = openInventory();
-
-      expect(dialog.querySelector(".label")?.textContent).toBe("Log");
-      expect(dialog.querySelector(".count")?.textContent).toBe("3");
-    });
-
-    it("is empty before the player is known", () => {
-      app.init(createAppContext());
-
-      const dialog = openInventory();
-
-      expect(dialog.querySelector(".empty")?.textContent).toBe("Empty");
+      expect(showModal).toHaveBeenCalledOnce();
     });
   });
 
   describe("mouse", () => {
-    it("sends the clicked world position as the destination", () => {
+    it("sends the right-clicked world position as the destination", () => {
       const ctx = createAppContext();
       app.init(ctx);
 
       ctx.canvas.onmousedown?.(
-        new MouseEvent("mousedown", { clientX: 60, clientY: 30 })
+        new MouseEvent("mousedown", { clientX: 60, clientY: 30, button: 2 })
       );
 
       // The click is (10, 5) from the canvas centre, scaled down by 2 ** zoom.
@@ -280,7 +252,7 @@ describe("app.init", () => {
       state.camera.zoom = 1;
 
       ctx.canvas.onmousedown?.(
-        new MouseEvent("mousedown", { clientX: 60, clientY: 30 })
+        new MouseEvent("mousedown", { clientX: 60, clientY: 30, button: 2 })
       );
 
       expect(lastSocket().send).toHaveBeenCalledExactlyOnceWith(
@@ -289,6 +261,27 @@ describe("app.init", () => {
           position: Vector.create(105, 102.5),
         })
       );
+    });
+
+    it.each([0, 1])("ignores mouse button %d", button => {
+      const ctx = createAppContext();
+      app.init(ctx);
+
+      ctx.canvas.onmousedown?.(
+        new MouseEvent("mousedown", { clientX: 60, clientY: 30, button })
+      );
+
+      expect(lastSocket().send).not.toHaveBeenCalled();
+    });
+
+    it("suppresses the browser context menu over the canvas", () => {
+      const ctx = createAppContext();
+      app.init(ctx);
+      const evt = new MouseEvent("contextmenu", { cancelable: true });
+
+      ctx.canvas.dispatchEvent(evt);
+
+      expect(evt.defaultPrevented).toBe(true);
     });
   });
 

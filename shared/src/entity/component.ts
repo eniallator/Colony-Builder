@@ -34,6 +34,7 @@ export const encComponents = encObjectOf({
   conveyable: encOptional(encOneOf([true])),
   // Items held by the entity (a player's bag, or the contents of a pickup).
   inventory: encOptional(encInventory),
+  // Tasks the entity works through in order, optionally looping; run by taskSystem.
   taskList: encOptional(encTaskList),
 });
 export type Components = EncodableType<typeof encComponents>;

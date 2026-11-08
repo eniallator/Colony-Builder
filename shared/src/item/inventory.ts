@@ -13,8 +13,7 @@ export const addItemToInventory = (
   const existing = inventory.get(id);
 
   if (existing != null) existing.count += item.count;
-  // Copy so the inventory never shares an item object with its source; otherwise
-  // stacking two inventories that hold the same object adds it to itself.
+  // Copy so the inventory never shares an item object with its source
   else inventory.set(id, { ...item });
 };
 

@@ -1,6 +1,6 @@
 import { World } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
-import { getElement, toElement } from "niall-utils/ui";
+import { getElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 import {
   afterEach,
@@ -56,12 +56,6 @@ const frameCtx = () =>
   app.animationFrame?.mock.calls[0]?.[0] ??
   raise(new Error("app.animationFrame was not called"));
 
-const addTitle = (innerText: string) => {
-  const title = toElement("<title></title>");
-  Object.defineProperty(title, "innerText", { value: innerText });
-  document.head.append(title);
-};
-
 beforeEach(() => {
   vi.resetModules();
   vi.useFakeTimers({ toFake: ["Date"] });
@@ -72,10 +66,7 @@ beforeEach(() => {
   document.body.innerHTML = `
     <main>
       <canvas></canvas>
-      <button id="download-btn"></button>
       <button id="fullscreen-btn"></button>
-      <button id="config-dropdown-btn"></button>
-      <dialog id="config-modal"><div id="inner"></div></dialog>
     </main>`;
 
   app.init.mockReset().mockReturnValue(createState());
@@ -207,54 +198,6 @@ describe("animation loop", () => {
   });
 });
 
-describe("download button", () => {
-  const download = () => {
-    let clicked: { download: string; href: string | null } | undefined;
-    vi.spyOn(HTMLAnchorElement.prototype, "click").mockImplementation(function (
-      this: HTMLAnchorElement
-    ) {
-      clicked = {
-        download: this.download,
-        href: this.getAttribute("href"),
-      };
-    });
-    getElement("#download-btn").click();
-    return clicked;
-  };
-
-  it("downloads the canvas as download.png without a title", async () => {
-    await load();
-
-    const anchor = download();
-
-    expect(anchor?.download).toBe("download.png");
-    expect(anchor?.href).toBe(
-      getElement<HTMLCanvasElement>("canvas").toDataURL()
-    );
-  });
-
-  it("names the download after the page title", async () => {
-    addTitle(" My Game ");
-    await load();
-
-    expect(download()?.download).toBe("my-game.png");
-  });
-
-  it("falls back to download.png for an empty title", async () => {
-    addTitle("  ");
-    await load();
-
-    expect(download()?.download).toBe("download.png");
-  });
-
-  it("removes the temporary anchor afterwards", async () => {
-    await load();
-    download();
-
-    expect(document.querySelector("a")).toBeNull();
-  });
-});
-
 describe("fullscreen button", () => {
   it("requests fullscreen on the main element", async () => {
     await load();
@@ -279,37 +222,5 @@ describe("fullscreen button", () => {
 
     expect(exitFullscreen).toHaveBeenCalledOnce();
     Reflect.deleteProperty(document, "fullscreenElement");
-  });
-});
-
-describe("config modal", () => {
-  it("opens from the dropdown button", async () => {
-    await load();
-    const showModal = vi.fn();
-    getElement<HTMLDialogElement>("#config-modal").showModal = showModal;
-
-    getElement("#config-dropdown-btn").click();
-
-    expect(showModal).toHaveBeenCalledOnce();
-  });
-
-  it("closes when the backdrop is clicked", async () => {
-    await load();
-    const close = vi.fn();
-    getElement<HTMLDialogElement>("#config-modal").close = close;
-
-    getElement("#config-modal").click();
-
-    expect(close).toHaveBeenCalledOnce();
-  });
-
-  it("stays open when its contents are clicked", async () => {
-    await load();
-    const close = vi.fn();
-    getElement<HTMLDialogElement>("#config-modal").close = close;
-
-    getElement("#inner").click();
-
-    expect(close).not.toHaveBeenCalled();
   });
 });

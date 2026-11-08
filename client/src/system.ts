@@ -6,6 +6,7 @@ import {
 
 import { prepareRender, renderEntities, renderTiles } from "./render/system.ts";
 import type { Camera } from "./ui/camera.ts";
+import { renderInventoryDialog } from "./ui/inventory.ts";
 import type { Time } from "./ui/types.ts";
 
 export type ClientSystem = System<{
@@ -14,6 +15,7 @@ export type ClientSystem = System<{
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   camera: Camera;
+  inventoryId?: EntityId;
 }>;
 
 export const clientSystems: ClientSystem[] = [
@@ -21,4 +23,5 @@ export const clientSystems: ClientSystem[] = [
   prepareRender,
   renderTiles,
   renderEntities,
+  renderInventoryDialog,
 ];

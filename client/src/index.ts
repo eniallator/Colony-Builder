@@ -11,6 +11,7 @@ import {
 } from "@colony-builder/shared";
 import { isInstance } from "deep-guards";
 import { clamp } from "niall-utils/math";
+import { addListener } from "niall-utils/ui";
 import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
@@ -23,6 +24,8 @@ import {
 } from "./ui/index.ts";
 
 const isArrayBuffer = isInstance(ArrayBuffer);
+
+const RIGHT_MOUSE_BUTTON = 2;
 
 const ZOOM_STEPS: Partial<Record<string, number>> = {
   Equal: 1,
@@ -37,6 +40,7 @@ export const app = appMethods<State>({
     const socket = new WebSocket(
       `${protocol}://${location.hostname}:${SOCKET_PORT}`
     );
+    socket.binaryType = "arraybuffer";
 
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 2 },
@@ -46,8 +50,6 @@ export const app = appMethods<State>({
       },
     };
 
-    socket.binaryType = "arraybuffer";
-
     socket.addEventListener("message", ({ data }) => {
       const message = isArrayBuffer(data)
         ? encServerMessage.decode(new Uint8Array(data))
@@ -56,15 +58,17 @@ export const app = appMethods<State>({
       if (message != null) messageHandler(state, message);
     });
 
-    setupInventoryDialog(() =>
-      state.playerId != null
-        ? state.world.entities.optGet(state.playerId, "inventory")
-        : undefined
-    );
+    setupInventoryDialog(state);
 
-    mouse.setOnDown(() => {
-      const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
-      state.send({ type: "move", position: mouseWorldPos });
+    addListener(canvas, "contextmenu", evt => {
+      evt.preventDefault();
+    });
+
+    mouse.setOnDown(evt => {
+      if (evt instanceof MouseEvent && evt.button === RIGHT_MOUSE_BUTTON) {
+        const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
+        state.send({ type: "move", position: mouseWorldPos });
+      }
     });
 
     keyboard.setOnDown(({ code }) => {
@@ -76,18 +80,8 @@ export const app = appMethods<State>({
   },
 
   animationFrame: ({ getState, canvas, ctx, time }) => {
-    const { playerId, world, camera, send } = getState();
+    const { playerId, inventoryId, world, camera, send } = getState();
     const dt = Math.min(time.delta, 2 / TPS);
-
-    const systemCtx: Parameters<ClientSystem>[0] = {
-      camera,
-      playerId,
-      time,
-      canvas,
-      ctx,
-      world,
-      dt,
-    };
 
     const playerPos =
       playerId != null
@@ -100,6 +94,17 @@ export const app = appMethods<State>({
       );
       if (unloaded.length > 0) send({ type: "unload", ids: unloaded });
     }
+
+    const systemCtx: Parameters<ClientSystem>[0] = {
+      camera,
+      playerId,
+      inventoryId,
+      time,
+      canvas,
+      ctx,
+      world,
+      dt,
+    };
 
     for (const system of clientSystems) system(systemCtx);
   },

@@ -15,7 +15,7 @@ import type { System } from "../system/index.ts";
 import type { Tile } from "../terrain/types.ts";
 import type { Task } from "./types.ts";
 
-const gatherItems: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
+const tileDrops: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
   iron_deposit: { id: "iron_ore", item: { count: 5 } },
 };
 
@@ -39,7 +39,7 @@ const isTaskFinished = (
 
       return (
         targetTile != null &&
-        gatherItems[targetTile] != null &&
+        tileDrops[targetTile] != null &&
         task.progress >= TASK_DURATION
       );
     }
@@ -96,8 +96,7 @@ const doTask = (
           task.target.x(),
           task.target.y()
         );
-        const gatheredItem =
-          targetTile != null ? gatherItems[targetTile] : null;
+        const gatheredItem = targetTile != null ? tileDrops[targetTile] : null;
 
         if (task.progress >= TASK_DURATION && gatheredItem != null) {
           addItemToInventory(
