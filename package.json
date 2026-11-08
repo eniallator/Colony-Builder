@@ -46,7 +46,9 @@
     "format:check": "prettier --check .",
     "findissues": "pnpm typecheck && pnpm lint && pnpm format:check",
     "lib-docs": "node scripts/lib-docs.mjs",
-    "postinstall": "pnpm lib-docs",
+    "atlas": "node scripts/generate-atlas.mjs",
+    "atlas:check": "node scripts/generate-atlas.mjs --strict",
+    "postinstall": "pnpm lib-docs && pnpm atlas",
     "prepublish": "pnpm build && pnpm findissues",
     "test": "vitest run --config vitest.config.ts"
   }

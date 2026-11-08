@@ -5,14 +5,23 @@ import {
   REGION_SIDE_LENGTH,
   TASK_DURATION,
   TASK_RADIUS,
-} from "../constants.ts";
-import { createPlayer } from "../entity/player.ts";
-import { createRobot } from "../entity/robot.ts";
-import type { EntityId } from "../entity/types.ts";
-import { World } from "../stores/world.ts";
-import { regionPosToId, type Tile } from "../terrain/types.ts";
-import { taskSystem } from "./system.ts";
-import type { GatherResource, Task } from "./types.ts";
+} from "../../../shared/src/constants.ts";
+import { createPlayer } from "../../../shared/src/entity/player.ts";
+import { createRobot } from "../../../shared/src/entity/robot.ts";
+import type { EntityId } from "../../../shared/src/entity/types.ts";
+import { World } from "../../../shared/src/stores/world.ts";
+import type { GatherResource, Task } from "../../../shared/src/task/types.ts";
+import { regionPosToId, type Tile } from "../../../shared/src/terrain/types.ts";
+import type { ServerSystem } from "../system.ts";
+import { taskSystem as serverTaskSystem } from "./system.ts";
+
+// The task system never reads the server state, so tests only supply the world.
+const taskSystem = ({
+  world,
+  dt,
+}: Omit<Parameters<ServerSystem>[0], "state">) => {
+  serverTaskSystem({ world, dt, state: { world, players: new Map() } });
+};
 
 const target = Vector.create(5.5, 5.5);
 

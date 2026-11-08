@@ -1,6 +1,6 @@
 import { Vector } from "vectyped";
 
-import { CONVEYOR_SPEED } from "../constants.ts";
+import { CONVEYOR_CENTER_SNAP_DISTANCE, CONVEYOR_SPEED } from "../constants.ts";
 import type { System } from "../system/index.ts";
 import type { Tile } from "./types.ts";
 
@@ -25,11 +25,16 @@ export const conveyorMovementSystem: System = ({ world, dt }) => {
         .copy()
         .positiveMod(1)
         .map((n, i) => (direction.valueOf(i) === 0 ? 0.5 - n : 0));
-      position.add(
-        toCenter
-          .lerp((1 - 2 * Math.abs(toCenter.sum())) ** 2, direction)
-          .multiply(dt, CONVEYOR_SPEED)
-      );
+      const distFromCenter = Math.abs(toCenter.sum());
+      if (distFromCenter <= CONVEYOR_CENTER_SNAP_DISTANCE) {
+        position.add(toCenter, direction.copy().multiply(dt, CONVEYOR_SPEED));
+      } else {
+        position.add(
+          toCenter
+            .lerp((1 - 2 * distFromCenter) ** 2, direction)
+            .multiply(dt, CONVEYOR_SPEED)
+        );
+      }
     }
   }
 };

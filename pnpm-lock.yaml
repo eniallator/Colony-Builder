@@ -203,8 +203,8 @@ importers:
         specifier: ^1.0.0
         version: 1.0.0
       niall-utils:
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^4.1.0
+        version: 4.1.0
       seriform:
         specifier: ^3.0.0
         version: 3.0.0
@@ -252,8 +252,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       niall-utils:
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^4.1.0
+        version: 4.1.0
       vectyped:
         specifier: ^1.2.1
         version: 1.2.1
@@ -274,8 +274,8 @@ importers:
         specifier: ^2.0.0
         version: 2.0.0
       niall-utils:
-        specifier: ^4.0.0
-        version: 4.0.0
+        specifier: ^4.1.0
+        version: 4.1.0
       vectyped:
         specifier: ^1.2.1
         version: 1.2.1
@@ -2198,8 +2198,8 @@ packages:
     resolution: {integrity: sha512-AcAHsNorp91O0uB20tvZr3BinYAWWxNs2IbdvZ5H0ZRlQ5qm2hTUno+7X+oPA7+npyZp1YzmytPdZRuYi3WWRA==}
     engines: {node: '>=22.13'}
 
-  niall-utils@4.0.0:
-    resolution: {integrity: sha512-mIAd3oCjkwroMRe+l1Oyxl5B6ylMVgZHwfzD/TjDNQB2rlfcKn2vQCS4RQ8xD40lfn0w6hBif6CNAKvKvxPLJQ==}
+  niall-utils@4.1.0:
+    resolution: {integrity: sha512-guaMnE9mgZD0vLRoloyXx2dr6mpCVx6B6w3KSXs04E3PCpH5o0cTQBjNMpItfi7AJAAlpSSRZ/IOQ6yxN7s+9w==}
     engines: {node: '>=22.13'}
 
   node-releases@2.0.60:
@@ -4620,7 +4620,7 @@ snapshots:
 
   niall-utils@2.0.1: {}
 
-  niall-utils@4.0.0: {}
+  niall-utils@4.1.0: {}
 
   node-releases@2.0.60: {}
 
@@ -4854,7 +4854,7 @@ snapshots:
   seriform@3.0.0:
     dependencies:
       deep-guards: 1.4.0
-      niall-utils: 4.0.0
+      niall-utils: 4.1.0
 
   serve-index@1.9.2(supports-color@8.1.1):
     dependencies:

@@ -1,19 +1,20 @@
-import { checkExhausted } from "niall-utils";
-import { Vector } from "vectyped";
-
-import { TASK_DURATION, TASK_RADIUS } from "../constants.ts";
-import type { EntityId } from "../entity/types.ts";
 import {
   addItemToInventory,
   dropInventory,
+  TASK_DURATION,
+  TASK_RADIUS,
+  type EntityId,
   type Inventory,
   type Item,
   type ItemId,
-} from "../item/index.ts";
-import type { World } from "../stores/world.ts";
-import type { System } from "../system/index.ts";
-import type { Tile } from "../terrain/types.ts";
-import type { Task } from "./types.ts";
+  type Task,
+  type Tile,
+  type World,
+} from "@colony-builder/shared";
+import { checkExhausted } from "niall-utils/core";
+import { Vector } from "vectyped";
+
+import type { ServerSystem } from "../system.ts";
 
 const tileDrops: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
   iron_deposit: { id: "iron_ore", item: { count: 5 } },
@@ -131,7 +132,7 @@ const doTask = (
   }
 };
 
-export const taskSystem: System = ({ world, dt }) => {
+export const taskSystem: ServerSystem = ({ world, dt }) => {
   for (const id of world.entities.query("taskList", "inventory", "position")) {
     const taskList = world.entities.get(id, "taskList");
     const entity: EntityParams = {

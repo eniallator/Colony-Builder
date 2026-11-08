@@ -7,7 +7,7 @@
     "@colony-builder/shared": "workspace:*",
     "deep-guards": "^2.0.0",
     "method-monitor": "^1.0.0",
-    "niall-utils": "^4.0.0",
+    "niall-utils": "^4.1.0",
     "seriform": "^3.0.0",
     "vectyped": "^1.2.1"
   },

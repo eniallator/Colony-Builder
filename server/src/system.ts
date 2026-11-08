@@ -6,6 +6,7 @@ import {
 } from "@colony-builder/shared";
 
 import type { State } from "./state.ts";
+import { taskSystem } from "./task/index.ts";
 
 export type ServerSystem = System<{ state: State }>;
 
@@ -37,6 +38,6 @@ export const pickupSystem: ServerSystem = ({ world }) => {
 };
 
 export const serverSystems: ServerSystem[] = [
-  ...predictionSystems,
+  ...predictionSystems(taskSystem),
   pickupSystem,
 ];

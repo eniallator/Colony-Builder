@@ -19,7 +19,7 @@ export type ClientSystem = System<{
 }>;
 
 export const clientSystems: ClientSystem[] = [
-  ...predictionSystems,
+  ...predictionSystems(),
   prepareRender,
   renderTiles,
   renderEntities,

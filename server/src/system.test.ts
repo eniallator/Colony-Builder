@@ -4,7 +4,6 @@ import {
   mergeInventories,
   PICKUP_SQR_RADIUS,
   selfMovementSystem,
-  taskSystem,
   World,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
@@ -12,6 +11,7 @@ import { describe, expect, it, vi } from "vitest";
 
 import type { State } from "./state.ts";
 import { pickupSystem, serverSystems } from "./system.ts";
+import { taskSystem } from "./task/system.ts";
 
 vi.mock(import("@colony-builder/shared"), async importOriginal => {
   const original = await importOriginal();

@@ -8,7 +8,7 @@
   },
   "dependencies": {
     "deep-guards": "^2.0.0",
-    "niall-utils": "^4.0.0",
+    "niall-utils": "^4.1.0",
     "vectyped": "^1.2.1"
   },
   "devDependencies": {
