@@ -5,12 +5,13 @@
 import { fill, put, putWrap, remap, ROTATE, TILE } from "../core.mjs";
 import { PALETTE } from "../palette.mjs";
 
-/**
- * Belt moving up. Chevrons shift 2px per frame -> a 4-frame loop.
- * The client derives the belt's animation speed from that 2px step and the
- * game's CONVEYOR_SPEED (BELT_TILES_PER_FRAME in client/src/render/system.ts),
- * so change them together.
- */
+// Chevrons shift this many px per frame -> a 4-frame loop. Published to the
+// client as `stepPx`, which derives the animation speed from it and the game's
+// CONVEYOR_SPEED so the chevrons keep pace with items on the belt.
+const STEP_PX = 2;
+const FRAMES = 4;
+
+/** Belt moving up. */
 const conveyorUp = (colours, frame) => {
   const { rail, railHi, base, arrow, arrowHi } = colours;
   const s = fill(base);
@@ -21,7 +22,7 @@ const conveyorUp = (colours, frame) => {
     put(s, TILE - 1, y, rail);
   }
   for (const start of [0, 8]) {
-    const tip = start - frame * 2;
+    const tip = start - frame * STEP_PX;
     // Chevron: tip at the top, arms sweeping down and outwards.
     for (let i = 0; i < 4; i++) {
       putWrap(s, 7 - i, tip + i, arrow);
@@ -33,15 +34,15 @@ const conveyorUp = (colours, frame) => {
   return s;
 };
 
-/** Produces `<prefix>_up|right|down|left`, 4 animation frames each. */
+/** Produces `<prefix>_up|right|down|left`, `FRAMES` animation frames each. */
 export const conveyorFamily = (prefix, colours) => {
-  const up = [0, 1, 2, 3].map(f => conveyorUp(colours, f));
+  const up = Array.from({ length: FRAMES }, (_, f) => conveyorUp(colours, f));
   const rotated = mapping => up.map(f => remap(f, mapping));
   return [
-    { name: `${prefix}_up`, frames: up },
-    { name: `${prefix}_right`, frames: rotated(ROTATE.cw) },
-    { name: `${prefix}_down`, frames: rotated(ROTATE.half) },
-    { name: `${prefix}_left`, frames: rotated(ROTATE.ccw) },
+    { name: `${prefix}_up`, frames: up, stepPx: STEP_PX },
+    { name: `${prefix}_right`, frames: rotated(ROTATE.cw), stepPx: STEP_PX },
+    { name: `${prefix}_down`, frames: rotated(ROTATE.half), stepPx: STEP_PX },
+    { name: `${prefix}_left`, frames: rotated(ROTATE.ccw), stepPx: STEP_PX },
   ];
 };
 

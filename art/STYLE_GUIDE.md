@@ -85,9 +85,10 @@ consistent as content grows:
 - Don't add extra ramp steps to cheat depth; use dithering sparingly (single
   isolated speckle pixels, never checkerboards).
 - Entities get a **contact shadow** (`shadow` sprite) drawn underneath by the
-  renderer, and dropped items a smaller one (`shadow_small`). Both sit on the
-  bottom rows of the cell so they show below the sprite. Don't bake ground
-  shadows into entity sprites.
+  renderer, and dropped items a smaller one (`shadow_small`). The renderer
+  lines the shadow's centre up with the sprite's `ground` line (see "Sprite
+  metadata"), so half of it shows below the sprite whatever the sprite's
+  shape. Don't bake ground shadows into entity sprites.
 
 ## Outlines
 
@@ -179,6 +180,23 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 | Renderer helper            | `shadow`, `shadow_small`              |
 
 `pnpm atlas:check` exits non-zero if anything in the game has no sprite.
+
+## Sprite metadata
+
+Anything the renderer needs to know about the art comes from `atlas.json`, never
+from constants in `client/src`. Sprite definitions (`scripts/atlas/sprites/`)
+can pass these as the last argument of `animated`, `directional` and `still`
+(or as fields on the sprite object); `pack.mjs` writes them out:
+
+| Field     | Meaning                                                                                                                                                                 |
+| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ground`  | Pixel line the sprite rests on, measured from the lowest visible pixel automatically. Only set it by hand where that is wrong (the shadows use their ellipse's centre). |
+| `frameMs` | Time each animation frame shows, in ms (water, walk cycles).                                                                                                            |
+| `stepPx`  | For animations that depict motion at a game speed (belts): pixels the art moves per frame. The client turns it into a frame time using the game's speed.                |
+
+A sprite with more than one animation frame must give `frameMs` or `stepPx`;
+`pnpm atlas` fails otherwise. If a new animation depicts motion at a game speed,
+also add its tile to `TILE_SPEEDS` in `client/src/render/system.ts`.
 
 ## Adding new art
 

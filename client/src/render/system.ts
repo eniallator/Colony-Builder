@@ -5,7 +5,7 @@ import {
   type Tile,
 } from "@colony-builder/shared";
 import { isString } from "deep-guards";
-import { checkExhausted } from "niall-utils/core";
+import { checkExhausted, raise } from "niall-utils/core";
 import { memoize } from "niall-utils/data";
 import { Vector } from "vectyped";
 
@@ -22,22 +22,36 @@ import {
   type Direction,
 } from "./sprite.ts";
 
-const DEFAULT_TILE_FRAME_MS = 120;
-const BELT_TILES_PER_FRAME = 2 / 16;
-// Time per belt frame so the chevrons keep pace with items riding the belt.
-const BELT_FRAME_MS = (BELT_TILES_PER_FRAME / CONVEYOR_SPEED) * 1000;
-
-const TILE_FRAME_MS: Partial<Record<Tile, number>> = {
-  water: 300,
-  conveyor_up: BELT_FRAME_MS,
-  conveyor_down: BELT_FRAME_MS,
-  conveyor_left: BELT_FRAME_MS,
-  conveyor_right: BELT_FRAME_MS,
+// Tiles that carry things along at a game speed (tiles per second). Their art
+// declares how far it moves per frame (`stepPx`), so the animation keeps pace.
+const TILE_SPEEDS: Partial<Record<Tile, number>> = {
+  conveyor_up: CONVEYOR_SPEED,
+  conveyor_down: CONVEYOR_SPEED,
+  conveyor_left: CONVEYOR_SPEED,
+  conveyor_right: CONVEYOR_SPEED,
 };
-const WALK_FRAME_MS = 160;
-// Item art fills its cell down to the bottom rows, so its shadow is drawn this
-// fraction of the item size lower (2 art pixels) to show beneath the pile.
-const ITEM_SHADOW_DROP = 2 / 16;
+
+/**
+ * The one of `items` (one per animation frame of `sprite`) showing at `nowMs`.
+ * Frame timing comes from the atlas: a fixed time, or, for animations that
+ * depict motion at `tilesPerSecond`, the time to move `stepPx` pixels.
+ */
+const frameOf = <T>(
+  sprite: AtlasSprite,
+  items: T[],
+  tileSize: number,
+  nowMs: number,
+  tilesPerSecond?: number
+): T | undefined => {
+  if (items.length <= 1) return items.at(0);
+
+  const frameMs =
+    sprite.frameMs ??
+    (sprite.stepPx != null && tilesPerSecond != null
+      ? (sprite.stepPx / tileSize / tilesPerSecond) * 1000
+      : raise(new Error("Animated sprite has no frame timing in the atlas")));
+  return frameAt(items, frameMs, nowMs).frame;
+};
 
 type FillStyle = string | CanvasPattern;
 
@@ -61,6 +75,7 @@ const screenOrigin = (canvas: HTMLCanvasElement, camera: Camera): Vector<2> =>
 
 const tileFillStyles = (
   ctx: CanvasRenderingContext2D,
+  atlas: Atlas,
   sprite: AtlasSprite,
   tile: Tile,
   textured: boolean,
@@ -73,11 +88,13 @@ const tileFillStyles = (
       : [
           patternFor(
             ctx,
-            frameAt(
+            frameOf(
+              sprite,
               sprite.frames,
-              TILE_FRAME_MS[tile] ?? DEFAULT_TILE_FRAME_MS,
-              nowMs
-            ).frame
+              atlas.tileSize,
+              nowMs,
+              TILE_SPEEDS[tile]
+            ) ?? raise(new Error(`Sprite "${tile}" has no frames`))
           ),
         ];
 
@@ -101,14 +118,12 @@ export const renderTiles: ClientSystem = ({
     (tile: Tile) => {
       const sprite = atlas.sprites.get(tile);
       return sprite != null
-        ? tileFillStyles(ctx, sprite, tile, textured, nowMs)
+        ? tileFillStyles(ctx, atlas, sprite, tile, textured, nowMs)
         : undefined;
     },
     tile => tile
   );
 
-  // Screen position of a tile corner. Neighbours share corners, so there are
-  // never gaps or overlaps, even at fractional zoom.
   const cornerOf = (x: number, y: number) =>
     Vector.create(x, y).multiply(pxPerTile).add(origin).floor();
 
@@ -181,7 +196,7 @@ const drawCell = (
 
 /**
  * Draws the sprite `name`, `size` pixels square and centred on `centre`.
- * Animated if `frameMs` is given, otherwise its first frame. Zoomed out, it
+ * Animated if `animate` is set, otherwise its first frame. Zoomed out, it
  * becomes a flat square of the sprite's colour.
  */
 const paintSprite = (
@@ -189,7 +204,7 @@ const paintSprite = (
   name: string,
   centre: Vector<2>,
   size: number,
-  frameMs?: number
+  animate = false
 ) => {
   const sprite = painter.atlas.sprites.get(name);
   if (sprite == null) return;
@@ -207,21 +222,34 @@ const paintSprite = (
     return;
   }
 
-  const cell =
-    frameMs != null
-      ? frameAt(sprite.cells, frameMs, painter.nowMs).frame
-      : sprite.cells.at(0);
+  const cell = animate
+    ? frameOf(sprite, sprite.cells, painter.atlas.tileSize, painter.nowMs)
+    : sprite.cells.at(0);
   if (cell != null) drawCell(painter, cell, topLeft, size);
 };
 
-/** Soft ground shadow under an entity. Only drawn when textured. */
-const paintShadow = (
+/**
+ * Draws the sprite `name` with the `shadowName` sprite beneath it (only when
+ * textured). The shadow is shifted so its ground line lines up with the line
+ * the sprite rests on; both come from the atlas, so redrawing either one needs
+ * no change here.
+ */
+const paintWithShadow = (
   painter: Painter,
-  name: "shadow" | "shadow_small",
+  shadowName: "shadow" | "shadow_small",
+  name: string,
   centre: Vector<2>,
-  size: number
+  size: number,
+  animate?: boolean
 ) => {
-  if (painter.textured) paintSprite(painter, name, centre, size);
+  const { atlas, textured } = painter;
+  const sprite = atlas.sprites.get(name);
+  const shadow = atlas.sprites.get(shadowName);
+  if (textured && sprite != null && shadow != null) {
+    const drop = ((sprite.ground - shadow.ground) * size) / atlas.tileSize;
+    paintSprite(painter, shadowName, centre.copy().add([0, drop]), size);
+  }
+  paintSprite(painter, name, centre, size, animate);
 };
 
 /** Last direction each entity faced, so it keeps facing that way when it stops. */
@@ -266,14 +294,14 @@ export const renderEntities: ClientSystem = ({
         const facing = heading ?? facings.get(id) ?? "down";
         facings.set(id, facing);
 
-        paintShadow(painter, "shadow", centre, pxPerTile);
-        paintSprite(
+        paintWithShadow(
           painter,
+          "shadow",
           `${entityType}_${facing}`,
           centre,
           pxPerTile,
           // Walk only while it has somewhere to go; otherwise stand still.
-          destination != null ? WALK_FRAME_MS : undefined
+          destination != null
         );
         break;
       }
@@ -285,14 +313,13 @@ export const renderEntities: ClientSystem = ({
           .next().value;
 
         if (itemId != null) {
-          const size = ITEM_TILES * pxPerTile;
-          paintShadow(
+          paintWithShadow(
             painter,
             "shadow_small",
-            centre.copy().add(0, size * ITEM_SHADOW_DROP),
-            size
+            `item_${itemId}`,
+            centre,
+            ITEM_TILES * pxPerTile
           );
-          paintSprite(painter, `item_${itemId}`, centre, size);
         }
         break;
       }

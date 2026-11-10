@@ -1,5 +1,6 @@
 import {
   createPlayer,
+  REGION_SIDE_LENGTH,
   regionPosToId,
   World,
   type EntityId,
@@ -118,6 +119,68 @@ describe("messageHandler", () => {
       expect(() => {
         messageHandler(stateWith(world), player, { type: "unload", ids: [] });
       }).toThrow(`Player ${player} not found`);
+    });
+  });
+
+  describe("place", () => {
+    const worldWithOrigin = () => {
+      const world = new World();
+      world.terrain.add(
+        origin,
+        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => "grass" as const)
+      );
+      return world;
+    };
+
+    it("places the tile in the world", () => {
+      const world = worldWithOrigin();
+      const player = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "place",
+        position: Vector.create(3, 4),
+        tile: "conveyor_right",
+      });
+
+      expect(world.terrain.optTileAt(3, 4)).toBe("conveyor_right");
+      expect(world.terrain.optTileAt(4, 4)).toBe("grass");
+    });
+
+    it("makes every player reload the changed region only", () => {
+      const world = worldWithOrigin();
+      const player = createPlayer(world);
+      const other = createPlayer(world);
+      const state = stateWith(
+        world,
+        [player, [origin, east]],
+        [other, [origin, north]]
+      );
+
+      messageHandler(state, player, {
+        type: "place",
+        position: Vector.create(3, 4),
+        tile: "stone",
+      });
+
+      expect([...(state.players.get(player)?.loadedRegions ?? [])]).toEqual([
+        east,
+      ]);
+      expect([...(state.players.get(other)?.loadedRegions ?? [])]).toEqual([
+        north,
+      ]);
+    });
+
+    it("throws when the region of the tile does not exist", () => {
+      const world = new World();
+      const player = createPlayer(world);
+
+      expect(() => {
+        messageHandler(stateWith(world, [player, []]), player, {
+          type: "place",
+          position: Vector.create(3, 4),
+          tile: "stone",
+        });
+      }).toThrow("No region exists for world pos 3,4");
     });
   });
 

@@ -61,6 +61,51 @@ const averageColour = frames => {
     .join("")}`;
 };
 
+/**
+ * The pixel line (counted down from the top of the cell) just below a sprite's
+ * lowest visible pixel across all its frames: where it rests on the ground.
+ * The renderer lines shadows up with it. 0 for a fully transparent sprite.
+ */
+const lowestLine = frames => {
+  let line = 0;
+  for (const frame of frames) {
+    for (let y = TILE - 1; y >= line; y--) {
+      for (let x = 0; x < TILE; x++) {
+        if (frame[(y * TILE + x) * 4 + 3] > 0) {
+          line = y + 1;
+          break;
+        }
+      }
+    }
+  }
+  return line;
+};
+
+/** The `atlas.json` entry for one sprite (see define.mjs for the metadata). */
+const describe = (
+  { name, frames, mode = "frames", ground, frameMs, stepPx },
+  cells
+) => {
+  if (
+    mode === "frames" &&
+    frames.length > 1 &&
+    frameMs == null &&
+    stepPx == null
+  )
+    throw new Error(
+      `"${name}" has ${frames.length} animation frames but no frameMs or stepPx`
+    );
+  return {
+    mode,
+    cells,
+    colour: averageColour(frames),
+    ground: ground ?? lowestLine(frames),
+    // Optional fields are left out rather than written as null.
+    ...(frameMs != null && { frameMs }),
+    ...(stepPx != null && { stepPx }),
+  };
+};
+
 export const writeAtlas = sprites => {
   const { cells, rows } = layout(sprites);
   const width = COLUMNS * TILE;
@@ -77,14 +122,12 @@ export const writeAtlas = sprites => {
     new URL("atlas.png", OUT_DIR),
     encodePng(width, height, pixels)
   );
-  // atlas.json: `sprites[name] = { mode, cells: [[col, row], ...], colour: "#rrggbb" }`
+  // atlas.json: `sprites[name] = { mode, cells: [[col, row], ...], colour:
+  // "#rrggbb", ground, frameMs?, stepPx? }`.
+  // `mode`: "variants" = pick one per tile; "frames" = animation (or a single
+  // frame). Sprites that don't say are "frames".
   const described = Object.fromEntries(
-    // `mode`: "variants" = pick one per tile; "frames" = animation (or a single
-    // frame). Sprites that don't say are "frames".
-    sprites.map(({ name, frames, mode = "frames" }) => [
-      name,
-      { mode, cells: cells[name], colour: averageColour(frames) },
-    ])
+    sprites.map(sprite => [sprite.name, describe(sprite, cells[sprite.name])])
   );
   writeFileSync(
     new URL("atlas.json", OUT_DIR),

@@ -182,22 +182,31 @@ describe("taskSystem", () => {
       );
     });
 
-    it("is finished once the inventory is empty", () => {
+    it("is finished once it has dropped everything", () => {
       const world = new World();
       const id = robotHolding(world, nearTarget());
       stopRepeating(world, id);
 
       taskSystem({ world, dt: 1 });
-      taskSystem({ world, dt: 1 });
 
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(0);
+    });
+
+    it("is not finished while still travelling to the drop target", () => {
+      const world = new World();
+      const id = robotHolding(world, Vector.zero(2));
+      stopRepeating(world, id);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(world.entities.get(id, "taskList").tasks).toHaveLength(1);
     });
   });
 
   describe("task list", () => {
     it("moves a finished task to the back when repeating", () => {
       const world = new World();
-      const id = createRobot(world, Vector.zero(2), [drop, gather()]);
+      const id = createRobot(world, nearTarget(), [drop, gather()]);
       const { tasks } = world.entities.get(id, "taskList");
 
       taskSystem({ world, dt: 1 });
@@ -208,13 +217,23 @@ describe("taskSystem", () => {
       ]);
     });
 
+    it("keeps a task at the front until it is finished", () => {
+      const world = new World();
+      const id = createRobot(world, Vector.zero(2), [drop, gather()]);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(
+        world.entities.get(id, "taskList").tasks.map(({ type }) => type)
+      ).toEqual(["dropInventory", "gatherResource"]);
+    });
+
     it("resets gather progress when a finished task is repeated", () => {
       const world = worldWithTile("iron_deposit");
       const id = createRobot(world, nearTarget(), [gather()]);
       const { tasks } = world.entities.get(id, "taskList");
 
       taskSystem({ world, dt: TASK_DURATION });
-      taskSystem({ world, dt: 1 });
 
       expect(tasks).toEqual([gather(0)]);
     });
@@ -226,9 +245,7 @@ describe("taskSystem", () => {
 
       for (let lap = 0; lap < 2; lap++) {
         taskSystem({ world, dt: TASK_DURATION }); // gather
-        taskSystem({ world, dt: 1 }); // finish gather
         taskSystem({ world, dt: 1 }); // drop
-        taskSystem({ world, dt: 1 }); // finish drop
       }
 
       expect(inventory.size).toBe(0);
@@ -240,7 +257,7 @@ describe("taskSystem", () => {
 
     it("discards a finished task when not repeating", () => {
       const world = new World();
-      const id = createRobot(world, Vector.zero(2), [drop, gather()]);
+      const id = createRobot(world, nearTarget(), [drop, gather()]);
       stopRepeating(world, id);
 
       taskSystem({ world, dt: 1 });
@@ -270,7 +287,7 @@ describe("taskSystem", () => {
 
       expect(() => {
         taskSystem({ world, dt: 1 });
-      }).toThrow("Value not exhausted");
+      }).toThrow(TypeError);
     });
 
     it("ignores entities without a task list", () => {

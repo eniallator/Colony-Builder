@@ -235,5 +235,5 @@ export const terrain = [
   variants("swampland", swampland),
   variants("jungle", jungle),
   variants("iron_deposit", ironDeposit),
-  animated("water", 4, water),
+  animated("water", 4, water, { frameMs: 300 }),
 ];

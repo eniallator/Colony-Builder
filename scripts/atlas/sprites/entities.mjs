@@ -77,7 +77,10 @@ const player = (dir, frame) => {
   return s;
 };
 
+// Walk cycle: time each of the two frames is shown while moving.
+const WALK = { frameMs: 160 };
+
 export const entities = [
-  ...directional("robot", 2, robot),
-  ...directional("player", 2, player),
+  ...directional("robot", 2, robot, WALK),
+  ...directional("player", 2, player, WALK),
 ];

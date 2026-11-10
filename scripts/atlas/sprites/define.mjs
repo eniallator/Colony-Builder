@@ -1,5 +1,13 @@
 // Helpers for registering sprites. A sprite definition is `{ name, frames }`
-// where `frames` is a list of 16x16 RGBA buffers (variants OR animation frames).
+// where `frames` is a list of 16x16 RGBA buffers (variants OR animation frames),
+// plus optional metadata that pack.mjs copies into atlas.json for the renderer
+// (so nothing about the art is hard-coded in the client):
+//   frameMs  time each animation frame is shown, in ms
+//   stepPx   pixels the art moves per frame, for animations that depict motion
+//            at a game speed (the client derives the frame time from the speed)
+//   ground   pixel row line the sprite rests on; measured from the lowest
+//            opaque pixel unless given here (see pack.mjs)
+// Every sprite with more than one animation frame needs `frameMs` or `stepPx`.
 //
 // Naming contract with the game (checked by coverage.mjs):
 //   terrain tile `x`        -> sprite `x`
@@ -29,17 +37,23 @@ export const variants = (name, draw, count = 4) => ({
  * Animated sprite. `draw(rng, frame)` gets a fresh RNG with the SAME seed for
  * every frame, so only the deliberately animated parts change between frames.
  */
-export const animated = (name, count, draw) => ({
+export const animated = (name, count, draw, meta = {}) => ({
   name,
   frames: range(count).map(frame => draw(mulberry32(hash(name)), frame)),
+  ...meta,
 });
 
 /** A single static sprite from an already-drawn buffer. */
-export const still = (name, sprite) => ({ name, frames: [sprite] });
+export const still = (name, sprite, meta = {}) => ({
+  name,
+  frames: [sprite],
+  ...meta,
+});
 
 /** Four-direction sprite set: `<name>_up|down|left|right`, `count` frames each. */
-export const directional = (name, count, draw) =>
+export const directional = (name, count, draw, meta = {}) =>
   DIRS.map(dir => ({
     name: `${name}_${dir}`,
     frames: range(count).map(frame => draw(dir, frame)),
+    ...meta,
   }));
