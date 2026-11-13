@@ -1,4 +1,4 @@
-export const SOCKET_PORT = 3000;
+export const SOCKET_PORT = 8080;
 
 export const TPS = 20;
 export const MAX_DT = 2 / TPS;
@@ -14,6 +14,8 @@ export const TASK_RADIUS = 1;
 export const PICKUP_SQR_RADIUS = 1;
 
 export const ITEM_TILES = 0.5;
+
+export const TEXTURE_BASE_URL = "textures/";
 
 export const REGION_SIDE_LENGTH = 16;
 

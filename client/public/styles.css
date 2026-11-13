@@ -568,12 +568,16 @@ h1 {
         flex: none;
         width: 1.5rem;
         height: 1.5rem;
-        fill: var(--item-color);
-        color: var(--item-color);
+        --icon-size: 1.5rem;
+        image-rendering: pixelated;
 
-        svg {
-          width: 100%;
-          height: 100%;
+        /* The atlas sheet, scaled so one tile fills the icon, then offset to the item's cell. */
+        &[data-painted] {
+          background: var(--atlas-url) no-repeat;
+          background-size: calc(var(--sheet-cols) * 100%)
+            calc(var(--sheet-rows) * 100%);
+          background-position: calc(var(--cell-x) * var(--icon-size) * -1)
+            calc(var(--cell-y) * var(--icon-size) * -1);
         }
       }
 

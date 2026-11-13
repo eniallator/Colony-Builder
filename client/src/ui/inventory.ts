@@ -1,38 +1,53 @@
 import {
   itemDataRegistry,
+  TEXTURE_BASE_URL,
   type Inventory,
   type Item,
   type ItemId,
 } from "@colony-builder/shared";
 import { addListener, getElement, toElement } from "niall-utils/ui";
 
+import { getAtlas } from "../render/atlas.ts";
 import type { State } from "../state.ts";
 import type { ClientSystem } from "../system.ts";
 
-export const ITEM_RENDER_DATA = {
-  iron_ore: {
-    color: "#8fa3b8",
-    icon: '<svg fill="#8fa3b8" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path d="M3 15l3.5-8L13 3l6 4.5 2 7.5-5.5 6H8z"/></svg>',
-  },
-  log: {
-    color: "#b07840",
-    icon: '<svg fill="#b07840" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24"><path fill-rule="evenodd" d="M12 2a10 10 0 1 0 0 20 10 10 0 0 0 0-20zm0 4a6 6 0 1 1 0 12 6 6 0 0 1 0-12zm0 3a3 3 0 1 0 0 6 3 3 0 0 0 0-6z"/></svg>',
-  },
-} as const satisfies Record<ItemId, { icon: string; color: string }>;
-
 export const createInventoryRow = (id: ItemId, { count }: Item) => {
   const { label } = itemDataRegistry[id];
-  const { color, icon } = ITEM_RENDER_DATA[id];
   return toElement(
-    `<li class="item" data-item="${id}" style="--item-color: ${color}">
-      <span class="icon">${icon}</span>
+    `<li class="item" data-item="${id}">
+      <span class="icon"></span>
       <span class="label">${label}</span>
       <span class="count">${count.toLocaleString()}</span>
     </li>`
   );
 };
 
-const updateInventoryRow = (row: HTMLElement, { count }: Item) => {
+/**
+ * Shows the item's atlas sprite by offsetting the sheet (the icon's CSS
+ * background) to its cell, and tints the row with the sprite's colour. The
+ * atlas loads lazily, so this is retried on every update until it succeeds.
+ */
+const paintInventoryIcon = (row: HTMLElement, id: ItemId) => {
+  const icon = getElement(".icon", row);
+  if (icon.dataset["painted"] != null) return;
+
+  const atlas = getAtlas();
+  const sprite = atlas?.sprites.get(`item_${id}`);
+  const cell = sprite?.cells.at(0);
+  if (atlas == null || sprite == null || cell == null) return;
+
+  const { tileSize, sheet } = atlas;
+  icon.style.setProperty("--atlas-url", `url("${TEXTURE_BASE_URL}atlas.png")`);
+  icon.style.setProperty("--cell-x", `${cell[0]}`);
+  icon.style.setProperty("--cell-y", `${cell[1]}`);
+  icon.style.setProperty("--sheet-cols", `${sheet.width / tileSize}`);
+  icon.style.setProperty("--sheet-rows", `${sheet.height / tileSize}`);
+  icon.dataset["painted"] = "";
+  row.style.setProperty("--item-color", sprite.colour);
+};
+
+const updateInventoryRow = (row: HTMLElement, id: ItemId, { count }: Item) => {
+  paintInventoryIcon(row, id);
   const countEl = getElement(".count", row);
   const text = count.toLocaleString();
   if (countEl.textContent !== text) countEl.textContent = text;
@@ -61,7 +76,7 @@ export const renderInventoryList = (
       list.querySelector<HTMLElement>(`li.item[data-item="${id}"]`) ??
       createInventoryRow(id, item);
 
-    updateInventoryRow(row, item);
+    updateInventoryRow(row, id, item);
     if (list.children[i] !== row) {
       list.insertBefore(row, list.children[i] ?? null);
     }

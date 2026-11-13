@@ -10,19 +10,35 @@ import { getElement, toElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
+import { getAtlas, type Atlas, type AtlasSprite } from "../render/atlas.ts";
 import type { State } from "../state.ts";
 import {
   createInventoryRow,
-  ITEM_RENDER_DATA,
   renderInventoryDialog,
   renderInventoryList,
   setupInventoryDialog,
 } from "./inventory.ts";
 
+vi.mock("../render/atlas.ts", () => ({ getAtlas: vi.fn() }));
+
 const inventory: Inventory = new Map([
   ["iron_ore", { count: 1234 }],
   ["log", { count: 2 }],
 ]);
+
+const atlasWith = (sprites: Atlas["sprites"]): Atlas => ({
+  tileSize: 16,
+  sheet: { width: 64, height: 32 } as ImageBitmap,
+  sprites,
+});
+
+const logSprite = {
+  mode: "variants",
+  cells: [[2, 1]],
+  colour: "#b07840",
+  ground: 0,
+  frames: [],
+} satisfies AtlasSprite;
 
 const texts = (list: HTMLUListElement) =>
   [...list.children].map(child =>
@@ -34,14 +50,71 @@ describe("createInventoryRow", () => {
     const row = createInventoryRow("iron_ore", { count: 1234 });
 
     expect(row.classList.contains("item")).toBe(true);
-    expect(row.style.getPropertyValue("--item-color")).toBe(
-      ITEM_RENDER_DATA.iron_ore.color
-    );
-    expect(row.querySelector(".icon svg")).not.toBeNull();
+    expect(row.querySelector(".icon")).not.toBeNull();
     expect(row.querySelector(".label")?.textContent).toBe("Iron Ore");
     expect(row.querySelector(".count")?.textContent).toBe(
       (1234).toLocaleString()
     );
+  });
+});
+
+describe("renderInventoryList icons", () => {
+  const log: Inventory = new Map([["log", { count: 2 }]]);
+  const icon = (list: HTMLUListElement) => getElement(".icon", list);
+
+  beforeEach(() => {
+    vi.mocked(getAtlas).mockReset();
+  });
+
+  it("leaves the icon blank until the atlas loads", () => {
+    const list = toElement("<ul></ul>");
+
+    renderInventoryList(list, "", log);
+
+    expect(icon(list).dataset["painted"]).toBeUndefined();
+  });
+
+  it("leaves the icon blank when the atlas has no sprite for the item", () => {
+    vi.mocked(getAtlas).mockReturnValue(atlasWith(new Map()));
+    const list = toElement("<ul></ul>");
+
+    renderInventoryList(list, "", log);
+
+    expect(icon(list).dataset["painted"]).toBeUndefined();
+  });
+
+  it("offsets the atlas sheet to the item's cell and tints the row", () => {
+    vi.mocked(getAtlas).mockReturnValue(
+      atlasWith(new Map([["item_log", logSprite]]))
+    );
+    const list = toElement("<ul></ul>");
+
+    renderInventoryList(list, "", log);
+
+    const { style, dataset } = icon(list);
+    expect(dataset["painted"]).toBe("");
+    expect(style.getPropertyValue("--atlas-url")).toBe(
+      'url("textures/atlas.png")'
+    );
+    expect(style.getPropertyValue("--cell-x")).toBe("2");
+    expect(style.getPropertyValue("--cell-y")).toBe("1");
+    expect(style.getPropertyValue("--sheet-cols")).toBe("4");
+    expect(style.getPropertyValue("--sheet-rows")).toBe("2");
+    expect(getElement("li", list).style.getPropertyValue("--item-color")).toBe(
+      logSprite.colour
+    );
+  });
+
+  it("paints each row only once", () => {
+    vi.mocked(getAtlas).mockReturnValue(
+      atlasWith(new Map([["item_log", logSprite]]))
+    );
+    const list = toElement("<ul></ul>");
+
+    renderInventoryList(list, "", log);
+    renderInventoryList(list, "", log);
+
+    expect(getAtlas).toHaveBeenCalledOnce();
   });
 });
 

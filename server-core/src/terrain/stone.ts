@@ -29,18 +29,14 @@ const PRESENCE: FbmOptions = {
   persistence: 0.5,
 };
 
-/** How far from a zero crossing, in vein noise units, a worm's edge is. */
 const VEIN_WIDTH = 0.12;
 
-/** Presence noise below `START` has no worms; at `FULL` they are full width. */
 const PRESENCE_START = 0.7;
 const PRESENCE_FULL = 0.77;
 
-/** Heights from which a tile is stone, and from which it is ore. */
 const STONE_HEIGHT = 0.1;
 const ORE_HEIGHT = 0.7;
 
-/** Builds a pure `(x, y) => StoneTile | undefined` lookup for a world seed. */
 export const createStoneAt = (
   seed: string
 ): ((x: number, y: number) => StoneTile | undefined) => {

@@ -1,3 +1,4 @@
+import { TEXTURE_BASE_URL } from "@colony-builder/shared";
 import {
   isArrayOf,
   isInteger,
@@ -14,7 +15,6 @@ import { attemptAsync, raise, tuple } from "niall-utils/core";
 import { typedToEntries } from "niall-utils/data";
 import { Vector } from "vectyped";
 
-const TEXTURE_BASE_URL = "textures/";
 const SPRITE_MODES = tuple("variants", "frames");
 const isSpriteMode = isOneOf(...SPRITE_MODES);
 export type SpriteMode = TypeFromGuard<typeof isSpriteMode>;
