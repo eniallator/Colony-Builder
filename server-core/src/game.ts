@@ -1,17 +1,16 @@
 import {
   createPlayer,
-  createRobot,
   encClientMessage,
   encServerMessage,
   World,
   type ServerMessage,
 } from "@colony-builder/shared";
-import { Vector } from "vectyped";
 
 import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { streamToPlayers } from "./stream.ts";
 import { serverSystems, type ServerSystem } from "./system.ts";
+import { createTerrainGenerator } from "./terrain/index.ts";
 
 export interface Connection {
   send: (bytes: Uint8Array<ArrayBuffer>) => void;
@@ -27,16 +26,11 @@ export interface Game {
   tick: (dt: number) => void;
 }
 
-const seedWorld = (world: World) => {
-  createRobot(world, Vector.zero(2), [
-    { type: "gatherResource", target: Vector.create(30, -10), progress: 0 },
-    { type: "dropInventory", target: Vector.create(30.5, -4.5) },
-  ]);
-};
+const randomSeed = (): string => Math.random().toString(36).slice(2);
 
-export const createGame = (): Game => {
+export const createGame = (seed: string = randomSeed()): Game => {
   const state: State = { world: new World(), players: new Map() };
-  seedWorld(state.world);
+  const terrainGenerator = createTerrainGenerator(seed);
 
   return {
     connect: connection => {
@@ -68,7 +62,7 @@ export const createGame = (): Game => {
       };
       for (const system of serverSystems) system(ctx);
 
-      streamToPlayers(state);
+      streamToPlayers(state, terrainGenerator);
     },
   };
 };

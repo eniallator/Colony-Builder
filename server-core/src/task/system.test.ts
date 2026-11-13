@@ -167,6 +167,17 @@ describe("taskSystem", () => {
       expect(world.entities.get(id, "inventory").size).toBe(1);
     });
 
+    it("does not set a new destination while one is pending", () => {
+      const world = new World();
+      const id = robotHolding(world, Vector.zero(2));
+      const pending = Vector.create(1, 1);
+      world.entities.add(id, "destination", pending);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(world.entities.get(id, "destination")).toBe(pending);
+    });
+
     it("drops everything as pickable items once in reach", () => {
       const world = new World();
       const id = robotHolding(world, nearTarget());

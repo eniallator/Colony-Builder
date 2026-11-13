@@ -1,5 +1,5 @@
 import type { EntityId, Inventory, Task, World } from "@colony-builder/shared";
-import type { UnionToTuple } from "niall-utils";
+import type { UnionToTuple } from "niall-utils/core";
 import type { Vector } from "vectyped";
 
 export interface EntityParams {

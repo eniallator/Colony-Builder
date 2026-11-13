@@ -83,6 +83,7 @@ export type Tile = (typeof tiles)[number];
 export const encTile = encOneOf(tiles);
 
 export type TerrainGenerator = (x: number, y: number) => Tile;
+export type CreateTerrainGenerator = (seed: string) => TerrainGenerator;
 
 export const encRegionTiles = encArrayOf(encTile, {
   fixedLength: REGION_SIDE_LENGTH ** 2,

@@ -1,9 +1,14 @@
-import { LOADED_SIDE_LENGTH } from "@colony-builder/shared";
+import {
+  LOADED_SIDE_LENGTH,
+  type TerrainGenerator,
+} from "@colony-builder/shared";
 
 import type { State } from "./state.ts";
-import { terrainGenerator } from "./terrainGenerator.ts";
 
-export const streamToPlayers = ({ world, players }: State): void => {
+export const streamToPlayers = (
+  { world, players }: State,
+  terrainGenerator: TerrainGenerator
+): void => {
   for (const [id, player] of players) {
     const position = world.entities.get(id, "position");
 
