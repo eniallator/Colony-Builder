@@ -243,14 +243,30 @@ importers:
         specifier: ^7.2.3
         version: 7.2.3(json5@2.2.3)(webpack@5.112.2)
 
-  server:
+  server-core:
     dependencies:
       '@colony-builder/shared':
         specifier: workspace:*
         version: link:../shared
-      deep-guards:
-        specifier: ^2.0.0
-        version: 2.0.0
+      niall-utils:
+        specifier: ^4.1.0
+        version: 4.1.0
+      vectyped:
+        specifier: ^1.2.1
+        version: 1.2.1
+    devDependencies:
+      jsdom:
+        specifier: ^30.1.3
+        version: 30.1.3
+
+  server-node:
+    dependencies:
+      '@colony-builder/server-core':
+        specifier: workspace:*
+        version: link:../server-core
+      '@colony-builder/shared':
+        specifier: workspace:*
+        version: link:../shared
       niall-utils:
         specifier: ^4.1.0
         version: 4.1.0

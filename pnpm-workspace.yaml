@@ -1,4 +1,5 @@
 packages:
   - client
-  - server
+  - server-core
+  - server-node
   - shared

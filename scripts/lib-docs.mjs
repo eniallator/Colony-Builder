@@ -5,6 +5,7 @@
 // to `.claude/lib-docs/<package>.md` (gitignored, regenerated on `pnpm install`).
 //
 // Never fails the install: problems are reported as warnings.
+import { execSync } from "node:child_process";
 import {
   existsSync,
   mkdirSync,
@@ -69,12 +70,19 @@ const tidy = source =>
     .replace(/\n{3,}/g, "\n\n")
     .trim();
 
-/** Workspace packages install their own dependencies, so look in each. */
-const workspaceDirs = ["", "client", "server", "shared"].map(dir =>
-  join(root, dir, "node_modules")
-);
+/**
+ * Workspace packages install their own dependencies, so look in each. Asks pnpm
+ * for the packages, so a new workspace package needs no change here.
+ */
+const workspaceDirs = () =>
+  [
+    root,
+    ...JSON.parse(
+      execSync("pnpm ls -r --depth -1 --json", { cwd: root, encoding: "utf8" })
+    ).map(({ path }) => path),
+  ].map(dir => join(dir, "node_modules"));
 
-const render = name => {
+const render = (name, workspaceDirs) => {
   const pkgDir = join(
     workspaceDirs.find(dir => existsSync(join(dir, name))) ?? workspaceDirs[0],
     name
@@ -115,11 +123,12 @@ const main = () => {
   if (!Array.isArray(allowlist) || allowlist.length === 0) return;
 
   mkdirSync(outDir, { recursive: true });
+  const dirs = workspaceDirs();
   for (const name of allowlist) {
     try {
       writeFileSync(
         join(outDir, `${name.replaceAll("/", "__")}.md`),
-        render(name)
+        render(name, dirs)
       );
     } catch (error) {
       console.warn(`lib-docs: skipped ${name}: ${error.message}`);

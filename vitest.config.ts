@@ -19,9 +19,14 @@ const project = ({
   test: { name, root, ...options },
 });
 
-// `shared` runs on both sides, so its tests run in both environments.
-const sharedProject = (environment: VitestEnvironment) =>
-  project({ name: `shared:${environment}`, root: "shared", environment });
+const ISOMORPHIC_ENVIRONMENTS: VitestEnvironment[] = ["node", "jsdom"];
+
+// `shared` and `server-core` run on both sides (Node server, browser worker),
+// so their tests run in both environments.
+const isomorphicProjects = (name: string) =>
+  ISOMORPHIC_ENVIRONMENTS.map(environment =>
+    project({ name: `${name}:${environment}`, root: name, environment })
+  );
 
 export default defineConfig({
   test: {
@@ -34,18 +39,14 @@ export default defineConfig({
         environment: "jsdom",
         setupFiles: ["vitest-canvas-mock"],
       }),
-      project({ name: "server", environment: "node" }),
-      sharedProject("node"),
-      sharedProject("jsdom"),
+      project({ name: "server-node", environment: "node" }),
+      ...isomorphicProjects("server-core"),
+      ...isomorphicProjects("shared"),
     ],
     coverage: {
       enabled: true,
       reporter: ["text-summary"],
-      include: [
-        "client/src/**/*.ts",
-        "server/src/**/*.ts",
-        "shared/src/**/*.ts",
-      ],
+      include: ["*/src/**/*.ts"],
       exclude: [
         "**/*.test.ts",
         "**/*.d.ts",

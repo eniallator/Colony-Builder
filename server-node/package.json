@@ -1,11 +1,11 @@
 {
-  "name": "@colony-builder/server",
+  "name": "@colony-builder/server-node",
   "private": true,
   "type": "module",
   "version": "1.0.0",
   "dependencies": {
+    "@colony-builder/server-core": "workspace:*",
     "@colony-builder/shared": "workspace:*",
-    "deep-guards": "^2.0.0",
     "niall-utils": "^4.1.0",
     "vectyped": "^1.2.1",
     "ws": "^8.22.0"
@@ -15,8 +15,9 @@
     "@types/ws": "^8.18.2"
   },
   "scripts": {
+    "lint": "oxlint -c ../.oxlintrc.json src",
     "start": "node src/index.ts",
-    "watch": "node --watch --watch-preserve-output src/index.ts",
-    "typecheck": "tsc"
+    "typecheck": "tsc",
+    "watch": "node --watch --watch-preserve-output src/index.ts"
   }
 }

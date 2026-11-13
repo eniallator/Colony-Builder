@@ -1,8 +1,6 @@
+import { createGame, createTicker } from "@colony-builder/server-core";
 import { SOCKET_PORT, TPS } from "@colony-builder/shared";
 import { WebSocketServer } from "ws";
-
-import { createGame } from "./game.ts";
-import { createTicker } from "./ticker.ts";
 
 const game = createGame();
 const server = new WebSocketServer({ port: SOCKET_PORT });

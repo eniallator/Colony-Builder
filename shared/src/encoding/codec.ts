@@ -8,6 +8,8 @@ import {
 } from "niall-utils/core";
 import { typedToEntries } from "niall-utils/data";
 
+import { createTextDecoder, createTextEncoder } from "../lib/text.ts";
+
 export interface Cursor {
   view: DataView;
   pos: number;
@@ -188,8 +190,8 @@ const assertFits = (cursor: Cursor, length: number, name: string): void => {
   }
 };
 
-const textEncoder = new TextEncoder();
-const textDecoder = new TextDecoder("utf-8", { fatal: true });
+const textEncoder = createTextEncoder();
+const textDecoder = createTextDecoder("utf-8", { fatal: true });
 
 /** A length prefix of the given precision followed by the UTF-8 bytes. */
 export const codStringOf = (
