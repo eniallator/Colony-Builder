@@ -176,16 +176,14 @@ interface Painter {
 
 const drawCell = (
   { ctx, atlas }: Painter,
-  cell: Cell,
+  [x, y]: Cell,
   topLeft: Vector<2>,
   size: number
 ) => {
   const { tileSize } = atlas;
   ctx.drawImage(
     atlas.sheet,
-    ...Vector.create(...cell)
-      .multiply(tileSize)
-      .toArray(),
+    ...Vector.create(x, y).multiply(tileSize).toArray(),
     tileSize,
     tileSize,
     ...topLeft.toArray(),

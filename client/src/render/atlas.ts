@@ -87,12 +87,10 @@ export const loadAtlas = async (): Promise<Atlas> => {
     typedToEntries(sprites).map(
       async ([name, { cells, ...rest }]): Promise<[string, AtlasSprite]> => {
         const frames = await Promise.all(
-          cells.map(cell =>
+          cells.map(([x, y]) =>
             createImageBitmap(
               sheet,
-              ...Vector.create(...cell)
-                .multiply(tileSize)
-                .toArray(),
+              ...Vector.create(x, y).multiply(tileSize).toArray(),
               tileSize,
               tileSize
             )

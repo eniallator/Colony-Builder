@@ -42,7 +42,7 @@ const gatherResourceTask: TaskRunner<GatherResource> = (
 
   if (task.progress >= TASK_DURATION && gatheredItem != null) {
     addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
-    return { done: true, resetTask: { ...task, progress: 0 } };
+    return { done: true, cleanTask: { ...task, progress: 0 } };
   } else return { done: false };
 };
 
@@ -62,7 +62,7 @@ const dropInventoryTask: TaskRunner<DropInventory> = (entity, task, world) => {
   if (entity.inventory.size > 0) {
     dropInventory(entity.inventory, task.target, world);
   }
-  return { done: true, resetTask: task };
+  return { done: true, cleanTask: task };
 };
 
 const taskRunners: TaskRunners = {
@@ -85,7 +85,7 @@ export const taskSystem: ServerSystem = ({ world, dt }) => {
 
     if (result.done) {
       taskList.tasks.shift();
-      if (taskList.repeat) taskList.tasks.push(result.resetTask);
+      if (taskList.repeat) taskList.tasks.push(result.cleanTask);
     }
   }
 };
