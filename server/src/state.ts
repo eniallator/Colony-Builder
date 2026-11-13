@@ -1,8 +1,12 @@
-import type { EntityId, RegionId, World } from "@colony-builder/shared";
-import type { WebSocket } from "ws";
+import type {
+  EntityId,
+  RegionId,
+  ServerMessage,
+  World,
+} from "@colony-builder/shared";
 
 export interface PlayerState {
-  socket: WebSocket;
+  send: (message: ServerMessage) => void;
   loadedRegions: Set<RegionId>;
 }
 

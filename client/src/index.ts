@@ -1,10 +1,10 @@
 import {
   encClientMessage,
   encServerMessage,
+  MAX_DT,
   MAX_ZOOM,
   MIN_ZOOM,
   SOCKET_PORT,
-  TPS,
   UNLOADED_SIDE_LENGTH,
   World,
   worldToRegionPos,
@@ -81,7 +81,7 @@ export const app = appMethods<State>({
 
   animationFrame: ({ getState, canvas, ctx, time }) => {
     const { playerId, inventoryId, world, camera, send } = getState();
-    const dt = Math.min(time.delta, 2 / TPS);
+    const dt = Math.min(time.delta, MAX_DT);
 
     const playerPos =
       playerId != null

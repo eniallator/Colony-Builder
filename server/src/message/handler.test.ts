@@ -7,8 +7,7 @@ import {
   type RegionId,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
-import { describe, expect, it } from "vitest";
-import type { WebSocket } from "ws";
+import { describe, expect, it, vi } from "vitest";
 
 import type { State } from "../state.ts";
 import { messageHandler } from "./handler.ts";
@@ -25,8 +24,7 @@ const stateWith = (
   players: new Map(
     players.map(([id, regions]) => [
       id,
-      // The handler never touches the socket, so a stand-in is enough.
-      { socket: {} as unknown as WebSocket, loadedRegions: new Set(regions) },
+      { send: vi.fn(), loadedRegions: new Set(regions) },
     ])
   ),
 });
