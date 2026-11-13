@@ -193,6 +193,9 @@ importers:
 
   client:
     dependencies:
+      '@colony-builder/server-core':
+        specifier: workspace:*
+        version: link:../server-core
       '@colony-builder/shared':
         specifier: workspace:*
         version: link:../shared

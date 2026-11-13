@@ -18,7 +18,7 @@ export const ITEM_TILES = 0.5;
 export const REGION_SIDE_LENGTH = 16;
 
 export const MIN_ZOOM = 1;
-export const MAX_ZOOM = 5;
+export const MAX_ZOOM = 6;
 
 export const LOADED_SIDE_LENGTH = 16;
 export const UNLOADED_SIDE_LENGTH = 20;

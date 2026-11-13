@@ -4,6 +4,7 @@
   "type": "module",
   "version": "1.0.0",
   "dependencies": {
+    "@colony-builder/server-core": "workspace:*",
     "@colony-builder/shared": "workspace:*",
     "deep-guards": "^2.0.0",
     "method-monitor": "^1.0.0",
@@ -25,8 +26,8 @@
   },
   "scripts": {
     "build": "webpack",
-    "lint": "oxlint -c ../.oxlintrc.json src",
-    "typecheck": "tsc",
+    "lint": "oxlint -c ../.oxlintrc.json src worker",
+    "typecheck": "tsc -p tsconfig.src.json && tsc -p tsconfig.worker.json",
     "watch": "webpack --watch"
   }
 }

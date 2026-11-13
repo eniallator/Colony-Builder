@@ -1,9 +1,7 @@
 {
-  "compilerOptions": {
-    "lib": ["dom", "dom.iterable", "esnext"],
-    "noEmit": true,
-    "types": []
-  },
-  "extends": "../tsconfig.common.json",
-  "include": ["src"]
+  "files": [],
+  "references": [
+    { "path": "./tsconfig.src.json" },
+    { "path": "./tsconfig.worker.json" }
+  ]
 }

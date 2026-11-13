@@ -1,0 +1,9 @@
+{
+  "compilerOptions": {
+    "lib": ["webworker", "esnext"],
+    "noEmit": true,
+    "types": []
+  },
+  "extends": "../tsconfig.common.json",
+  "include": ["worker"]
+}

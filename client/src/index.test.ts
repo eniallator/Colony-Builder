@@ -64,6 +64,18 @@ class FakeWebSocket extends EventTarget {
 const lastSocket = () =>
   FakeWebSocket.instances.at(-1) ?? raise(new Error("No WebSocket was opened"));
 
+class FakeWorker extends EventTarget {
+  static instances: FakeWorker[] = [];
+
+  constructor() {
+    super();
+    FakeWorker.instances.push(this);
+  }
+}
+
+const lastWorker = () =>
+  FakeWorker.instances.at(-1) ?? raise(new Error("No Worker was started"));
+
 const createAppContext = (): AppContext => {
   const canvas = toElement("<canvas></canvas>");
   canvas.width = 100;
@@ -97,12 +109,15 @@ const grass: RegionTiles = Array.from(
 
 beforeEach(() => {
   FakeWebSocket.instances = [];
+  FakeWorker.instances = [];
   vi.stubGlobal("WebSocket", FakeWebSocket);
+  vi.stubGlobal("Worker", FakeWorker);
 });
 
 afterEach(() => {
   vi.unstubAllGlobals();
   vi.clearAllMocks();
+  history.replaceState(null, "", "/");
 });
 
 describe("app.init", () => {
@@ -129,6 +144,31 @@ describe("app.init", () => {
     app.init(createAppContext());
 
     expect(lastSocket().url).toBe(`wss://example.com:${SOCKET_PORT}`);
+  });
+
+  describe("singleplayer", () => {
+    beforeEach(() => {
+      history.replaceState(null, "", "/?singleplayer");
+    });
+
+    it("runs the game in a worker instead of connecting to a server", () => {
+      app.init(createAppContext());
+
+      expect(FakeWorker.instances).toHaveLength(1);
+      expect(FakeWebSocket.instances).toHaveLength(0);
+    });
+
+    it("applies messages from the worker to the world", () => {
+      const state = app.init(createAppContext());
+
+      lastWorker().dispatchEvent(
+        message(
+          encServerMessage.encode({ type: "init", id: unsafeEntityId(4) })
+        )
+      );
+
+      expect(state.playerId).toBe(4);
+    });
   });
 
   describe("send", () => {

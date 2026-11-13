@@ -2,32 +2,34 @@ import url, { URL } from "node:url";
 import BrowserSyncPlugin from "browser-sync-webpack-plugin";
 import TerserPlugin from "terser-webpack-plugin";
 
-const path = url.fileURLToPath(new URL(".", import.meta.url));
+const path = url.fileURLToPath(new URL("public/", import.meta.url));
 
 const mode = process.env.NODE_ENV ?? "development";
 
 export default {
   mode,
 
-  entry: "./src/init.ts",
+  entry: { bundle: "./src/init.ts" },
 
   resolve: { extensions: [".ts", ".js"] },
 
-  output: { path, publicPath: "public", filename: "public/bundle.js" },
+  // `path` is the directory the page is served from, so the URL webpack works
+  // out for the game worker (the public path is detected at runtime) matches
+  // where it is really served. Each entry gets its own file: the bundle and the
+  // worker.
+  output: { path, publicPath: "auto", filename: "[name].js" },
 
-  ...(mode === "development"
-    ? { devtool: "eval-source-map" }
-    : {
-        optimization: {
-          minimize: true,
-          minimizer: [
-            new TerserPlugin({
-              include: "public/bundle.js",
-              terserOptions: { mangle: true },
-            }),
-          ],
-        },
-      }),
+  optimization: {
+    // Keep each entry self-contained: the page loads one script and the worker
+    // is a single file, with no shared vendors chunk.
+    splitChunks: false,
+    ...(mode !== "development" && {
+      minimize: true,
+      minimizer: [new TerserPlugin({ terserOptions: { mangle: true } })],
+    }),
+  },
+
+  ...(mode === "development" && { devtool: "eval-source-map" }),
 
   module: {
     rules: [
@@ -49,7 +51,7 @@ export default {
       host: "localhost",
       port: 3000,
       server: { baseDir: "public" },
-      files: ["src/**/*.ts", "../shared/src/**/*.ts"],
+      files: ["worker/**/*.ts", "../*/src/**/*.ts"],
     }),
   ],
 };

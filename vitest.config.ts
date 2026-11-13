@@ -46,7 +46,7 @@ export default defineConfig({
     coverage: {
       enabled: true,
       reporter: ["text-summary"],
-      include: ["*/src/**/*.ts"],
+      include: ["*/{src,worker}/**/*.ts"],
       exclude: [
         "**/*.test.ts",
         "**/*.d.ts",

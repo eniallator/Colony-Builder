@@ -4,12 +4,10 @@ import {
   MAX_DT,
   MAX_ZOOM,
   MIN_ZOOM,
-  SOCKET_PORT,
   UNLOADED_SIDE_LENGTH,
   World,
   worldToRegionPos,
 } from "@colony-builder/shared";
-import { isInstance } from "deep-guards";
 import { clamp } from "niall-utils/math";
 import { addListener } from "niall-utils/ui";
 import { Vector } from "vectyped";
@@ -17,13 +15,12 @@ import { Vector } from "vectyped";
 import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { clientSystems, type ClientSystem } from "./system.ts";
+import { connectLocal, connectWebSocket } from "./transport/index.ts";
 import {
   appMethods,
   fromCanvasCoords,
   setupInventoryDialog,
 } from "./ui/index.ts";
-
-const isArrayBuffer = isInstance(ArrayBuffer);
 
 const RIGHT_MOUSE_BUTTON = 2;
 
@@ -36,25 +33,20 @@ const ZOOM_STEPS: Partial<Record<string, number>> = {
 
 export const app = appMethods<State>({
   init: ({ canvas, mouse, keyboard }) => {
-    const protocol = location.protocol === "https:" ? "wss" : "ws";
-    const socket = new WebSocket(
-      `${protocol}://${location.hostname}:${SOCKET_PORT}`
-    );
-    socket.binaryType = "arraybuffer";
+    const transport = new URLSearchParams(location.search).has("singleplayer")
+      ? connectLocal()
+      : connectWebSocket();
 
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 2 },
       world: new World(),
       send: message => {
-        socket.send(encClientMessage.encode(message));
+        transport.send(encClientMessage.encode(message));
       },
     };
 
-    socket.addEventListener("message", ({ data }) => {
-      const message = isArrayBuffer(data)
-        ? encServerMessage.decode(new Uint8Array(data))
-        : undefined;
-
+    transport.onMessage(bytes => {
+      const message = encServerMessage.decode(bytes);
       if (message != null) messageHandler(state, message);
     });
 

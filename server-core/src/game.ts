@@ -14,7 +14,7 @@ import { streamToPlayers } from "./stream.ts";
 import { serverSystems, type ServerSystem } from "./system.ts";
 
 export interface Connection {
-  send: (bytes: Uint8Array) => void;
+  send: (bytes: Uint8Array<ArrayBuffer>) => void;
 }
 
 export interface PlayerSession {
