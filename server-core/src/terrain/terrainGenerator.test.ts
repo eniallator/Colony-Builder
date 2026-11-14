@@ -2,11 +2,12 @@ import type { Tile } from "@colony-builder/shared";
 import { describe, expect, it } from "vitest";
 
 import { biomeTile, createBiomeAt, type Biome } from "./biome.ts";
+import { stoneOres } from "./stone.ts";
 import { createTerrainGenerator } from "./terrainGenerator.ts";
 
 const BIOMES: Biome[] = ["grass", "desert", "swamp", "jungle"];
 /** Tiles that replace a biome's land tile. */
-const OVERLAYS: Tile[] = ["water", "stone", "iron_deposit"];
+const OVERLAYS: Tile[] = ["water", "stone", ...stoneOres];
 const EXTENT = 1000;
 const STEP = 16;
 
@@ -48,7 +49,7 @@ describe("createTerrainGenerator", () => {
       ...BIOMES.map(biomeTile),
       "water",
       "stone",
-      "iron_deposit",
+      ...stoneOres,
     ];
 
     for (const { tile } of sampleGrid("seed")) expect(allowed).toContain(tile);
@@ -68,7 +69,7 @@ describe("createTerrainGenerator", () => {
     }
 
     expect(tiles).toContain("stone");
-    expect(tiles).toContain("iron_deposit");
+    for (const ore of stoneOres) expect(tiles).toContain(ore);
   });
 
   it("has both water and land in every biome", () => {

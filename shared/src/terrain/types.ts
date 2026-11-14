@@ -26,17 +26,20 @@ export const regionPosToId = (x: number, y: number): RegionId =>
     BigInt.asUintN(I32_BITS, BigInt(y))) as RegionId;
 
 export const worldToRegionPos = (
-  x: number,
-  y: number
-): [x: number, y: number] => [
-  Math.floor(x / REGION_SIDE_LENGTH),
-  Math.floor(y / REGION_SIDE_LENGTH),
+  worldX: number,
+  worldY: number
+): [regionX: number, regionY: number] => [
+  Math.floor(worldX / REGION_SIDE_LENGTH),
+  Math.floor(worldY / REGION_SIDE_LENGTH),
 ];
 
 export const regionToWorldPos = (
-  x: number,
-  y: number
-): [x: number, y: number] => [x * REGION_SIDE_LENGTH, y * REGION_SIDE_LENGTH];
+  regionX: number,
+  regionY: number
+): [worldX: number, worldY: number] => [
+  regionX * REGION_SIDE_LENGTH,
+  regionY * REGION_SIDE_LENGTH,
+];
 
 export const regionsAround = (
   centerX: number,
@@ -74,6 +77,7 @@ export const tiles = tuple(
   "sand",
   "stone",
   "iron_deposit",
+  "copper_deposit",
   "conveyor_up",
   "conveyor_down",
   "conveyor_left",

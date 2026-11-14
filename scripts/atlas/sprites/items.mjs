@@ -34,14 +34,14 @@ const FRONT_STONE = ["..pp..", ".pqqqs", "pqaass"];
 const item = (id, rows, legend) =>
   still(`item_${id}`, fromAscii(rows, { O: PALETTE.outline, ...legend }));
 
-export const items = [
+const orePile = (id, { ore: [a, m, l], deep, stain, stainDark }) =>
   still(
-    "item_iron_ore",
+    `item_${id}`,
     compose(
       // A mound seen from the game's tilted top-down camera: the tallest chunk
       // sits in the middle, two chunks form the base either side, and a small
       // chunk in front sits lowest so the footprint reads as an ellipse.
-      // Mostly iron, with stone and stone-and-iron mixed in. Back to front.
+      // Mostly ore, with stone and stone-and-ore mixed in. Back to front.
       [
         [PEAK, 4, 1],
         [BASE_MIXED, 1, 8],
@@ -49,13 +49,13 @@ export const items = [
         [FRONT_STONE, 5, 11],
       ],
       {
-        // iron: light / mid / dark, plus rust
-        l: PALETTE.ore[2],
-        m: PALETTE.ore[1],
-        a: PALETTE.ore[0],
-        d: PALETTE.oreDark,
-        R: PALETTE.rustDark,
-        r: PALETTE.rust,
+        // ore: light / mid / body / deep, plus stain
+        l,
+        m,
+        a,
+        d: deep,
+        R: stainDark,
+        r: stain,
         // stone: light / mid / shade
         p: PALETTE.stone[3],
         q: PALETTE.stone[2],
@@ -63,7 +63,21 @@ export const items = [
       },
       PALETTE.outline
     )
-  ),
+  );
+
+export const items = [
+  orePile("iron_ore", {
+    ore: PALETTE.ore,
+    deep: PALETTE.oreDark,
+    stain: PALETTE.rust,
+    stainDark: PALETTE.rustDark,
+  }),
+  orePile("copper_ore", {
+    ore: PALETTE.copper,
+    deep: PALETTE.copperDark,
+    stain: PALETTE.verdigris,
+    stainDark: PALETTE.verdigrisDark,
+  }),
   item(
     "log",
     [

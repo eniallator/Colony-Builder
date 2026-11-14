@@ -154,60 +154,73 @@ const veinPixels = (rng, variant) => {
   return pixels;
 };
 
-const ironDeposit = (rng, variant) => {
-  const [dark, mid, light] = PALETTE.ore;
-  const rock = PALETTE.stone;
-  const s = fill(rock[1]);
-  speckle(s, rng, [
-    [rock[0], 0.08],
-    [rock[2], 0.05],
-  ]);
+const oreDeposit =
+  ({ ore: [dark, mid, light], stain, stainDark }) =>
+  (rng, variant) => {
+    const rock = PALETTE.stone;
+    const s = fill(rock[1]);
+    speckle(s, rng, [
+      [rock[0], 0.08],
+      [rock[2], 0.05],
+    ]);
 
-  const vein = veinPixels(rng, variant);
-  const isOre = (x, y) => vein.has(pixelKey(x, y));
-  const cells = [...vein].map(key => key.split(",").map(Number));
+    const vein = veinPixels(rng, variant);
+    const isOre = (x, y) => vein.has(pixelKey(x, y));
+    const cells = [...vein].map(key => key.split(",").map(Number));
 
-  // Rust-stained rock hugging the top and bottom of the vein, then the ore
-  // itself: a bright top edge, a bevelled dark underside, and a dark metallic
-  // body with glints of lighter ore so it reads as solid metal, not a crack.
-  for (const [x, y] of cells) {
-    for (const dy of [-1, 1])
-      if (!isOre(x, y + dy)) putWrap(s, x, y + dy, PALETTE.rustDark);
-  }
-  for (const [x, y] of cells) {
-    const colour = !isOre(x, y - 1)
-      ? light
-      : !isOre(x, y + 1)
-        ? rock[0]
-        : !isOre(x, y - 2) || rng() < 0.25
-          ? mid
-          : dark;
-    put(s, x, y, colour);
-  }
-
-  // A thin side branch crossing the main vein on alternate variants.
-  if (variant % 2 === 1) {
-    const amplitude = 2 + rng() * 1.5;
-    for (let y = 0; y < TILE; y++) {
-      const x = Math.round(8 - amplitude * wave(1, y));
-      if (isOre(x, y)) continue;
-      putWrap(s, x, y, mid);
-      if (!isOre(x + 1, y)) putWrap(s, x + 1, y, PALETTE.rustDark);
+    // Rust-stained rock hugging the top and bottom of the vein, then the ore
+    // itself: a bright top edge, a bevelled dark underside, and a dark metallic
+    // body with glints of lighter ore so it reads as solid metal, not a crack.
+    for (const [x, y] of cells) {
+      for (const dy of [-1, 1])
+        if (!isOre(x, y + dy)) putWrap(s, x, y + dy, stainDark);
     }
-  }
+    for (const [x, y] of cells) {
+      const colour = !isOre(x, y - 1)
+        ? light
+        : !isOre(x, y + 1)
+          ? rock[0]
+          : !isOre(x, y - 2) || rng() < 0.25
+            ? mid
+            : dark;
+      put(s, x, y, colour);
+    }
 
-  // Rust staining on the vein, and a few ore flecks drifting into the rock.
-  for (let i = 0; i < 4; i++) {
-    const [x, y] = cells[randInt(rng, cells.length)];
-    put(s, x, y, PALETTE.rust);
-  }
-  for (let i = 0; i < 9; i++) {
-    const x = randInt(rng, TILE);
-    const y = randInt(rng, TILE);
-    if (!isOre(x, y)) put(s, x, y, i < 4 ? PALETTE.rustDark : mid);
-  }
-  return s;
-};
+    // A thin side branch crossing the main vein on alternate variants.
+    if (variant % 2 === 1) {
+      const amplitude = 2 + rng() * 1.5;
+      for (let y = 0; y < TILE; y++) {
+        const x = Math.round(8 - amplitude * wave(1, y));
+        if (isOre(x, y)) continue;
+        putWrap(s, x, y, mid);
+        if (!isOre(x + 1, y)) putWrap(s, x + 1, y, stainDark);
+      }
+    }
+
+    // Rust staining on the vein, and a few ore flecks drifting into the rock.
+    for (let i = 0; i < 4; i++) {
+      const [x, y] = cells[randInt(rng, cells.length)];
+      put(s, x, y, stain);
+    }
+    for (let i = 0; i < 9; i++) {
+      const x = randInt(rng, TILE);
+      const y = randInt(rng, TILE);
+      if (!isOre(x, y)) put(s, x, y, i < 4 ? stainDark : mid);
+    }
+    return s;
+  };
+
+const ironDeposit = oreDeposit({
+  ore: PALETTE.ore,
+  stain: PALETTE.rust,
+  stainDark: PALETTE.rustDark,
+});
+
+const copperDeposit = oreDeposit({
+  ore: PALETTE.copper,
+  stain: PALETTE.verdigris,
+  stainDark: PALETTE.verdigrisDark,
+});
 
 /** Waves slide 4px per frame -> a seamless 4-frame loop. */
 const water = (rng, frame) => {
@@ -235,5 +248,6 @@ export const terrain = [
   variants("swampland", swampland),
   variants("jungle", jungle),
   variants("iron_deposit", ironDeposit),
+  variants("copper_deposit", copperDeposit),
   animated("water", 4, water, { frameMs: 300 }),
 ];

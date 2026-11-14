@@ -24,6 +24,10 @@ export const PALETTE = {
   oreDark: "#46556a", // deep shade for the underside of ore chunks
   rust: "#a8654a",
   rustDark: "#6e3f2e",
+  copper: ["#8e4a3c", "#c8704f", "#ec9f7c"],
+  copperDark: "#5c2f2c", // deep shade for the underside of copper chunks
+  verdigris: "#4fae94",
+  verdigrisDark: "#2f6f62",
   log: {
     barkDark: "#5e3b20",
     bark: "#8a5a32",
