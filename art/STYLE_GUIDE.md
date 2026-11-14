@@ -48,20 +48,22 @@ on every `pnpm atlas`.
 
 Ramps run **dark → light** (index 0 → 3).
 
-| Group   | Ramp                                             | Used for                  |
-| ------- | ------------------------------------------------ | ------------------------- |
-| outline | `#1b1a22`                                        | Entity and item outlines  |
-| grass   | `#35693a` `#4a8340` `#629c48` `#86b95c`          | Grass                     |
-| sand    | `#b39656` `#cdb374` `#e0cc92` `#efe1b0`          | Sand                      |
-| stone   | `#4f5560` `#6b727c` `#868d96` `#a6adb4`          | Stone, pebbles, vein rock |
-| swamp   | `#2b4531` `#3b5a3a` `#51714a` `#7e9a5e`          | Swampland                 |
-| jungle  | `#173f27` `#22583a` `#2e7344` `#4a9552`          | Jungle                    |
-| water   | `#2a4f8a` `#3a68a8` `#4d82bf` `#9cc8e6`          | Water, wave highlights    |
-| ore     | `#6c7f93` `#9fb4c8` `#cbd9e5` (+ deep `#46556a`) | Iron: body, glints, edge  |
-| rust    | `#a8654a` (+ dark stain `#6e3f2e`)               | Staining on iron          |
-| robot   | `#8a4e22` `#d98a3a` `#f0b866` (+ visor/glow/led) | Robots (orange)           |
-| player  | teal tunic ramp, skin `#f0c8a0`, hair `#5a3a22`  | Player characters (teal)  |
-| belt    | rails, base, amber arrows                        | Conveyors                 |
+| Group     | Ramp                                             | Used for                   |
+| --------- | ------------------------------------------------ | -------------------------- |
+| outline   | `#1b1a22`                                        | Entity and item outlines   |
+| grass     | `#35693a` `#4a8340` `#629c48` `#86b95c`          | Grass                      |
+| sand      | `#b39656` `#cdb374` `#e0cc92` `#efe1b0`          | Sand                       |
+| stone     | `#4f5560` `#6b727c` `#868d96` `#a6adb4`          | Stone, pebbles, vein rock  |
+| swamp     | `#2b4531` `#3b5a3a` `#51714a` `#7e9a5e`          | Swampland                  |
+| jungle    | `#173f27` `#22583a` `#2e7344` `#4a9552`          | Jungle                     |
+| water     | `#2a4f8a` `#3a68a8` `#4d82bf` `#9cc8e6`          | Water, wave highlights     |
+| ore       | `#6c7f93` `#9fb4c8` `#cbd9e5` (+ deep `#46556a`) | Iron: body, glints, edge   |
+| rust      | `#a8654a` (+ dark stain `#6e3f2e`)               | Staining on iron           |
+| copper    | `#8e4a3c` `#c8704f` `#ec9f7c` (+ deep `#5c2f2c`) | Copper: body, glints, edge |
+| verdigris | `#4fae94` (+ dark stain `#2f6f62`)               | Staining on copper         |
+| robot     | `#8a4e22` `#d98a3a` `#f0b866` (+ visor/glow/led) | Robots (orange)            |
+| player    | teal tunic ramp, skin `#f0c8a0`, hair `#5a3a22`  | Player characters (teal)   |
+| belt      | rails, base, amber arrows                        | Conveyors                  |
 
 **Colour roles.** These carry meaning across the whole game, so keep them
 consistent as content grows:
@@ -75,6 +77,8 @@ consistent as content grows:
   specks on iron; never as a main fill.
 - **Cool blue-grey** = iron. Its body is _dark_ (`ore[0]`/`oreDark`); the pale
   tones are reserved for the top-left edge and a few glints.
+- **Pinkish copper** = copper. Kept redder than the robots' orange so the two
+  never read as the same thing; verdigris green is its stain colour.
 
 ## Lighting and shading
 

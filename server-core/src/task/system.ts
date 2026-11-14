@@ -15,6 +15,7 @@ import type { EntityParams, TaskRunner, TaskRunners } from "./types.ts";
 
 const tileDrops: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
   iron_deposit: { id: "iron_ore", item: { count: 5 } },
+  copper_deposit: { id: "copper_ore", item: { count: 5 } },
 };
 
 const gatherResourceTask: TaskRunner<GatherResource> = (

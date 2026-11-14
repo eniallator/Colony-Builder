@@ -74,6 +74,7 @@ export const tiles = tuple(
   "sand",
   "stone",
   "iron_deposit",
+  "copper_deposit",
   "conveyor_up",
   "conveyor_down",
   "conveyor_left",
