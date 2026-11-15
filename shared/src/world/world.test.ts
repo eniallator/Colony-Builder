@@ -1,10 +1,26 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { REGION_SIDE_LENGTH } from "../constants.ts";
+import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import { EntityStore } from "./entity/index.ts";
-import { TerrainStore } from "./terrain/index.ts";
+import {
+  regionPosToId,
+  TerrainStore,
+  type RegionId,
+  type RegionTiles,
+  type Tile,
+} from "./terrain/index.ts";
+import type { WorldGenerator } from "./types.ts";
 import { World } from "./world.ts";
+
+const flatTiles = (tile: Tile): RegionTiles =>
+  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile);
+
+/** Generates flat grass regions with no structures. */
+const flatGenerator: WorldGenerator = () => ({
+  tiles: flatTiles("grass"),
+  structures: new Map(),
+});
 
 describe("World", () => {
   it("exposes an entity store and a terrain store", () => {
@@ -61,6 +77,86 @@ describe("World", () => {
       world.entities.despawn(gone);
 
       expect(world.entitiesAround(0, 0, 3)).toEqual([kept]);
+    });
+  });
+
+  describe("loadWorld", () => {
+    const half = LOADED_SIDE_LENGTH / 2;
+
+    it("returns the ids of the square of regions around the position", () => {
+      const ids = new World().loadWorld(0, 0, flatGenerator);
+
+      expect(ids).toHaveLength(LOADED_SIDE_LENGTH ** 2);
+      expect(ids).toContain(regionPosToId(-half, -half));
+      expect(ids).toContain(regionPosToId(half - 1, half - 1));
+      expect(ids).not.toContain(regionPosToId(half, 0));
+      expect(ids).not.toContain(regionPosToId(0, -half - 1));
+    });
+
+    it("centres the square on the region containing the position", () => {
+      const ids = new World().loadWorld(
+        2.5 * REGION_SIDE_LENGTH,
+        -0.5 * REGION_SIDE_LENGTH,
+        flatGenerator
+      );
+
+      expect(ids).toContain(regionPosToId(2 - half, -1 - half));
+      expect(ids).toContain(regionPosToId(2 + half - 1, -1 + half - 1));
+      expect(ids).not.toContain(regionPosToId(2 + half, -1));
+    });
+
+    it("loads the generated tiles of every region it returns", () => {
+      const world = new World();
+
+      const ids = world.loadWorld(0, 0, flatGenerator);
+
+      expect(world.terrain.ids.toArray()).toEqual(ids);
+      for (const id of ids) {
+        expect(world.terrain.get(id)).toEqual(flatTiles("grass"));
+      }
+    });
+
+    it("keeps regions that already exist", () => {
+      const world = new World();
+      const existing = flatTiles("sand");
+      world.terrain.add(regionPosToId(0, 0), existing);
+
+      world.loadWorld(0, 0, flatGenerator);
+
+      expect(world.terrain.get(regionPosToId(0, 0))).toBe(existing);
+    });
+
+    it("only calls the generator for regions that do not exist yet", () => {
+      const world = new World();
+      world.terrain.add(regionPosToId(0, 0), flatTiles("sand"));
+      const generated: RegionId[] = [];
+
+      world.loadWorld(0, 0, id => {
+        generated.push(id);
+        return flatGenerator(id);
+      });
+
+      expect(generated).toHaveLength(LOADED_SIDE_LENGTH ** 2 - 1);
+      expect(generated).not.toContain(regionPosToId(0, 0));
+    });
+
+    it("returns the same ids when called again", () => {
+      const world = new World();
+
+      expect(world.loadWorld(0, 0, flatGenerator)).toEqual(
+        world.loadWorld(0, 0, flatGenerator)
+      );
+    });
+
+    it("only adds the new regions when the position moves", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+
+      world.loadWorld(REGION_SIDE_LENGTH, 0, flatGenerator);
+
+      expect(world.terrain.ids.toArray()).toHaveLength(
+        LOADED_SIDE_LENGTH * (LOADED_SIDE_LENGTH + 1)
+      );
     });
   });
 });

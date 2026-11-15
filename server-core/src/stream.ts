@@ -1,20 +1,20 @@
 import {
   LOADED_SIDE_LENGTH,
-  type TerrainGenerator,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 
 import type { State } from "./state.ts";
 
 export const streamToPlayers = (
   { world, players }: State,
-  terrainGenerator: TerrainGenerator
+  worldGenerator: WorldGenerator
 ): void => {
   for (const [id, player] of players) {
     const position = world.entities.get(id, "position");
 
-    const unsent = world.terrain
-      .loadTerrain(position.x(), position.y(), terrainGenerator)
-      .difference(player.loadedRegions);
+    const unsent = new Set(
+      world.loadWorld(position.x(), position.y(), worldGenerator)
+    ).difference(player.loadedRegions);
 
     if (unsent.size > 0) {
       player.send({

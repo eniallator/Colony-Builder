@@ -56,7 +56,7 @@ describe("createBiomeAt", () => {
       const share = (biome: Biome) =>
         samples.filter(s => s.biome === biome).length / samples.length;
 
-      expect(share("grass")).toBeGreaterThan(0.1);
+      expect(share("plains")).toBeGreaterThan(0.1);
       expect(share("desert")).toBeGreaterThan(0.1);
       expect(share("swamp")).toBeGreaterThan(0.1);
       expect(share("jungle")).toBeGreaterThan(0.1);

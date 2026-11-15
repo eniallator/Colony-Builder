@@ -3,12 +3,14 @@ import { typedFromEntries, typedToEntries } from "niall-utils/data";
 
 import {
   componentNames,
+  unsafeEntityId,
   type ComponentName,
   type Components,
+  type EntityId,
+  type EntitySnapshot,
   type OptionalComponentName,
   type StoreComponents,
-} from "./component.ts";
-import { unsafeEntityId, type EntityId, type EntitySnapshot } from "./types.ts";
+} from "./types.ts";
 
 export class EntityStore {
   private entityCount: number = 0;

@@ -1,13 +1,7 @@
 import { describe, expect, it } from "vitest";
 
-import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../../constants.ts";
-import {
-  regionPosToId,
-  tiles,
-  type RegionTiles,
-  type TerrainGenerator,
-  type Tile,
-} from "./index.ts";
+import { REGION_SIDE_LENGTH } from "../../constants.ts";
+import { regionPosToId, tiles, type RegionTiles, type Tile } from "./index.ts";
 import { TerrainStore } from "./store.ts";
 import type { TerrainSnapshot } from "./types.ts";
 
@@ -158,47 +152,6 @@ describe("TerrainStore", () => {
     });
   });
 
-  describe("unloadOutside", () => {
-    it("removes regions outside the square and returns their ids", () => {
-      const store = storeWith(
-        [0, 0, baseRegion],
-        [-3, 0, baseRegion],
-        [2, 0, baseRegion],
-        [0, -3, baseRegion],
-        [0, 2, baseRegion]
-      );
-
-      expect(store.unloadOutside(0, 0, 4)).toEqual([
-        regionPosToId(-3, 0),
-        regionPosToId(2, 0),
-        regionPosToId(0, -3),
-        regionPosToId(0, 2),
-      ]);
-      expect([...store.ids]).toEqual([origin]);
-    });
-
-    it("keeps the square's inclusive lower edge and exclusive upper edge", () => {
-      const store = storeWith([-2, -2, baseRegion], [1, 1, baseRegion]);
-
-      expect(store.unloadOutside(0, 0, 4)).toEqual([]);
-      expect([...store.ids]).toEqual([
-        regionPosToId(-2, -2),
-        regionPosToId(1, 1),
-      ]);
-    });
-
-    it("is centred on the given region position", () => {
-      const store = storeWith([10, 10, baseRegion], [0, 0, baseRegion]);
-
-      expect(store.unloadOutside(10, 10, 4)).toEqual([origin]);
-      expect([...store.ids]).toEqual([regionPosToId(10, 10)]);
-    });
-
-    it("returns nothing for an empty store", () => {
-      expect(new TerrainStore().unloadOutside(0, 0, 4)).toEqual([]);
-    });
-  });
-
   describe("takeSnapshot", () => {
     it("captures the requested regions by id", () => {
       const store = storeWith([0, 0, baseRegion], [-1, 2, altRegion]);
@@ -282,104 +235,6 @@ describe("TerrainStore", () => {
       store.applySnapshot(new Map());
 
       expect([...store.ids]).toEqual([origin]);
-    });
-  });
-
-  describe("loadTerrain", () => {
-    const half = LOADED_SIDE_LENGTH / 2;
-    const allBase: TerrainGenerator = () => baseTile;
-
-    it("returns the ids of the square of regions around the position", () => {
-      const ids = new TerrainStore().loadTerrain(0, 0, allBase);
-
-      expect(ids.size).toBe(LOADED_SIDE_LENGTH ** 2);
-      expect(ids.has(regionPosToId(-half, -half))).toBe(true);
-      expect(ids.has(regionPosToId(half - 1, half - 1))).toBe(true);
-      expect(ids.has(regionPosToId(half, 0))).toBe(false);
-      expect(ids.has(regionPosToId(0, -half - 1))).toBe(false);
-    });
-
-    it("centres the square on the region containing the position", () => {
-      const ids = new TerrainStore().loadTerrain(
-        2.5 * REGION_SIDE_LENGTH,
-        -0.5 * REGION_SIDE_LENGTH,
-        allBase
-      );
-
-      expect(ids.has(regionPosToId(2 - half, -1 - half))).toBe(true);
-      expect(ids.has(regionPosToId(2 + half - 1, -1 + half - 1))).toBe(true);
-      expect(ids.has(regionPosToId(2 + half, -1))).toBe(false);
-    });
-
-    it("generates every region it returns", () => {
-      const store = new TerrainStore();
-
-      const ids = store.loadTerrain(0, 0, allBase);
-
-      expect(new Set(store.ids)).toEqual(ids);
-      for (const id of ids) {
-        const generated = store.get(id);
-        expect(generated).toHaveLength(REGION_SIDE_LENGTH ** 2);
-        expect(generated.every(tile => tiles.includes(tile))).toBe(true);
-      }
-    });
-
-    it("does not regenerate regions that already exist", () => {
-      const store = storeWith([0, 0, altRegion]);
-
-      store.loadTerrain(0, 0, allBase);
-
-      expect(store.get(origin)).toBe(altRegion);
-    });
-
-    it("returns the same ids when called again", () => {
-      const store = new TerrainStore();
-
-      expect(store.loadTerrain(0, 0, allBase)).toEqual(
-        store.loadTerrain(0, 0, allBase)
-      );
-    });
-
-    it("asks the generator for world coordinates", () => {
-      const store = new TerrainStore();
-      const marked: TerrainGenerator = (x, y) =>
-        x === REGION_SIDE_LENGTH + 3 && y === -REGION_SIDE_LENGTH + 5
-          ? markerTile
-          : baseTile;
-
-      store.loadTerrain(0, 0, marked);
-
-      expect(store.tileAt(REGION_SIDE_LENGTH + 3, 5 - REGION_SIDE_LENGTH)).toBe(
-        markerTile
-      );
-      expect(store.tileAt(REGION_SIDE_LENGTH + 4, 5 - REGION_SIDE_LENGTH)).toBe(
-        baseTile
-      );
-    });
-
-    it("only calls the generator for regions that do not exist yet", () => {
-      const store = storeWith([0, 0, altRegion]);
-      const calls: [number, number][] = [];
-
-      store.loadTerrain(0, 0, (x, y) => {
-        calls.push([x, y]);
-        return baseTile;
-      });
-
-      expect(calls).toHaveLength(
-        (LOADED_SIDE_LENGTH ** 2 - 1) * REGION_SIDE_LENGTH ** 2
-      );
-    });
-
-    it("only adds the new regions when the position moves", () => {
-      const store = new TerrainStore();
-      store.loadTerrain(0, 0, allBase);
-
-      store.loadTerrain(REGION_SIDE_LENGTH, 0, allBase);
-
-      expect(store.ids.toArray()).toHaveLength(
-        LOADED_SIDE_LENGTH * (LOADED_SIDE_LENGTH + 1)
-      );
     });
   });
 });

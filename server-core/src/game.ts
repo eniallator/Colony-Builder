@@ -10,7 +10,7 @@ import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { streamToPlayers } from "./stream.ts";
 import { serverSystems, type ServerSystem } from "./system.ts";
-import { createTerrainGenerator } from "./terrain/index.ts";
+import { createWorldGenerator } from "./terrain/worldGenerator.ts";
 
 export interface Connection {
   send: (bytes: Uint8Array<ArrayBuffer>) => void;
@@ -30,7 +30,7 @@ const randomSeed = (): string => Math.random().toString(36).slice(2);
 
 export const createGame = (seed: string = randomSeed()): Game => {
   const state: State = { world: new World(), players: new Map() };
-  const terrainGenerator = createTerrainGenerator(seed);
+  const worldGenerator = createWorldGenerator(seed);
 
   return {
     connect: connection => {
@@ -62,7 +62,7 @@ export const createGame = (seed: string = randomSeed()): Game => {
       };
       for (const system of serverSystems) system(ctx);
 
-      streamToPlayers(state, terrainGenerator);
+      streamToPlayers(state, worldGenerator);
     },
   };
 };

@@ -12,7 +12,7 @@ interface BiomeDef {
 }
 
 const BIOMES = {
-  grass: { centre: [-0.2, 0.25], tile: "grass" },
+  plains: { centre: [-0.2, 0.25], tile: "grass" },
   desert: { centre: [-0.2, -0.25], tile: "sand" },
   swamp: { centre: [0.2, -0.25], tile: "swampland" },
   jungle: { centre: [0.2, 0.25], tile: "jungle" },

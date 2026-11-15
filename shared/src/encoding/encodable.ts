@@ -250,7 +250,7 @@ type RegistryValues<
   Reg extends Record<string, Encodable>,
   Ids = UnionToTuple<keyof Reg>,
 > = Ids extends [infer Id extends keyof Reg, ...infer Rest]
-  ? { id: Id; data: Reg[Id] } | RegistryValues<Reg, Rest>
+  ? { id: Id; data: EncodableType<Reg[Id]> } | RegistryValues<Reg, Rest>
   : never;
 
 export const encRegistryValues = <const Reg extends Record<string, Encodable>>(

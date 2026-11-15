@@ -1,9 +1,8 @@
 import { tuple } from "niall-utils/core";
 import { mapFilter } from "niall-utils/functional";
 
-import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../../constants.ts";
+import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
-  regionIdToPos,
   regionsAround,
   worldToRegionPos,
   type RegionId,
@@ -25,7 +24,11 @@ export class StructureStore {
     return this.regions.keys();
   }
 
-  add(worldX: number, worldY: number, data: StructureData): void {
+  add(id: RegionId, structures: RegionStructures) {
+    this.regions.set(id, structures);
+  }
+
+  addStructure(worldX: number, worldY: number, data: StructureData): void {
     const [reg, sub] = worldPosToRegionIds(worldX, worldY);
     this.regions.getOrInsert(reg, new Map()).set(sub, data);
   }
@@ -58,7 +61,11 @@ export class StructureStore {
     );
   }
 
-  delete(reg: RegionId, sub: SubRegionId): boolean {
+  delete(id: RegionId): boolean {
+    return this.regions.delete(id);
+  }
+
+  deleteStructure(reg: RegionId, sub: SubRegionId): boolean {
     return this.regions.get(reg)?.delete(sub) ?? false;
   }
 
@@ -73,38 +80,5 @@ export class StructureStore {
 
   applySnapshot(snapshot: StructureSnapshot): void {
     for (const [id, structures] of snapshot) this.regions.set(id, structures);
-  }
-
-  loadStructures(
-    worldX: number,
-    worldY: number,
-    generator: (regionId: RegionId) => RegionStructures
-  ): Set<RegionId> {
-    const ids = regionsAround(
-      ...worldToRegionPos(worldX, worldY),
-      LOADED_SIDE_LENGTH
-    );
-
-    for (const id of ids) {
-      if (!this.regions.has(id)) this.regions.set(id, generator(id));
-    }
-
-    return new Set(ids);
-  }
-
-  unloadOutside(x: number, y: number, sideLength: number): RegionId[] {
-    const half = sideLength / 2;
-    const unloaded = this.ids
-      .filter(id => {
-        const [rx, ry] = regionIdToPos(id);
-        return (
-          rx < x - half || rx >= x + half || ry < y - half || ry >= y + half
-        );
-      })
-      .toArray();
-
-    for (const id of unloaded) this.regions.delete(id);
-
-    return unloaded;
   }
 }

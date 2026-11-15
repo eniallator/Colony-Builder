@@ -80,11 +80,11 @@ export const app = appMethods<State>({
         ? world.entities.optGet(playerId, "position")
         : undefined;
     if (playerPos != null) {
-      const unloaded = world.terrain.unloadOutside(
+      const ids = world.unloadOutside(
         ...worldToRegionPos(...playerPos.toArray()),
         UNLOADED_SIDE_LENGTH
       );
-      if (unloaded.length > 0) send({ type: "unload", ids: unloaded });
+      if (ids.length > 0) send({ type: "unload", ids });
     }
 
     const systemCtx: Parameters<ClientSystem>[0] = {
