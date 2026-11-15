@@ -1,8 +1,8 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { PLAYER_SPEED } from "../constants.ts";
-import { World } from "../stores/world.ts";
+import { PLAYER_SPEED } from "../../constants.ts";
+import { World } from "../index.ts";
 import { createItem } from "./item.ts";
 import { createPlayer } from "./player.ts";
 import {

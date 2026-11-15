@@ -2,18 +2,18 @@ import { raise } from "niall-utils/core";
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { PLAYER_SPEED } from "../constants.ts";
-import { componentNames } from "../entity/component.ts";
+import { PLAYER_SPEED } from "../../constants.ts";
+import { World } from "../index.ts";
+import { componentNames } from "./component.ts";
 import {
   createItem,
   createPlayer,
   unsafeEntityId,
   type Components,
   type EntityId,
-} from "../entity/index.ts";
-import { EntityStore } from "./entityStore.ts";
+} from "./index.ts";
+import { EntityStore } from "./store.ts";
 import { encEntitySnapshot, type EntitySnapshot } from "./types.ts";
-import { World } from "./world.ts";
 
 const a = unsafeEntityId(0);
 const b = unsafeEntityId(1);

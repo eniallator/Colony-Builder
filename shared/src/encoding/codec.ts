@@ -137,8 +137,22 @@ export const codF64 = fixedCodec(
   (view, pos) => view.getFloat64(pos, LITTLE_ENDIAN)
 );
 
-const U8_MAX = 2 ** 8;
-const U16_MAX = 2 ** 16;
+const numberCodecs = {
+  i8: codI8,
+  i16: codI16,
+  i32: codI32,
+  u8: codU8,
+  u16: codU16,
+  u32: codU32,
+  f16: codF16,
+  f32: codF32,
+  f64: codF64,
+};
+export type NumberCodec = keyof typeof numberCodecs;
+export const codNumber = (tpe: NumberCodec): Codec<number> => numberCodecs[tpe];
+
+export const U8_MAX = 2 ** 8;
+export const U16_MAX = 2 ** 16;
 export const chooseUIntCod = (value: number): Codec<number> =>
   value < U8_MAX ? codU8 : value < U16_MAX ? codU16 : codU32;
 

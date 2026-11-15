@@ -6,9 +6,13 @@ import {
   encVec2,
   type EncodableType,
 } from "../encoding/index.ts";
-import { encEntityId } from "../entity/index.ts";
-import { encEntitySnapshot, encTerrainSnapshot } from "../stores/index.ts";
-import { encRegionId, encTile } from "../terrain/index.ts";
+import {
+  encEntityId,
+  encEntitySnapshot,
+  encRegionId,
+  encTerrainSnapshot,
+  encTile,
+} from "../world/index.ts";
 
 export const encMoveMessage = encObjectOf({
   type: encExact("move"),

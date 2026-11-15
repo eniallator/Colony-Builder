@@ -3,6 +3,7 @@ import {
   isBoolean,
   isExact,
   isExactObjectOf,
+  isNumber,
   isOneOf,
   isOptional,
   isRecordOf,
@@ -15,8 +16,9 @@ import {
   raise,
   type NonEmptyArray,
   type ReadonlyNonEmptyArray,
+  type UnionToTuple,
 } from "niall-utils/core";
-import { mapObject } from "niall-utils/data";
+import { mapObject, typedToEntries } from "niall-utils/data";
 import { mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 
@@ -28,6 +30,7 @@ import {
   codF32,
   codMap,
   codMapOf,
+  codNumber,
   codObjectOf,
   codOneOf,
   codOptional,
@@ -37,6 +40,7 @@ import {
   type ArrayOptions,
   type Codec,
   type CodecValue,
+  type NumberCodec,
   type Precision,
 } from "./codec.ts";
 
@@ -94,6 +98,9 @@ export const encodable = <const T extends CodecValue>(
 });
 
 export const encBoolean = encodable(isBoolean, codBoolean);
+
+export const encNumber = (tpe: NumberCodec): Encodable<number> =>
+  encodable(isNumber, codNumber(tpe));
 
 const isVec =
   <const N extends number>(size: N): Guard<Vector<N>> =>
@@ -238,3 +245,19 @@ export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
     }
   );
 };
+
+type RegistryValues<
+  Reg extends Record<string, Encodable>,
+  Ids = UnionToTuple<keyof Reg>,
+> = Ids extends [infer Id extends keyof Reg, ...infer Rest]
+  ? { id: Id; data: Reg[Id] } | RegistryValues<Reg, Rest>
+  : never;
+
+export const encRegistryValues = <const Reg extends Record<string, Encodable>>(
+  registry: Reg
+): Encodable<RegistryValues<Reg>> =>
+  encUnionOf(
+    ...(typedToEntries(registry).map(([id, data]) =>
+      encObjectOf({ id: encExact(id as string), data })
+    ) as NonEmptyArray<Encodable>)
+  ) as Encodable<RegistryValues<Reg>>;

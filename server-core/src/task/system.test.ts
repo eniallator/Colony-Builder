@@ -1,17 +1,19 @@
+import {
+  createPlayer,
+  createRobot,
+  REGION_SIDE_LENGTH,
+  regionPosToId,
+  TASK_DURATION,
+  TASK_RADIUS,
+  World,
+  type EntityId,
+  type GatherResource,
+  type Task,
+  type Tile,
+} from "@colony-builder/shared";
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import {
-  REGION_SIDE_LENGTH,
-  TASK_DURATION,
-  TASK_RADIUS,
-} from "../../../shared/src/constants.ts";
-import { createPlayer } from "../../../shared/src/entity/player.ts";
-import { createRobot } from "../../../shared/src/entity/robot.ts";
-import type { EntityId } from "../../../shared/src/entity/types.ts";
-import { World } from "../../../shared/src/stores/world.ts";
-import type { GatherResource, Task } from "../../../shared/src/task/types.ts";
-import { regionPosToId, type Tile } from "../../../shared/src/terrain/types.ts";
 import type { ServerSystem } from "../system.ts";
 import { taskSystem as serverTaskSystem } from "./system.ts";
 

@@ -1,17 +1,23 @@
-import type { ComponentName, EntityId } from "../entity/index.ts";
+import {
+  EntityStore,
+  type ComponentName,
+  type EntityId,
+} from "./entity/index.ts";
+import { StructureStore } from "./structure/store.ts";
 import {
   regionPosToId,
   regionsAround,
+  TerrainStore,
   worldToRegionPos,
   type RegionId,
-} from "../terrain/index.ts";
-import { EntityStore } from "./entityStore.ts";
-import { TerrainStore } from "./terrainStore.ts";
+} from "./terrain/index.ts";
 
 export class World {
-  private entityRegions: Map<RegionId, EntityId[]> = new Map();
   private readonly entityStore: EntityStore = new EntityStore();
   private readonly terrainStore: TerrainStore = new TerrainStore();
+  private readonly structureStore: StructureStore = new StructureStore();
+
+  private entityRegions: Map<RegionId, EntityId[]> = new Map();
 
   get entities() {
     return this.entityStore;
@@ -19,6 +25,10 @@ export class World {
 
   get terrain() {
     return this.terrainStore;
+  }
+
+  get structures() {
+    return this.structureStore;
   }
 
   indexEntities() {

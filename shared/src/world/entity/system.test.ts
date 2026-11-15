@@ -1,7 +1,7 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { World } from "../stores/world.ts";
+import { World } from "../index.ts";
 import { selfMovementSystem } from "./system.ts";
 
 const spawnMover = (

@@ -1,8 +1,8 @@
 import { Vector } from "vectyped";
 
-import { ROBOT_SPEED } from "../constants.ts";
-import type { World } from "../stores/world.ts";
-import type { Task } from "../task/types.ts";
+import { ROBOT_SPEED } from "../../constants.ts";
+import type { Task } from "../../task/index.ts";
+import type { World } from "../index.ts";
 import type { EntityId } from "./types.ts";
 
 export const createRobot = (

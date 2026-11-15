@@ -1,6 +1,6 @@
 import { describe, expect, it } from "vitest";
 
-import { REGION_SIDE_LENGTH } from "../constants.ts";
+import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
   encRegionId,
   encTile,

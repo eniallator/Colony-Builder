@@ -1,4 +1,4 @@
-import type { World } from "../stores/index.ts";
+import type { World } from "../world/index.ts";
 
 export interface SystemContext {
   world: World;

@@ -1,7 +1,6 @@
 import { Vector } from "vectyped";
 
-import { createItem } from "../entity/item.ts";
-import type { World } from "../stores/world.ts";
+import { createItem, type World } from "../world/index.ts";
 import type { ItemId } from "./registry.ts";
 import type { Inventory, Item } from "./types.ts";
 

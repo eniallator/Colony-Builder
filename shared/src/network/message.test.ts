@@ -4,22 +4,18 @@ import { describe, expect, it } from "vitest";
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import {
   encComponents,
-  unsafeEntityId,
-  type Components,
-} from "../entity/index.ts";
-import {
   encEntitySnapshot,
-  encTerrainSnapshot,
-  type EntitySnapshot,
-  type TerrainSnapshot,
-} from "../stores/index.ts";
-import {
   encRegionTiles,
+  encTerrainSnapshot,
   regionPosToId,
   tiles,
+  unsafeEntityId,
+  type Components,
+  type EntitySnapshot,
   type RegionTiles,
+  type TerrainSnapshot,
   type Tile,
-} from "../terrain/index.ts";
+} from "../world/index.ts";
 import {
   encClientMessage,
   encEntitiesMessage,

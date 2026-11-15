@@ -5,8 +5,8 @@ import {
   CONVEYOR_CENTER_SNAP_DISTANCE,
   CONVEYOR_SPEED,
   REGION_SIDE_LENGTH,
-} from "../constants.ts";
-import { World } from "../stores/world.ts";
+} from "../../constants.ts";
+import { World } from "../index.ts";
 import { conveyorMovementSystem } from "./system.ts";
 import { regionPosToId, tiles, type Tile } from "./types.ts";
 

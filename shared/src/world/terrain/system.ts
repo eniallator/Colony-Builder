@@ -1,7 +1,10 @@
 import { Vector } from "vectyped";
 
-import { CONVEYOR_CENTER_SNAP_DISTANCE, CONVEYOR_SPEED } from "../constants.ts";
-import type { System } from "../system/index.ts";
+import {
+  CONVEYOR_CENTER_SNAP_DISTANCE,
+  CONVEYOR_SPEED,
+} from "../../constants.ts";
+import type { System } from "../../system/index.ts";
 import type { Tile } from "./types.ts";
 
 const conveyorTileToDirection: Partial<Record<Tile, Vector<2>>> = {

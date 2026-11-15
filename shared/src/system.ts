@@ -1,6 +1,5 @@
-import { selfMovementSystem } from "./entity/index.ts";
 import type { System } from "./system/index.ts";
-import { conveyorMovementSystem } from "./terrain/index.ts";
+import { conveyorMovementSystem, selfMovementSystem } from "./world/index.ts";
 
 export const reindexEntities: System = ({ world }) => {
   world.indexEntities();

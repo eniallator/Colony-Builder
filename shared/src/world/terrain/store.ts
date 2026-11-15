@@ -1,7 +1,7 @@
 import { raise, tuple } from "niall-utils/core";
 import { positiveMod } from "niall-utils/math";
 
-import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
+import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
   regionIdToPos,
   regionPosToId,
@@ -11,9 +11,9 @@ import {
   type RegionId,
   type RegionTiles,
   type TerrainGenerator,
+  type TerrainSnapshot,
   type Tile,
-} from "../terrain/index.ts";
-import type { TerrainSnapshot } from "./types.ts";
+} from "./types.ts";
 
 const flatRegionIdx = (x: number, y: number): number =>
   positiveMod(Math.floor(y), REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +
@@ -103,7 +103,7 @@ export class TerrainStore {
     );
 
     for (const id of ids) {
-      if (this.regions.get(id) == null) {
+      if (!this.regions.has(id)) {
         const [x, y] = regionToWorldPos(...regionIdToPos(id));
         this.regions.set(
           id,
@@ -134,7 +134,3 @@ export class TerrainStore {
     return unloaded;
   }
 }
-
-// TODO: Different sized grids, one per power of 2.
-//   Each grid has specific structures you can place at each level.
-//   They snap to the current grid

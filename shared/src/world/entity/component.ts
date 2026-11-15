@@ -9,9 +9,9 @@ import {
   encOptional,
   encVec2,
   type EncodableType,
-} from "../encoding/index.ts";
-import { encInventory } from "../item/index.ts";
-import { encTaskList } from "../task/types.ts";
+} from "../../encoding/index.ts";
+import { encInventory } from "../../item/index.ts";
+import { encTaskList } from "../../task/index.ts";
 import { encEntityType } from "./types.ts";
 
 const encFiniteNumber = encodable(

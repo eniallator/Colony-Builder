@@ -1,4 +1,4 @@
-import type { System } from "../system/index.ts";
+import type { System } from "../../system/index.ts";
 
 export const selfMovementSystem: System = ({ world: { entities }, dt }) => {
   for (const id of entities.query("destination", "position", "speed")) {

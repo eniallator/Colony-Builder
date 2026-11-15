@@ -1,9 +1,9 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { World } from "./stores/index.ts";
 import { predictionSystems } from "./system.ts";
 import type { System } from "./system/index.ts";
+import { World } from "./world/index.ts";
 
 const runTick = (world: World, systems: System[], dt: number) => {
   for (const system of systems) system({ world, dt });

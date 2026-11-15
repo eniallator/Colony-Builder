@@ -2,8 +2,8 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { EntityStore } from "./entityStore.ts";
-import { TerrainStore } from "./terrainStore.ts";
+import { EntityStore } from "./entity/index.ts";
+import { TerrainStore } from "./terrain/index.ts";
 import { World } from "./world.ts";
 
 describe("World", () => {

@@ -1,14 +1,15 @@
 import { tuple, type Tagged } from "niall-utils/core";
 
-import { REGION_SIDE_LENGTH } from "../constants.ts";
+import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
   codI32,
   encArrayOf,
+  encMapOf,
   encodable,
   encOneOf,
   type Codec,
   type EncodableType,
-} from "../encoding/index.ts";
+} from "../../encoding/index.ts";
 
 /** Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32. */
 export type RegionId = Tagged<bigint, "RegionId">;
@@ -93,3 +94,6 @@ export const encRegionTiles = encArrayOf(encTile, {
   fixedLength: REGION_SIDE_LENGTH ** 2,
 });
 export type RegionTiles = EncodableType<typeof encRegionTiles>;
+
+export const encTerrainSnapshot = encMapOf(encRegionId, encRegionTiles);
+export type TerrainSnapshot = EncodableType<typeof encTerrainSnapshot>;
