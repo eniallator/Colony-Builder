@@ -5,6 +5,7 @@ import {
   regionPosToId,
   TASK_DURATION,
   TASK_RADIUS,
+  tileToId,
   World,
   type EntityId,
   type GatherResource,
@@ -31,7 +32,7 @@ const worldWithTile = (tile: Tile) => {
   const world = new World();
   world.terrain.add(
     regionPosToId(0, 0),
-    Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile)
+    Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile))
   );
   return world;
 };

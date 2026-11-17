@@ -1,9 +1,14 @@
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
-import { regionPosToId, tiles, type RegionTiles, type Tile } from "./index.ts";
+import {
+  regionPosToId,
+  tiles,
+  tileToId,
+  type RegionTiles,
+  type Tile,
+} from "./index.ts";
 import { TerrainStore } from "./store.ts";
-import type { TerrainSnapshot } from "./types.ts";
 
 const [baseTile, altTile, markerTile] = tiles;
 
@@ -11,7 +16,7 @@ const region = (
   tileAt: (x: number, y: number) => Tile = () => baseTile
 ): RegionTiles =>
   Array.from({ length: REGION_SIDE_LENGTH ** 2 }, (_, i) =>
-    tileAt(i % REGION_SIDE_LENGTH, Math.floor(i / REGION_SIDE_LENGTH))
+    tileToId(tileAt(i % REGION_SIDE_LENGTH, Math.floor(i / REGION_SIDE_LENGTH)))
   );
 
 const baseRegion = region();
@@ -131,7 +136,7 @@ describe("TerrainStore", () => {
   describe("addTile", () => {
     it("sets the tile at a world position", () => {
       const store = storeWith([0, 0, region()]);
-      store.addTile(3, 5, markerTile);
+      store.addTile(3, 5, tileToId(markerTile));
 
       expect(store.tileAt(3, 5)).toBe(markerTile);
       expect(store.tileAt(5, 3)).toBe(baseTile);
@@ -139,7 +144,7 @@ describe("TerrainStore", () => {
 
     it("finds the region containing a negative position", () => {
       const store = storeWith([-1, -1, region()]);
-      store.addTile(-1, -1, markerTile);
+      store.addTile(-1, -1, tileToId(markerTile));
 
       expect(store.tileAt(-1, -1)).toBe(markerTile);
       expect(store.tileAt(-2, -1)).toBe(baseTile);
@@ -147,94 +152,8 @@ describe("TerrainStore", () => {
 
     it("throws when there is no region for the position", () => {
       expect(() => {
-        new TerrainStore().addTile(-2, 7, markerTile);
+        new TerrainStore().addTile(-2, 7, tileToId(markerTile));
       }).toThrow("No region exists for world pos -2,7");
-    });
-  });
-
-  describe("takeSnapshot", () => {
-    it("captures the requested regions by id", () => {
-      const store = storeWith([0, 0, baseRegion], [-1, 2, altRegion]);
-
-      expect(store.takeSnapshot([origin, other])).toEqual(
-        new Map([
-          [origin, baseRegion],
-          [other, altRegion],
-        ])
-      );
-    });
-
-    it("only includes the requested regions", () => {
-      const store = storeWith([0, 0, baseRegion], [-1, 2, altRegion]);
-
-      expect([...store.takeSnapshot([other]).keys()]).toEqual([other]);
-    });
-
-    it("is empty when no ids are requested", () => {
-      expect(storeWith([0, 0, baseRegion]).takeSnapshot([])).toEqual(new Map());
-    });
-
-    it("shares the region objects rather than copying them", () => {
-      const store = storeWith([0, 0, baseRegion]);
-
-      expect(store.takeSnapshot([origin]).get(origin)).toBe(baseRegion);
-    });
-
-    it("is a copy of the map, so later changes do not leak into it", () => {
-      const store = storeWith([0, 0, baseRegion]);
-
-      const snapshot = store.takeSnapshot([origin]);
-      store.add(other, altRegion);
-      store.delete(origin);
-
-      expect([...snapshot.keys()]).toEqual([origin]);
-    });
-
-    it("throws for a region that is not loaded", () => {
-      expect(() => new TerrainStore().takeSnapshot([origin])).toThrow(
-        "Region 0,0 not loaded yet!"
-      );
-    });
-  });
-
-  describe("applySnapshot", () => {
-    const snapshotOf = (
-      ...entries: [x: number, y: number, region: RegionTiles][]
-    ): TerrainSnapshot =>
-      new Map(entries.map(([x, y, r]) => [regionPosToId(x, y), r]));
-
-    it("creates the described regions", () => {
-      const store = new TerrainStore();
-
-      store.applySnapshot(snapshotOf([0, 0, baseRegion], [-1, 2, altRegion]));
-
-      expect(store.get(origin)).toBe(baseRegion);
-      expect(store.get(other)).toBe(altRegion);
-    });
-
-    it("updates existing regions", () => {
-      const store = storeWith([0, 0, baseRegion]);
-
-      store.applySnapshot(snapshotOf([0, 0, altRegion]));
-
-      expect(store.get(origin)).toBe(altRegion);
-    });
-
-    it("keeps regions missing from the snapshot", () => {
-      const store = storeWith([0, 0, baseRegion], [1, 1, altRegion]);
-
-      store.applySnapshot(snapshotOf([0, 0, altRegion]));
-
-      expect([...store.ids]).toEqual([origin, regionPosToId(1, 1)]);
-      expect(store.get(regionPosToId(1, 1))).toBe(altRegion);
-    });
-
-    it("leaves the store unchanged for an empty snapshot", () => {
-      const store = storeWith([0, 0, baseRegion]);
-
-      store.applySnapshot(new Map());
-
-      expect([...store.ids]).toEqual([origin]);
     });
   });
 });

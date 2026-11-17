@@ -6,8 +6,10 @@ import {
   REGION_SIDE_LENGTH,
   regionIdToPos,
   regionPosToId,
+  tileToId,
   TPS,
   type RegionId,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
 import { mapFilter, mapFind } from "niall-utils/functional";
@@ -27,6 +29,16 @@ interface Client {
 }
 
 const DT = 1 / TPS;
+
+/** Flat grass and no structures. Most tests are not about the terrain, and the real generator is slow. */
+const flatGenerator: WorldGenerator = () => ({
+  tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
+    tileToId("grass")
+  ),
+  structures: new Map(),
+});
+
+const createTestGame = () => createGame(flatGenerator);
 
 const tick = (game: Game) => {
   game.tick(DT);
@@ -65,7 +77,7 @@ const snapshots = (client: Client) =>
 
 const terrainSnapshots = (client: Client) =>
   mapFilter(received(client), message =>
-    message?.type === "terrain" ? message.snapshot : null
+    message?.type === "load" ? message.snapshot : null
   );
 
 const messageTypes = (client: Client) =>
@@ -79,7 +91,7 @@ const ticksToTravel = (distance: number) =>
 
 describe("connections", () => {
   it("tells a new player their id", () => {
-    const client = connect(createGame());
+    const client = connect(createTestGame());
 
     expect(received(client)).toEqual([
       { type: "init", id: playerIdOf(client) },
@@ -87,13 +99,13 @@ describe("connections", () => {
   });
 
   it("gives each player a different id", () => {
-    const game = createGame();
+    const game = createTestGame();
 
     expect(playerIdOf(connect(game))).not.toBe(playerIdOf(connect(game)));
   });
 
   it("removes a player when they disconnect", () => {
-    const game = createGame();
+    const game = createTestGame();
     const leaver = connect(game);
     const stayer = connect(game);
     const leaverId = playerIdOf(leaver);
@@ -108,13 +120,13 @@ describe("connections", () => {
 
 describe("snapshots", () => {
   it("is not sent before the first tick", () => {
-    const client = connect(createGame());
+    const client = connect(createTestGame());
 
     expect(snapshots(client)).toHaveLength(0);
   });
 
   it("is sent to every connected player each tick", () => {
-    const game = createGame();
+    const game = createTestGame();
     const [a, b] = [connect(game), connect(game)];
 
     tick(game);
@@ -125,7 +137,7 @@ describe("snapshots", () => {
   });
 
   it("includes every player", () => {
-    const game = createGame();
+    const game = createTestGame();
     const [a, b] = [connect(game), connect(game)];
 
     tick(game);
@@ -137,7 +149,7 @@ describe("snapshots", () => {
   });
 
   it("only includes the entities near each player", () => {
-    const game = createGame();
+    const game = createTestGame();
     const [stayer, traveller] = [connect(game), connect(game)];
     requestDestination(traveller, [10_000, 0]);
 
@@ -158,13 +170,26 @@ describe("terrain", () => {
   const half = LOADED_SIDE_LENGTH / 2;
 
   it("is not sent before the first tick", () => {
-    const client = connect(createGame());
+    const client = connect(createTestGame());
 
     expect(terrainSnapshots(client)).toHaveLength(0);
   });
 
-  it("sends the regions around a new player on the first tick", () => {
+  it("generates varied terrain with the real world generator by default", () => {
     const game = createGame();
+    const client = connect(game);
+
+    tick(game);
+
+    const [first] = terrainSnapshots(client);
+    const tiles = new Set(
+      [...(first?.values() ?? [])].flatMap(region => region.tiles)
+    );
+    expect(tiles.size).toBeGreaterThan(1);
+  });
+
+  it("sends the regions around a new player on the first tick", () => {
+    const game = createTestGame();
     const client = connect(game);
 
     tick(game);
@@ -177,16 +202,16 @@ describe("terrain", () => {
   });
 
   it("is sent after the init message and before the entities", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
 
     tick(game);
 
-    expect(messageTypes(client)).toEqual(["init", "terrain", "entities"]);
+    expect(messageTypes(client)).toEqual(["init", "load", "entities"]);
   });
 
   it("does not resend regions the player already has", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
 
     tick(game);
@@ -197,7 +222,7 @@ describe("terrain", () => {
   });
 
   it("sends each player their own regions", () => {
-    const game = createGame();
+    const game = createTestGame();
     const early = connect(game);
     tick(game);
     const late = connect(game);
@@ -209,7 +234,7 @@ describe("terrain", () => {
   });
 
   it("sends only the newly in-range regions when the player crosses into a new region", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
     requestDestination(client, [100, 0]);
 
@@ -227,7 +252,7 @@ describe("terrain", () => {
   });
 
   it("resends regions the client says it unloaded", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
     tick(game);
 
@@ -243,7 +268,7 @@ describe("terrain", () => {
   });
 
   it("ignores an unload for regions it never sent", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
     tick(game);
 
@@ -254,7 +279,7 @@ describe("terrain", () => {
   });
 
   it("only resends to the player who unloaded", () => {
-    const game = createGame();
+    const game = createTestGame();
     const [unloader, other] = [connect(game), connect(game)];
     tick(game);
 
@@ -273,7 +298,7 @@ describe("client messages", () => {
   };
 
   it("moves the player towards the requested destination", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
 
     requestDestination(client, [100, 0]);
@@ -283,7 +308,7 @@ describe("client messages", () => {
   });
 
   it("ignores messages it cannot decode", () => {
-    const game = createGame();
+    const game = createTestGame();
     const client = connect(game);
 
     client.session.receive(Uint8Array.of(9, 9, 9));
@@ -293,7 +318,7 @@ describe("client messages", () => {
   });
 
   it("only moves the player who sent the message", () => {
-    const game = createGame();
+    const game = createTestGame();
     const [mover, idle] = [connect(game), connect(game)];
 
     requestDestination(mover, [100, 0]);

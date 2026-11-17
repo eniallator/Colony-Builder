@@ -1,15 +1,16 @@
-import { raise, tuple } from "niall-utils/core";
+import { raise } from "niall-utils/core";
 import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
+  idToTile,
   regionIdToPos,
   regionPosToId,
   worldToRegionPos,
   type RegionId,
   type RegionTiles,
-  type TerrainSnapshot,
   type Tile,
+  type TileId,
 } from "./types.ts";
 
 const flatRegionIdx = (x: number, y: number): number =>
@@ -31,7 +32,7 @@ export class TerrainStore {
     this.regions.set(id, region);
   }
 
-  addTile(x: number, y: number, tile: Tile): void {
+  addTile(x: number, y: number, tile: TileId): void {
     const tiles =
       this.regions.get(regionPosToId(...worldToRegionPos(x, y))) ??
       raise(new Error(`No region exists for world pos ${x},${y}`));
@@ -54,9 +55,10 @@ export class TerrainStore {
   }
 
   optTileAt(x: number, y: number): Tile | undefined {
-    return this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.[
+    const id = this.regions.get(regionPosToId(...worldToRegionPos(x, y)))?.[
       flatRegionIdx(x, y)
     ];
+    return id != null ? idToTile(id) : undefined;
   }
 
   tileAt(x: number, y: number): Tile {
@@ -64,23 +66,5 @@ export class TerrainStore {
       this.optTileAt(x, y) ??
       raise(new Error(`No region exists for position ${x}, ${y}`))
     );
-  }
-
-  takeSnapshot(ids: RegionId[]): TerrainSnapshot {
-    return new Map(
-      ids.map(id =>
-        tuple(
-          id,
-          this.regions.get(id) ??
-            raise(
-              new Error(`Region ${regionIdToPos(id).join(",")} not loaded yet!`)
-            )
-        )
-      )
-    );
-  }
-
-  applySnapshot(snapshot: TerrainSnapshot): void {
-    for (const [id, tiles] of snapshot) this.regions.set(id, tiles);
   }
 }

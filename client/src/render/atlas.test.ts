@@ -90,6 +90,16 @@ describe("isAtlasJson", () => {
     expect(isAtlasJson(bad)).toBe(false);
   });
 
+  it("rejects a non-integer row count", () => {
+    const bad = {
+      ...validJson,
+      sprites: {
+        grass: { ...validJson.sprites.grass, rows: "two" },
+      },
+    };
+    expect(isAtlasJson(bad)).toBe(false);
+  });
+
   it("rejects non-objects", () => {
     expect(isAtlasJson(undefined)).toBe(false);
     expect(isAtlasJson("atlas")).toBe(false);
@@ -161,6 +171,31 @@ describe("loadAtlas", () => {
       [32, 0, 16, 16],
       [48, 0, 16, 16],
     ]);
+  });
+
+  it("cuts a tall sprite's cells as tall as its rows", async () => {
+    const tall = {
+      ...validJson,
+      sprites: {
+        tree: {
+          mode: "frames",
+          cells: [[4, 2]],
+          colour: "#33703a",
+          ground: 32,
+          rows: 2,
+        },
+      },
+    };
+    const { createImageBitmap, sheet } = stubNetwork(tall);
+
+    const atlas = await loadAtlas();
+
+    expect(atlas.sprites.get("tree")?.rows).toBe(2);
+    expect(
+      createImageBitmap.mock.calls
+        .filter(([source]) => source === sheet)
+        .map(([, ...rest]) => rest)
+    ).toEqual([[64, 32, 16, 32]]);
   });
 
   it("rejects when a file fails to load", async () => {

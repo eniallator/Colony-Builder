@@ -42,6 +42,12 @@ const SCENE_ENTITIES = [
   [6, 2, "item_log"],
   [9, 5, "item_iron_ore"],
 ];
+const SCENE_STRUCTURES = [
+  [6, 8, "tree"],
+  [9, 9, "tree"],
+  [2, 3, "cactus"],
+  [5, 4, "cactus"],
+];
 const SCALE = 4;
 
 export const writePreview = (path, sprites) => {
@@ -83,6 +89,12 @@ export const writePreview = (path, sprites) => {
       );
     });
   });
+  // Structures stand on their tile; a taller sprite reaches up from its foot.
+  for (const [tx, ty, name] of SCENE_STRUCTURES) {
+    const tall = frameOf(name, 0).length / (TILE * TILE * 4);
+    draw("shadow_small", 0, tx, ty);
+    draw(name, 0, tx, ty + 1 - tall);
+  }
   for (const [tx, ty, name] of SCENE_ENTITIES) {
     draw("shadow", 0, tx, ty);
     draw(name, 0, tx, ty);

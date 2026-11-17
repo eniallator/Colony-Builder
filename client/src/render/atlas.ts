@@ -29,8 +29,10 @@ const isSpriteJson = isObjectOf({
   cells: isArrayOf(isCell),
   // Mean colour of the sprite, drawn instead of the texture when zoomed out.
   colour: isString,
-  // Pixel line (from the top of the cell) the sprite rests on.
+  // Pixel line (from the top of the sprite) the sprite rests on.
   ground: isNumber,
+  // How many tiles tall each frame is (1 when left out), e.g. a tree is 2.
+  rows: isOptional(isInteger),
   // How long each animation frame shows, in ms.
   frameMs: isOptional(isNumber),
   // How many art pixels the animation moves per frame, for animations that
@@ -92,7 +94,7 @@ export const loadAtlas = async (): Promise<Atlas> => {
               sheet,
               ...Vector.create(x, y).multiply(tileSize).toArray(),
               tileSize,
-              tileSize
+              tileSize * (rest.rows ?? 1)
             )
           )
         );

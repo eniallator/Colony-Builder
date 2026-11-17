@@ -8,13 +8,13 @@ import {
 } from "../../constants.ts";
 import { World } from "../index.ts";
 import { conveyorMovementSystem } from "./system.ts";
-import { regionPosToId, tiles, type Tile } from "./types.ts";
+import { regionPosToId, tiles, tileToId, type Tile } from "./types.ts";
 
 const worldWithTile = (tile: Tile) => {
   const world = new World();
   world.terrain.add(
     regionPosToId(0, 0),
-    Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile)
+    Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile))
   );
   return world;
 };

@@ -18,8 +18,8 @@ export const streamToPlayers = (
 
     if (unsent.size > 0) {
       player.send({
-        type: "terrain",
-        snapshot: world.terrain.takeSnapshot([...unsent]),
+        type: "load",
+        snapshot: world.takeSnapshot([...unsent]),
       });
       player.loadedRegions = player.loadedRegions.union(unsent);
     }

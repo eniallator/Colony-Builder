@@ -4,11 +4,12 @@ import {
   regionToWorldPos,
   relativePosToSubRegionPos,
   subRegionPosToId,
-  type CreateWorldGenerator,
+  tileToId,
   type RegionId,
   type RegionStructures,
   type StructureData,
   type Tile,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 import alea from "alea";
 
@@ -92,7 +93,7 @@ const generateStructures = (
   return structures;
 };
 
-export const createWorldGenerator: CreateWorldGenerator = seed => {
+export const createWorldGenerator = (seed: string): WorldGenerator => {
   const waterNoise = seededNoise(seed, "water");
   const biomeAt = createBiomeAt(seed);
   const stoneAt = createStoneAt(seed);
@@ -109,7 +110,7 @@ export const createWorldGenerator: CreateWorldGenerator = seed => {
   return id => {
     const terrain = generateTerrain(id, terrainAt);
     return {
-      tiles: terrain.map(({ tile }) => tile),
+      tiles: terrain.map(({ tile }) => tileToId(tile)),
       structures: generateStructures(seed, id, terrain),
     };
   };

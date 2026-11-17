@@ -3,9 +3,11 @@ import { describe, expect, it } from "vitest";
 
 import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import { EntityStore } from "./entity/index.ts";
+import { StructureStore } from "./structure/index.ts";
 import {
   regionPosToId,
   TerrainStore,
+  tileToId,
   type RegionId,
   type RegionTiles,
   type Tile,
@@ -14,7 +16,7 @@ import type { WorldGenerator } from "./types.ts";
 import { World } from "./world.ts";
 
 const flatTiles = (tile: Tile): RegionTiles =>
-  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile);
+  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile));
 
 /** Generates flat grass regions with no structures. */
 const flatGenerator: WorldGenerator = () => ({
@@ -23,11 +25,12 @@ const flatGenerator: WorldGenerator = () => ({
 });
 
 describe("World", () => {
-  it("exposes an entity store and a terrain store", () => {
+  it("exposes an entity, terrain and structure store", () => {
     const world = new World();
 
     expect(world.entities).toBeInstanceOf(EntityStore);
     expect(world.terrain).toBeInstanceOf(TerrainStore);
+    expect(world.structures).toBeInstanceOf(StructureStore);
   });
 
   it("returns the same stores on every access", () => {
@@ -35,11 +38,13 @@ describe("World", () => {
 
     expect(world.entities).toBe(world.entities);
     expect(world.terrain).toBe(world.terrain);
+    expect(world.structures).toBe(world.structures);
   });
 
   it("does not share stores between worlds", () => {
     expect(new World().entities).not.toBe(new World().entities);
     expect(new World().terrain).not.toBe(new World().terrain);
+    expect(new World().structures).not.toBe(new World().structures);
   });
 
   describe("entitiesAround", () => {

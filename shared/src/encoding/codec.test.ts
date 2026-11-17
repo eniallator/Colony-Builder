@@ -14,6 +14,7 @@ import {
   codI32,
   codMap,
   codMapOf,
+  codNumber,
   codObjectOf,
   codOneOf,
   codOptional,
@@ -43,6 +44,20 @@ const read = <T extends CodecValue>(codec: Codec<T>, bytes: number[]) => {
   const cursor = { view: new DataView(new Uint8Array(bytes).buffer), pos: 0 };
   return { value: codec.read(cursor), pos: cursor.pos };
 };
+
+describe("codNumber", () => {
+  it("gives the codec with the given name", () => {
+    expect(codNumber("i8")).toBe(codI8);
+    expect(codNumber("i16")).toBe(codI16);
+    expect(codNumber("i32")).toBe(codI32);
+    expect(codNumber("u8")).toBe(codU8);
+    expect(codNumber("u16")).toBe(codU16);
+    expect(codNumber("u32")).toBe(codU32);
+    expect(codNumber("f16")).toBe(codF16);
+    expect(codNumber("f32")).toBe(codF32);
+    expect(codNumber("f64")).toBe(codF64);
+  });
+});
 
 describe("codU8", () => {
   it("is one byte wide", () => {

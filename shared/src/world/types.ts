@@ -1,8 +1,26 @@
-import type { RegionStructures } from "./structure/types.ts";
-import type { RegionId, RegionTiles } from "./terrain/types.ts";
+import {
+  encMapOf,
+  encObjectOf,
+  type EncodableType,
+} from "../encoding/encodable.ts";
+import {
+  encRegionStructures,
+  type RegionStructures,
+} from "./structure/types.ts";
+import {
+  encRegionId,
+  encRegionTiles,
+  type RegionId,
+  type RegionTiles,
+} from "./terrain/types.ts";
 
 export type WorldGenerator = (regionId: RegionId) => {
   tiles: RegionTiles;
   structures: RegionStructures;
 };
-export type CreateWorldGenerator = (seed: string) => WorldGenerator;
+
+export const encWorldSnapshot = encMapOf(
+  encRegionId,
+  encObjectOf({ tiles: encRegionTiles, structures: encRegionStructures })
+);
+export type WorldSnapshot = EncodableType<typeof encWorldSnapshot>;

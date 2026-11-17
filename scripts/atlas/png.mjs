@@ -43,7 +43,8 @@ export const blit = (
   oy,
   { scale = 1, copy = false } = {}
 ) => {
-  for (let y = 0; y < TILE; y++) {
+  const height = sprite.length / (TILE * 4);
+  for (let y = 0; y < height; y++) {
     for (let x = 0; x < TILE; x++) {
       const from = (y * TILE + x) * 4;
       const a = sprite[from + 3] / 255;

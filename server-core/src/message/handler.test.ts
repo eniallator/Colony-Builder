@@ -2,6 +2,7 @@ import {
   createPlayer,
   REGION_SIDE_LENGTH,
   regionPosToId,
+  tileToId,
   World,
   type EntityId,
   type RegionId,
@@ -125,7 +126,7 @@ describe("messageHandler", () => {
       const world = new World();
       world.terrain.add(
         origin,
-        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => "grass" as const)
+        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId("grass"))
       );
       return world;
     };
@@ -137,7 +138,7 @@ describe("messageHandler", () => {
       messageHandler(stateWith(world, [player, []]), player, {
         type: "place",
         position: Vector.create(3, 4),
-        tile: "conveyor_right",
+        tile: tileToId("conveyor_right"),
       });
 
       expect(world.terrain.optTileAt(3, 4)).toBe("conveyor_right");
@@ -157,7 +158,7 @@ describe("messageHandler", () => {
       messageHandler(state, player, {
         type: "place",
         position: Vector.create(3, 4),
-        tile: "stone",
+        tile: tileToId("stone"),
       });
 
       expect([...(state.players.get(player)?.loadedRegions ?? [])]).toEqual([
@@ -176,7 +177,7 @@ describe("messageHandler", () => {
         messageHandler(stateWith(world, [player, []]), player, {
           type: "place",
           position: Vector.create(3, 4),
-          tile: "stone",
+          tile: tileToId("stone"),
         });
       }).toThrow("No region exists for world pos 3,4");
     });

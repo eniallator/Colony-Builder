@@ -36,6 +36,12 @@ export const PALETTE = {
     ring: "#b58a55",
   },
 
+  // --- Structures (grown on the terrain) ---
+  // Foliage is a touch darker and yellower than grass so trees stand out on it.
+  leaf: ["#244f2c", "#33703a", "#4f9444", "#8cc45a"],
+  // Cooler and bluer than grass, so cacti read as desert plants on sand.
+  cactus: ["#2f5f45", "#437c52", "#5f9c62", "#8fc281"],
+
   // --- Machines ---
   belt: {
     rail: "#23252b",

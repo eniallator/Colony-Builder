@@ -1,11 +1,15 @@
 import { EventEmitter } from "node:events";
+import type * as ServerCore from "@colony-builder/server-core";
 import {
   encClientMessage,
   encServerMessage,
   MAX_DT,
   PLAYER_SPEED,
+  REGION_SIDE_LENGTH,
   SOCKET_PORT,
+  tileToId,
   TPS,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
 import { mapFilter, mapFind } from "niall-utils/functional";
@@ -34,6 +38,19 @@ vi.mock("ws", async () => {
   }
 
   return { WebSocketServer };
+});
+
+// The real world generator is slow, and these tests are about the wiring.
+vi.mock("@colony-builder/server-core", async importOriginal => {
+  const original = await importOriginal<typeof ServerCore>();
+  const flatGenerator: WorldGenerator = () => ({
+    tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
+      tileToId("grass")
+    ),
+    structures: new Map(),
+  });
+
+  return { ...original, createGame: () => original.createGame(flatGenerator) };
 });
 
 class FakeSocket extends EventEmitter {
@@ -142,7 +159,7 @@ describe("ticking", () => {
     vi.advanceTimersByTime(1);
     expect(received(socket).map(message => message?.type)).toEqual([
       "init",
-      "terrain",
+      "load",
       "entities",
     ]);
   });

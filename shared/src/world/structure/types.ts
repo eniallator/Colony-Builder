@@ -15,7 +15,6 @@ import {
   type EncodableType,
 } from "../../encoding/index.ts";
 import {
-  encRegionId,
   regionIdToPos,
   regionPosToId,
   regionToWorldPos,
@@ -88,6 +87,3 @@ export const encRegionStructures = encMapOf(encSubRegionId, encStructureData);
 export type RegionStructures = EncodableType<typeof encRegionStructures>;
 
 export type Structure = StructureData & { worldPos: [x: number, y: number] };
-
-export const encStructureSnapshot = encMapOf(encRegionId, encRegionStructures);
-export type StructureSnapshot = EncodableType<typeof encStructureSnapshot>;

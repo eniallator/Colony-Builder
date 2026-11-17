@@ -5,6 +5,7 @@ import { codStringOf, codU8 } from "./codec.ts";
 import {
   encArrayOf,
   encExact,
+  encNumber,
   encObjectOf,
   encodable,
   encOneOf,
@@ -47,6 +48,31 @@ describe("encodable", () => {
   it("exposes the guard and codec it was built from", () => {
     expect(byte.guard).toBe(isNumber);
     expect(byte.codec).toBe(codU8);
+  });
+});
+
+describe("encNumber", () => {
+  it("encodes with the named number codec", () => {
+    expect(encNumber("u8").encode(7)).toEqual(Uint8Array.of(7));
+    expect(encNumber("u16").encode(0x0102)).toEqual(Uint8Array.of(2, 1));
+    expect(encNumber("u16").decode(Uint8Array.of(2, 1))).toBe(0x0102);
+  });
+
+  it("guards on numbers", () => {
+    expect(encNumber("f32").guard(1.5)).toBe(true);
+    expect(encNumber("f32").guard("1.5")).toBe(false);
+  });
+
+  it("chooses the narrowest unsigned width that fits the largest value", () => {
+    expect(encNumber("uChoose", 255).encode(1)).toHaveLength(1);
+    expect(encNumber("uChoose", 256).encode(1)).toHaveLength(2);
+    expect(encNumber("uChoose", 65536).encode(1)).toHaveLength(4);
+  });
+
+  it("round-trips a chosen width", () => {
+    const wide = encNumber("uChoose", 1000);
+
+    expect(wide.decode(wide.encode(999))).toBe(999);
   });
 });
 

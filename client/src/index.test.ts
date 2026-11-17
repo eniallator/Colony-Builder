@@ -7,6 +7,7 @@ import {
   REGION_SIDE_LENGTH,
   regionPosToId,
   SOCKET_PORT,
+  tileToId,
   TPS,
   UNLOADED_SIDE_LENGTH,
   unsafeEntityId,
@@ -102,9 +103,8 @@ const message = (data: unknown) => new MessageEvent("message", { data });
 const serverMessage = (serverMsg: ServerMessage) =>
   message(encServerMessage.encode(serverMsg).buffer);
 
-const grass: RegionTiles = Array.from(
-  { length: REGION_SIDE_LENGTH ** 2 },
-  () => "grass"
+const grass: RegionTiles = Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
+  tileToId("grass")
 );
 
 beforeEach(() => {
@@ -226,8 +226,10 @@ describe("app.init", () => {
 
       lastSocket().dispatchEvent(
         serverMessage({
-          type: "terrain",
-          snapshot: new Map([[regionPosToId(1, 2), grass]]),
+          type: "load",
+          snapshot: new Map([
+            [regionPosToId(1, 2), { tiles: grass, structures: new Map() }],
+          ]),
         })
       );
 

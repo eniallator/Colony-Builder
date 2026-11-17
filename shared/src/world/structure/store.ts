@@ -1,8 +1,8 @@
-import { tuple } from "niall-utils/core";
-import { mapFilter } from "niall-utils/functional";
+import { raise } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
+  regionIdToPos,
   regionsAround,
   worldToRegionPos,
   type RegionId,
@@ -13,7 +13,6 @@ import {
   type RegionStructures,
   type Structure,
   type StructureData,
-  type StructureSnapshot,
   type SubRegionId,
 } from "./types.ts";
 
@@ -30,17 +29,31 @@ export class StructureStore {
 
   addStructure(worldX: number, worldY: number, data: StructureData): void {
     const [reg, sub] = worldPosToRegionIds(worldX, worldY);
-    this.regions.getOrInsert(reg, new Map()).set(sub, data);
+    const structures =
+      this.regions.get(reg) ?? new Map<SubRegionId, StructureData>();
+    structures.set(sub, data);
+    this.regions.set(reg, structures);
   }
 
-  optGet(reg: RegionId, sub: SubRegionId): Structure | undefined {
+  optGet(id: RegionId): RegionStructures | undefined {
+    return this.regions.get(id);
+  }
+
+  get(id: RegionId): RegionStructures {
+    return (
+      this.optGet(id) ??
+      raise(new Error(`No region exists at ${regionIdToPos(id).join(",")}`))
+    );
+  }
+
+  optGetStructure(reg: RegionId, sub: SubRegionId): Structure | undefined {
     const data = this.regions.get(reg)?.get(sub);
     return data != null
       ? { ...data, worldPos: regionIdsToWorldPos(reg, sub) }
       : undefined;
   }
 
-  optStructuresAround(
+  structuresAround(
     worldX: number,
     worldY: number,
     sideLength: number
@@ -67,18 +80,5 @@ export class StructureStore {
 
   deleteStructure(reg: RegionId, sub: SubRegionId): boolean {
     return this.regions.get(reg)?.delete(sub) ?? false;
-  }
-
-  takeSnapshot(ids: RegionId[]): StructureSnapshot {
-    return new Map(
-      mapFilter(ids, id => {
-        const structures = this.regions.get(id);
-        return structures != null ? tuple(id, structures) : null;
-      })
-    );
-  }
-
-  applySnapshot(snapshot: StructureSnapshot): void {
-    for (const [id, structures] of snapshot) this.regions.set(id, structures);
   }
 }

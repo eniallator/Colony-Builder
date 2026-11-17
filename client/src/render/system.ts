@@ -1,6 +1,7 @@
 import {
   CONVEYOR_SPEED,
   ITEM_TILES,
+  REGION_SIDE_LENGTH,
   type EntityId,
   type Tile,
 } from "@colony-builder/shared";
@@ -170,13 +171,12 @@ interface Painter {
   atlas: Atlas;
   textured: boolean;
   nowMs: number;
-  /** Zoomed-out sprites collected as rects, drawn at the end: one fill per colour. */
-  flat: Map<string, Path2D>;
 }
 
 const drawCell = (
   { ctx, atlas }: Painter,
   [x, y]: Cell,
+  rows: number,
   topLeft: Vector<2>,
   size: number
 ) => {
@@ -185,75 +185,93 @@ const drawCell = (
     atlas.sheet,
     ...Vector.create(x, y).multiply(tileSize).toArray(),
     tileSize,
-    tileSize,
+    tileSize * rows,
     ...topLeft.toArray(),
     size,
-    size
+    size * rows
   );
 };
 
 /**
- * Draws the sprite `name`, `size` pixels square and centred on `centre`.
- * Animated if `animate` is set, otherwise its first frame. Zoomed out, it
- * becomes a flat square of the sprite's colour.
+ * Draws the sprite `name`, `size` pixels wide (and as many tiles tall as the
+ * atlas says), standing on `foot`: centred horizontally, with the line the
+ * sprite rests on (its `ground` in the atlas) at `foot`. Animated if `animate`
+ * is set, otherwise its first frame. Zoomed out, it becomes a flat square of
+ * the sprite's colour sitting on `foot`.
  */
 const paintSprite = (
   painter: Painter,
   name: string,
-  centre: Vector<2>,
+  foot: Vector<2>,
   size: number,
   animate = false
 ) => {
-  const sprite = painter.atlas.sprites.get(name);
+  const { ctx, atlas, textured, nowMs } = painter;
+  const sprite = atlas.sprites.get(name);
   if (sprite == null) return;
 
-  const topLeft = centre
-    .copy()
-    .sub(size / 2)
-    .round();
-
-  if (!painter.textured) {
+  if (!textured) {
     const side = Math.max(1, Math.round(size));
-    const path = painter.flat.get(sprite.colour) ?? new Path2D();
-    path.rect(...topLeft.toArray(), side, side);
-    painter.flat.set(sprite.colour, path);
+    ctx.fillStyle = sprite.colour;
+    ctx.fillRect(
+      ...foot
+        .copy()
+        .sub([side / 2, side])
+        .round()
+        .toArray(),
+      side,
+      side
+    );
     return;
   }
 
   const cell = animate
-    ? frameOf(sprite, sprite.cells, painter.atlas.tileSize, painter.nowMs)
+    ? frameOf(sprite, sprite.cells, atlas.tileSize, nowMs)
     : sprite.cells.at(0);
-  if (cell != null) drawCell(painter, cell, topLeft, size);
+  if (cell == null) return;
+
+  const topLeft = foot
+    .copy()
+    .sub([size / 2, (sprite.ground * size) / atlas.tileSize])
+    .round();
+  drawCell(painter, cell, sprite.rows ?? 1, topLeft, size);
 };
 
 /**
- * Draws the sprite `name` with the `shadowName` sprite beneath it (only when
- * textured). The shadow is shifted so its ground line lines up with the line
- * the sprite rests on; both come from the atlas, so redrawing either one needs
- * no change here.
+ * Draws the sprite `name` standing on `foot`, with the `shadowName` sprite
+ * beneath it (only when textured). Both rest on `foot` by their atlas ground
+ * lines (a shadow's is the middle of its ellipse), so redrawing either one
+ * needs no change here.
  */
 const paintWithShadow = (
   painter: Painter,
   shadowName: "shadow" | "shadow_small",
   name: string,
-  centre: Vector<2>,
+  foot: Vector<2>,
   size: number,
   animate?: boolean
 ) => {
-  const { atlas, textured } = painter;
-  const sprite = atlas.sprites.get(name);
-  const shadow = atlas.sprites.get(shadowName);
-  if (textured && sprite != null && shadow != null) {
-    const drop = ((sprite.ground - shadow.ground) * size) / atlas.tileSize;
-    paintSprite(painter, shadowName, centre.copy().add([0, drop]), size);
-  }
-  paintSprite(painter, name, centre, size, animate);
+  if (painter.textured) paintSprite(painter, shadowName, foot, size);
+  paintSprite(painter, name, foot, size, animate);
 };
+
+/** Something above the ground, to be painted in depth order. */
+interface AboveGround {
+  /** World y of its feet: the larger it is, the nearer to the viewer. */
+  depth: number;
+  paint: () => void;
+}
 
 /** Last direction each entity faced, so it keeps facing that way when it stops. */
 const facings = new Map<EntityId, Direction>();
 
-export const renderEntities: ClientSystem = ({
+/**
+ * Draws everything above the ground (structures, players, robots, dropped
+ * items), from back to front: the lower something's feet are on the screen,
+ * the later it is drawn, so it covers whatever is behind it. Each stands with
+ * its feet on its world position.
+ */
+export const renderAboveGround: ClientSystem = ({
   canvas,
   ctx,
   camera,
@@ -270,16 +288,32 @@ export const renderEntities: ClientSystem = ({
     atlas,
     textured: usesTextures(pxPerTile),
     nowMs: time.now * 1000,
-    flat: new Map(),
   };
   ctx.imageSmoothingEnabled = pxPerTile < atlas.tileSize;
+
+  const footOf = (pos: Vector<2>) => pos.copy().multiply(pxPerTile).add(origin);
+  const aboveGround: AboveGround[] = [];
+
+  const viewSide = Math.max(canvas.width, canvas.height) / pxPerTile;
+  for (const { id, worldPos } of world.structures.structuresAround(
+    ...camera.center.toArray(),
+    // A region of margin each side, since structures stick out of their tile.
+    viewSide + 2 * REGION_SIDE_LENGTH
+  )) {
+    const pos = Vector.create(...worldPos);
+    aboveGround.push({
+      depth: pos.y(),
+      paint: () => {
+        paintWithShadow(painter, "shadow_small", id, footOf(pos), pxPerTile);
+      },
+    });
+  }
 
   const seen = new Set<EntityId>();
   for (const id of world.entities.query("type", "position")) {
     seen.add(id);
     const entityType = world.entities.get(id, "type");
     const pos = world.entities.get(id, "position");
-    const centre = pos.copy().multiply(pxPerTile).add(origin);
 
     switch (entityType) {
       case "player":
@@ -292,15 +326,20 @@ export const renderEntities: ClientSystem = ({
         const facing = heading ?? facings.get(id) ?? "down";
         facings.set(id, facing);
 
-        paintWithShadow(
-          painter,
-          "shadow",
-          `${entityType}_${facing}`,
-          centre,
-          pxPerTile,
-          // Walk only while it has somewhere to go; otherwise stand still.
-          destination != null
-        );
+        aboveGround.push({
+          depth: pos.y(),
+          paint: () => {
+            paintWithShadow(
+              painter,
+              "shadow",
+              `${entityType}_${facing}`,
+              footOf(pos),
+              pxPerTile,
+              // Walk only while it has somewhere to go; otherwise stand still.
+              destination != null
+            );
+          },
+        });
         break;
       }
 
@@ -311,13 +350,18 @@ export const renderEntities: ClientSystem = ({
           .next().value;
 
         if (itemId != null) {
-          paintWithShadow(
-            painter,
-            "shadow_small",
-            `item_${itemId}`,
-            centre,
-            ITEM_TILES * pxPerTile
-          );
+          aboveGround.push({
+            depth: pos.y(),
+            paint: () => {
+              paintWithShadow(
+                painter,
+                "shadow_small",
+                `item_${itemId}`,
+                footOf(pos),
+                ITEM_TILES * pxPerTile
+              );
+            },
+          });
         }
         break;
       }
@@ -327,9 +371,9 @@ export const renderEntities: ClientSystem = ({
     }
   }
 
-  for (const [colour, path] of painter.flat) {
-    ctx.fillStyle = colour;
-    ctx.fill(path);
+  // Back to front. The sort is stable, so equal depths keep their order.
+  for (const { paint } of aboveGround.toSorted((a, b) => a.depth - b.depth)) {
+    paint();
   }
 
   // Forget entities that no longer exist.

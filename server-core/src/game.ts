@@ -4,6 +4,7 @@ import {
   encServerMessage,
   World,
   type ServerMessage,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 
 import { messageHandler } from "./message/handler.ts";
@@ -28,9 +29,11 @@ export interface Game {
 
 const randomSeed = (): string => Math.random().toString(36).slice(2);
 
-export const createGame = (seed: string = randomSeed()): Game => {
+/** Takes the `worldGenerator` so tests can swap the costly real one for a cheap one. */
+export const createGame = (
+  worldGenerator: WorldGenerator = createWorldGenerator(randomSeed())
+): Game => {
   const state: State = { world: new World(), players: new Map() };
-  const worldGenerator = createWorldGenerator(seed);
 
   return {
     connect: connection => {

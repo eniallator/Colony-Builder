@@ -1,6 +1,10 @@
-// Low-level pixel drawing helpers. A "sprite" is a 16x16 RGBA Uint8Array.
+// Low-level pixel drawing helpers. A "sprite" is a 16-wide RGBA Uint8Array,
+// 16 pixels tall by default or a whole number of tiles taller (see `blank`).
 
 export const TILE = 16;
+
+/** How many tiles tall a sprite buffer is. */
+export const tilesTall = s => s.length / (TILE * TILE * 4);
 
 export const hex = h => [1, 3, 5].map(i => parseInt(h.slice(i, i + 2), 16));
 export const mod = n => ((n % TILE) + TILE) % TILE;
@@ -20,10 +24,11 @@ export const mulberry32 = seed => () => {
 };
 export const randInt = (rng, max) => Math.floor(rng() * max);
 
-export const blank = () => new Uint8Array(TILE * TILE * 4);
+/** A transparent sprite buffer `tall` tiles high (taller than 1 for structures). */
+export const blank = (tall = 1) => new Uint8Array(TILE * TILE * tall * 4);
 
 export const put = (s, x, y, colour, alpha = 255) => {
-  if (x < 0 || y < 0 || x >= TILE || y >= TILE) return;
+  if (x < 0 || y < 0 || x >= TILE || y >= TILE * tilesTall(s)) return;
   s.set([...hex(colour), alpha], (y * TILE + x) * 4);
 };
 /** Like `put`, but wraps around the edges so terrain stays tileable. */

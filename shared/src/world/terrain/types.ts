@@ -1,12 +1,13 @@
+import { isInteger } from "deep-guards";
 import { tuple, type Tagged } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
+  chooseUIntCod,
   codI32,
+  codTagged,
   encArrayOf,
-  encMapOf,
   encodable,
-  encOneOf,
   type Codec,
   type EncodableType,
 } from "../../encoding/index.ts";
@@ -85,12 +86,18 @@ export const tiles = tuple(
   "conveyor_right"
 );
 export type Tile = (typeof tiles)[number];
-export const encTile = encOneOf(tiles);
+export type TileId = Tagged<number, "TileId">;
 
-export const encRegionTiles = encArrayOf(encTile, {
+export const encTileId = encodable<TileId>(
+  (value): value is TileId =>
+    isInteger(value) && value >= 0 && value < tiles.length,
+  codTagged(chooseUIntCod(tiles.length))
+);
+
+export const tileToId = (tile: Tile): TileId => tiles.indexOf(tile) as TileId;
+export const idToTile = (id: TileId): Tile => tiles[id] as Tile;
+
+export const encRegionTiles = encArrayOf(encTileId, {
   fixedLength: REGION_SIDE_LENGTH ** 2,
 });
 export type RegionTiles = EncodableType<typeof encRegionTiles>;
-
-export const encTerrainSnapshot = encMapOf(encRegionId, encRegionTiles);
-export type TerrainSnapshot = EncodableType<typeof encTerrainSnapshot>;

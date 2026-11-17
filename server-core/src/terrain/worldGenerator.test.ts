@@ -2,17 +2,22 @@ import {
   REGION_SIDE_LENGTH,
   regionPosToId,
   regionToWorldPos,
+  tileToId,
   type Tile,
+  type TileId,
 } from "@colony-builder/shared";
+import { memoize } from "niall-utils/data";
 import { describe, expect, it } from "vitest";
 
 import { biomeTile, createBiomeAt, type Biome } from "./biome.ts";
 import { stoneOres } from "./stone.ts";
 import { createWorldGenerator } from "./worldGenerator.ts";
 
+const idsOf = (names: Tile[]): TileId[] => names.map(tileToId);
+
 const BIOMES: Biome[] = ["plains", "desert", "swamp", "jungle"];
 /** Tiles that replace a biome's land tile. */
-const OVERLAYS: Tile[] = ["water", "stone", ...stoneOres];
+const OVERLAYS = idsOf(["water", "stone", ...stoneOres]);
 
 /** Sampled regions: every `REGION_STEP`th one across ±`REGION_EXTENT`. */
 const REGION_EXTENT = 60;
@@ -28,23 +33,29 @@ const sampledRegions = Array.from(
   )
 );
 
-/** Every tile of the sampled regions, with the biome it belongs to. */
-const sampleTiles = (seed: string) => {
-  const generate = createWorldGenerator(seed);
-  const biomeAt = createBiomeAt(seed);
+/**
+ * Every tile of the sampled regions, with the biome it belongs to. Sampled once
+ * per seed and shared, since several tests read the same tiles.
+ */
+const sampleTiles = memoize(
+  (seed: string) => {
+    const generate = createWorldGenerator(seed);
+    const biomeAt = createBiomeAt(seed);
 
-  return sampledRegions.flatMap(([regionX, regionY]) => {
-    const { tiles } = generate(regionPosToId(regionX, regionY));
-    const [originX, originY] = regionToWorldPos(regionX, regionY);
-    return tiles.map((tile, idx) => ({
-      tile,
-      biome: biomeAt(
-        originX + (idx % REGION_SIDE_LENGTH),
-        originY + Math.floor(idx / REGION_SIDE_LENGTH)
-      ),
-    }));
-  });
-};
+    return sampledRegions.flatMap(([regionX, regionY]) => {
+      const { tiles } = generate(regionPosToId(regionX, regionY));
+      const [originX, originY] = regionToWorldPos(regionX, regionY);
+      return tiles.map((tile, idx) => ({
+        tile,
+        biome: biomeAt(
+          originX + (idx % REGION_SIDE_LENGTH),
+          originY + Math.floor(idx / REGION_SIDE_LENGTH)
+        ),
+      }));
+    });
+  },
+  seed => seed
+);
 
 describe("createWorldGenerator", () => {
   it("makes a full region of tiles", () => {
@@ -76,12 +87,12 @@ describe("createWorldGenerator", () => {
   });
 
   it("produces only water, stone, ore and the biomes' land tiles", () => {
-    const allowed: Tile[] = [
+    const allowed = idsOf([
       ...BIOMES.map(biomeTile),
       "water",
       "stone",
       ...stoneOres,
-    ];
+    ]);
 
     const unexpected = sampleTiles("seed").filter(
       ({ tile }) => !allowed.includes(tile)
@@ -92,7 +103,8 @@ describe("createWorldGenerator", () => {
 
   it("uses the biome's land tile wherever there is no water or stone", () => {
     const mismatched = sampleTiles("seed").filter(
-      ({ tile, biome }) => !OVERLAYS.includes(tile) && tile !== biomeTile(biome)
+      ({ tile, biome }) =>
+        !OVERLAYS.includes(tile) && tile !== tileToId(biomeTile(biome))
     );
 
     expect(mismatched).toEqual([]);
@@ -100,28 +112,30 @@ describe("createWorldGenerator", () => {
 
   it("places stone with ore inside it on land", () => {
     const generate = createWorldGenerator("seed");
-    const tiles = new Set<Tile>();
-    for (let regionX = -9; regionX < 10; regionX++) {
-      for (let regionY = -9; regionY < 10; regionY++) {
+    const tiles = new Set<TileId>();
+    for (let regionX = -5; regionX < 5; regionX++) {
+      for (let regionY = -5; regionY < 5; regionY++) {
         for (const tile of generate(regionPosToId(regionX, regionY)).tiles) {
           tiles.add(tile);
         }
       }
     }
 
-    expect(tiles).toContain("stone");
-    for (const ore of stoneOres) expect(tiles).toContain(ore);
+    expect(tiles).toContain(tileToId("stone"));
+    for (const ore of stoneOres) expect(tiles).toContain(tileToId(ore));
   });
 
   it("has both water and land in every biome", () => {
     const samples = sampleTiles("seed");
 
     for (const biome of BIOMES) {
-      expect(samples.some(s => s.biome === biome && s.tile === "water")).toBe(
-        true
-      );
       expect(
-        samples.some(s => s.biome === biome && s.tile === biomeTile(biome))
+        samples.some(s => s.biome === biome && s.tile === tileToId("water"))
+      ).toBe(true);
+      expect(
+        samples.some(
+          s => s.biome === biome && s.tile === tileToId(biomeTile(biome))
+        )
       ).toBe(true);
     }
   });

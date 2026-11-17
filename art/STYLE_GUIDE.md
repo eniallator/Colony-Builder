@@ -101,6 +101,7 @@ consistent as content grows:
 | Terrain                          | **None.** It is the quiet backdrop.     |
 | Resource nodes (ore deposit)     | None; rust-stained rock edges the vein. |
 | Items, robots, players, machines | 1px `outline` colour, all around.       |
+| Structures (trees, cacti)        | 1px `outline` colour, all around.       |
 | Conveyors                        | Dark rails act as the outline.          |
 
 Round off corners by omitting the 4 corner pixels. Don't use pure black or white.
@@ -160,6 +161,20 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - **Face = direction.** Down shows the face/visor, up shows the back, sides
   show a profile with the visor on the leading edge.
 
+### Structures
+
+- Plants and other things that stand on the terrain. They keep the lit-top-left
+  shading and the 1px outline of entities, so they pop off the terrain they
+  grow on. Foliage uses the `leaf` ramp (a touch darker and yellower than
+  grass) and cacti the cooler `cactus` ramp, so each reads against its ground.
+- 16px wide and a whole number of tiles tall: a tree is 16×32, a cactus 16×16.
+  The sprite's lowest pixel is its foot: the renderer stands it on its world
+  position, centred, and draws a `shadow_small` under it. Keep the trunk or
+  stem at the bottom centre and the canopy within about 14px so neighbours
+  don't merge into a wall.
+- Drawn from shapes in `sprites/structures.mjs` (rather than ASCII), so the
+  shading stays consistent; the edge is made ragged by the sprite's seeded RNG.
+
 ### Items
 
 - Drawn within ~14×14 px, centred, 1px outline. Authored as ASCII art, or for
@@ -181,6 +196,7 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 | Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`) |
 | `ItemId` `x`               | `item_x`                              |
 | Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right` |
+| Structure id `x`           | `x` (e.g. `tree`, `cactus`)           |
 | Renderer helper            | `shadow`, `shadow_small`              |
 
 `pnpm atlas:check` exits non-zero if anything in the game has no sprite.
@@ -192,11 +208,12 @@ from constants in `client/src`. Sprite definitions (`scripts/atlas/sprites/`)
 can pass these as the last argument of `animated`, `directional` and `still`
 (or as fields on the sprite object); `pack.mjs` writes them out:
 
-| Field     | Meaning                                                                                                                                                                 |
-| --------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ground`  | Pixel line the sprite rests on, measured from the lowest visible pixel automatically. Only set it by hand where that is wrong (the shadows use their ellipse's centre). |
-| `frameMs` | Time each animation frame shows, in ms (water, walk cycles).                                                                                                            |
-| `stepPx`  | For animations that depict motion at a game speed (belts): pixels the art moves per frame. The client turns it into a frame time using the game's speed.                |
+| Field     | Meaning                                                                                                                                                                          |
+| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ground`  | Pixel line the sprite rests on, measured from the lowest visible pixel automatically. Only set it by hand where that is wrong (the shadows use their ellipse's centre).          |
+| `rows`    | How many tiles tall each frame is. Written by `pnpm atlas` when above 1 (trees are 2), so you never set it by hand. Tall sprites pack into their own rows after the 1-tile ones. |
+| `frameMs` | Time each animation frame shows, in ms (water, walk cycles).                                                                                                                     |
+| `stepPx`  | For animations that depict motion at a game speed (belts): pixels the art moves per frame. The client turns it into a frame time using the game's speed.                         |
 
 A sprite with more than one animation frame must give `frameMs` or `stepPx`;
 `pnpm atlas` fails otherwise. If a new animation depicts motion at a game speed,

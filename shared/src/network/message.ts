@@ -10,9 +10,11 @@ import {
   encEntityId,
   encEntitySnapshot,
   encRegionId,
-  encTerrainSnapshot,
-  encTile,
+  encTileId,
+  encWorldSnapshot,
 } from "../world/index.ts";
+
+// Client
 
 export const encMoveMessage = encObjectOf({
   type: encExact("move"),
@@ -28,7 +30,7 @@ export type UnloadMessage = EncodableType<typeof encUnloadMessage>;
 
 export const encPlaceMessage = encObjectOf({
   type: encExact("place"),
-  tile: encTile,
+  tile: encTileId,
   position: encVec2,
 });
 export type PlaceMessage = EncodableType<typeof encPlaceMessage>;
@@ -39,6 +41,8 @@ export const encClientMessage = encUnionOf(
   encPlaceMessage
 );
 export type ClientMessage = EncodableType<typeof encClientMessage>;
+
+// Server
 
 export const encInitMessage = encObjectOf({
   type: encExact("init"),
@@ -52,15 +56,15 @@ export const encEntitiesMessage = encObjectOf({
 });
 export type EntitiesMessage = EncodableType<typeof encEntitiesMessage>;
 
-export const encTerrainMessage = encObjectOf({
-  type: encExact("terrain"),
-  snapshot: encTerrainSnapshot,
+export const encLoadMessage = encObjectOf({
+  type: encExact("load"),
+  snapshot: encWorldSnapshot,
 });
-export type TerrainMessage = EncodableType<typeof encTerrainMessage>;
+export type TerrainMessage = EncodableType<typeof encLoadMessage>;
 
 export const encServerMessage = encUnionOf(
   encInitMessage,
   encEntitiesMessage,
-  encTerrainMessage
+  encLoadMessage
 );
 export type ServerMessage = EncodableType<typeof encServerMessage>;

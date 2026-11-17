@@ -6,23 +6,23 @@ import {
   encComponents,
   encEntitySnapshot,
   encRegionTiles,
-  encTerrainSnapshot,
   regionPosToId,
   tiles,
+  tileToId,
   unsafeEntityId,
   type Components,
   type EntitySnapshot,
   type RegionTiles,
-  type TerrainSnapshot,
-  type Tile,
+  type TileId,
+  type WorldSnapshot,
 } from "../world/index.ts";
 import {
   encClientMessage,
   encEntitiesMessage,
   encInitMessage,
+  encLoadMessage,
   encMoveMessage,
   encServerMessage,
-  encTerrainMessage,
   encUnloadMessage,
   type ClientMessage,
   type ServerMessage,
@@ -77,17 +77,18 @@ const entities: EntitySnapshot = new Map([
 
 const REGION_TILE_COUNT = REGION_SIDE_LENGTH ** 2;
 
-const region = (tileAt: (i: number) => Tile): RegionTiles =>
+const region = (tileAt: (i: number) => TileId): RegionTiles =>
   Array.from({ length: REGION_TILE_COUNT }, (_, i) => tileAt(i));
 
-const [firstTile, secondTile] = tiles;
+const firstTile = tileToId(tiles[0]);
+const secondTile = tileToId(tiles[1]);
 
 const uniform = region(() => firstTile);
 const checkerboard = region(i => (i % 2 ? secondTile : firstTile));
 
-const terrain: TerrainSnapshot = new Map([
-  [regionPosToId(0, 0), uniform],
-  [regionPosToId(-3, 7), checkerboard],
+const terrain: WorldSnapshot = new Map([
+  [regionPosToId(0, 0), { tiles: uniform, structures: new Map() }],
+  [regionPosToId(-3, 7), { tiles: checkerboard, structures: new Map() }],
 ]);
 
 describe("encComponents", () => {
@@ -190,25 +191,6 @@ describe("encRegionTiles", () => {
   });
 });
 
-describe("encTerrainSnapshot", () => {
-  it("round-trips regions keyed by id", () => {
-    expect(
-      encTerrainSnapshot.decode(encTerrainSnapshot.encode(terrain))
-    ).toEqual(terrain);
-  });
-
-  it("round-trips an empty snapshot", () => {
-    expect(
-      encTerrainSnapshot.decode(encTerrainSnapshot.encode(new Map()))
-    ).toEqual(new Map());
-  });
-
-  it("rejects a malformed region id", () => {
-    expect(encTerrainSnapshot.guard(new Map([["0;0", uniform]]))).toBe(false);
-    expect(encTerrainSnapshot.guard(new Map([["01,0", uniform]]))).toBe(false);
-  });
-});
-
 describe("encClientMessage", () => {
   const move: ClientMessage = { type: "move", position: Vector.create(10, 20) };
   const unload: ClientMessage = {
@@ -288,7 +270,7 @@ describe("encServerMessage", () => {
     type: "entities",
     snapshot: entities,
   };
-  const terrainMessage: ServerMessage = { type: "terrain", snapshot: terrain };
+  const terrainMessage: ServerMessage = { type: "load", snapshot: terrain };
 
   it("round-trips an init message", () => {
     expect(encServerMessage.decode(encServerMessage.encode(init))).toEqual(
@@ -321,9 +303,9 @@ describe("encServerMessage", () => {
 
   it("has a guard per message kind", () => {
     expect(encEntitiesMessage.guard(entitiesMessage)).toBe(true);
-    expect(encTerrainMessage.guard(terrainMessage)).toBe(true);
+    expect(encLoadMessage.guard(terrainMessage)).toBe(true);
     expect(encEntitiesMessage.guard(terrainMessage)).toBe(false);
-    expect(encTerrainMessage.guard(init)).toBe(false);
+    expect(encLoadMessage.guard(init)).toBe(false);
   });
 
   it("rejects an unknown tag and truncated messages", () => {

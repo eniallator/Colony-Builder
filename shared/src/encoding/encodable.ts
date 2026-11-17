@@ -99,8 +99,14 @@ export const encodable = <const T extends CodecValue>(
 
 export const encBoolean = encodable(isBoolean, codBoolean);
 
-export const encNumber = (tpe: NumberCodec): Encodable<number> =>
-  encodable(isNumber, codNumber(tpe));
+export const encNumber: {
+  (tpe: NumberCodec): Encodable<number>;
+  (tpe: "uChoose", value: number): Encodable<number>;
+} = (tpe: NumberCodec | "uChoose", value?: number): Encodable<number> =>
+  encodable(
+    isNumber,
+    tpe === "uChoose" ? chooseUIntCod(value as number) : codNumber(tpe)
+  );
 
 const isVec =
   <const N extends number>(size: N): Guard<Vector<N>> =>

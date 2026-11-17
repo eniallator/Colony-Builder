@@ -1,6 +1,6 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { TILE } from "./core.mjs";
+import { TILE, tilesTall } from "./core.mjs";
 import { blit, encodePng } from "./png.mjs";
 
 export const COLUMNS = 16;
@@ -9,28 +9,52 @@ export const OUT_DIR = new URL(
   import.meta.url
 );
 
+/** How many tiles tall a sprite is (all of its frames are the same height). */
+const heightOf = ({ name, frames }) => {
+  const [tall, ...rest] = frames.map(tilesTall);
+  if (!Number.isInteger(tall) || rest.some(other => other !== tall))
+    throw new Error(
+      `"${name}" frames must all be 16px wide and a whole number of tiles tall`
+    );
+  return tall;
+};
+
 /**
  * Packs sprites left to right, top to bottom. A sprite's frames never wrap
  * across rows, and the atlas grows downwards as needed - there is no fixed cap.
+ * Single-tile sprites come first, in order, then taller ones in bands of rows
+ * that fit the tallest sprite in the band. A cell is the top of a frame, so a
+ * tall sprite's cell is followed by the cells beneath it.
  * Returns `{ name: [[col, row], ...] }` (one cell per frame/variant).
  */
 export const layout = sprites => {
   let col = 0;
   let row = 0;
+  let bandRows = 1;
   const cells = {};
-  for (const { name, frames } of sprites) {
+  const place = sprite => {
+    const { name, frames } = sprite;
+    const tall = heightOf(sprite);
     if (frames.length > COLUMNS)
       throw new Error(
         `"${name}" has ${frames.length} frames; max is ${COLUMNS}`
       );
     if (col + frames.length > COLUMNS) {
       col = 0;
-      row++;
+      row += bandRows;
+      bandRows = 1;
     }
     cells[name] = frames.map((_, i) => [col + i, row]);
     col += frames.length;
-  }
-  return { cells, rows: row + 1 };
+    bandRows = Math.max(bandRows, tall);
+  };
+
+  const isTall = sprite => heightOf(sprite) > 1;
+  sprites.filter(sprite => !isTall(sprite)).forEach(place);
+  // Taller sprites start a fresh band so they never overlap the rows above.
+  col = COLUMNS;
+  sprites.filter(isTall).forEach(place);
+  return { cells, rows: row + bandRows };
 };
 
 /**
@@ -62,14 +86,14 @@ const averageColour = frames => {
 };
 
 /**
- * The pixel line (counted down from the top of the cell) just below a sprite's
+ * The pixel line (counted down from the top of the sprite) just below its
  * lowest visible pixel across all its frames: where it rests on the ground.
  * The renderer lines shadows up with it. 0 for a fully transparent sprite.
  */
 const lowestLine = frames => {
   let line = 0;
   for (const frame of frames) {
-    for (let y = TILE - 1; y >= line; y--) {
+    for (let y = frame.length / (TILE * 4) - 1; y >= line; y--) {
       for (let x = 0; x < TILE; x++) {
         if (frame[(y * TILE + x) * 4 + 3] > 0) {
           line = y + 1;
@@ -95,12 +119,14 @@ const describe = (
     throw new Error(
       `"${name}" has ${frames.length} animation frames but no frameMs or stepPx`
     );
+  const tall = heightOf({ name, frames });
   return {
     mode,
     cells,
     colour: averageColour(frames),
     ground: ground ?? lowestLine(frames),
     // Optional fields are left out rather than written as null.
+    ...(tall > 1 && { rows: tall }),
     ...(frameMs != null && { frameMs }),
     ...(stepPx != null && { stepPx }),
   };
@@ -123,7 +149,8 @@ export const writeAtlas = sprites => {
     encodePng(width, height, pixels)
   );
   // atlas.json: `sprites[name] = { mode, cells: [[col, row], ...], colour:
-  // "#rrggbb", ground, frameMs?, stepPx? }`.
+  // "#rrggbb", ground, rows?, frameMs?, stepPx? }`. `rows` is how many tiles
+  // tall each frame is (left out when 1); a cell is the frame's top-left tile.
   // `mode`: "variants" = pick one per tile; "frames" = animation (or a single
   // frame). Sprites that don't say are "frames".
   const described = Object.fromEntries(

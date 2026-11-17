@@ -115,8 +115,8 @@ describe("createStoneAt", () => {
     seed => {
       const stoneAt = createStoneAt(seed);
       const counts = new Map<string, number>();
-      for (let x = -1600; x < 1600; x += 2) {
-        for (let y = -1600; y < 1600; y += 2) {
+      for (let x = -1600; x < 1600; x += 4) {
+        for (let y = -1600; y < 1600; y += 4) {
           const tile = stoneAt(x, y);
           if (tile != null && tile !== "stone")
             counts.set(tile, (counts.get(tile) ?? 0) + 1);

@@ -1,8 +1,12 @@
+import type * as ServerCore from "@colony-builder/server-core";
 import {
   encClientMessage,
   encServerMessage,
   PLAYER_SPEED,
+  REGION_SIDE_LENGTH,
+  tileToId,
   TPS,
+  type WorldGenerator,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
 import { mapFilter, mapFind } from "niall-utils/functional";
@@ -10,6 +14,19 @@ import { Vector } from "vectyped";
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { serveGame, type WorkerScope } from "./serve.ts";
+
+// The real world generator is slow, and these tests are about the wiring.
+vi.mock("@colony-builder/server-core", async importOriginal => {
+  const original = await importOriginal<typeof ServerCore>();
+  const flatGenerator: WorldGenerator = () => ({
+    tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
+      tileToId("grass")
+    ),
+    structures: new Map(),
+  });
+
+  return { ...original, createGame: () => original.createGame(flatGenerator) };
+});
 
 const TICK_MS = 1000 / TPS;
 
@@ -82,7 +99,7 @@ describe("serveGame", () => {
     expect(messageTypes(served)).toEqual(["init"]);
 
     vi.advanceTimersByTime(1);
-    expect(messageTypes(served)).toEqual(["init", "terrain", "entities"]);
+    expect(messageTypes(served)).toEqual(["init", "load", "entities"]);
   });
 
   it("moves the player when the page sends bytes", () => {

@@ -13,8 +13,8 @@ export const messageHandler = (state: State, message: ServerMessage): void => {
       state.world.entities.applySnapshot(message.snapshot);
       break;
 
-    case "terrain":
-      state.world.terrain.applySnapshot(message.snapshot);
+    case "load":
+      state.world.applySnapshot(message.snapshot);
       break;
 
     default:

@@ -4,7 +4,11 @@ import {
   type System,
 } from "@colony-builder/shared";
 
-import { prepareRender, renderEntities, renderTiles } from "./render/system.ts";
+import {
+  prepareRender,
+  renderAboveGround,
+  renderTiles,
+} from "./render/system.ts";
 import type { Camera } from "./ui/camera.ts";
 import { renderInventoryDialog } from "./ui/inventory.ts";
 import type { Time } from "./ui/types.ts";
@@ -22,6 +26,6 @@ export const clientSystems: ClientSystem[] = [
   ...predictionSystems(),
   prepareRender,
   renderTiles,
-  renderEntities,
+  renderAboveGround,
   renderInventoryDialog,
 ];

@@ -8,12 +8,17 @@ const load = async relative => import(new URL(relative, import.meta.url).href);
 
 /** Returns the sprite names the game needs, or throws if the registries can't load. */
 const requiredSprites = async () => {
-  const [{ tiles }, { itemDataRegistry }, { allEntityTypes }] =
-    await Promise.all([
-      load("../../shared/src/terrain/types.ts"),
-      load("../../shared/src/item/registry.ts"),
-      load("../../shared/src/entity/types.ts"),
-    ]);
+  const [
+    { tiles },
+    { itemDataRegistry },
+    { allEntityTypes },
+    { structureRegistry },
+  ] = await Promise.all([
+    load("../../shared/src/world/terrain/types.ts"),
+    load("../../shared/src/item/registry.ts"),
+    load("../../shared/src/world/entity/types.ts"),
+    load("../../shared/src/world/structure/types.ts"),
+  ]);
   return [
     ...tiles.map(tile => ({ kind: "tile", id: tile, sprite: tile })),
     ...Object.keys(itemDataRegistry).map(id => ({
@@ -25,6 +30,11 @@ const requiredSprites = async () => {
     ...allEntityTypes
       .filter(type => type !== "item")
       .map(type => ({ kind: "entity", id: type, sprite: `${type}_down` })),
+    ...Object.keys(structureRegistry).map(id => ({
+      kind: "structure",
+      id,
+      sprite: id,
+    })),
   ];
 };
 

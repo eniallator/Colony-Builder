@@ -1,3 +1,5 @@
+import { tuple } from "niall-utils/core";
+
 import { LOADED_SIDE_LENGTH } from "../constants.ts";
 import {
   EntityStore,
@@ -13,7 +15,7 @@ import {
   worldToRegionPos,
   type RegionId,
 } from "./terrain/index.ts";
-import type { WorldGenerator } from "./types.ts";
+import type { WorldGenerator, WorldSnapshot } from "./types.ts";
 
 export class World {
   private readonly entityStore: EntityStore = new EntityStore();
@@ -55,6 +57,24 @@ export class World {
 
     // Entities may not exist since the index was built, so re-querying
     return this.entityStore.queryWithIds(ids, "position", ...componentNames);
+  }
+
+  takeSnapshot(ids: RegionId[]): WorldSnapshot {
+    return new Map(
+      ids.map(id =>
+        tuple(id, {
+          tiles: this.terrainStore.get(id),
+          structures: this.structureStore.get(id),
+        })
+      )
+    );
+  }
+
+  applySnapshot(snapshot: WorldSnapshot): void {
+    for (const [id, { tiles, structures }] of snapshot) {
+      this.terrainStore.add(id, tiles);
+      this.structureStore.add(id, structures);
+    }
   }
 
   loadWorld(x: number, y: number, generator: WorldGenerator): RegionId[] {

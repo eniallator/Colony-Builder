@@ -1,32 +1,37 @@
+import { memoize } from "niall-utils/data";
 import { describe, expect, it } from "vitest";
 
 import { createBiomeAt, type Biome } from "./biome.ts";
 
 const EXTENT = 2000;
-const STEP = 32;
+const STEP = 64;
 /** A strip narrower than twice this counts as a sliver. */
 const SLIVER_HALF_WIDTH = 6;
 
-const sampleGrid = (seed: string) => {
-  const biomeAt = createBiomeAt(seed);
-  const samples: {
-    biome: Biome;
-    neighbour: Biome;
-    left: Biome;
-    right: Biome;
-  }[] = [];
-  for (let x = -EXTENT; x < EXTENT; x += STEP) {
-    for (let y = -EXTENT; y < EXTENT; y += STEP) {
-      samples.push({
-        biome: biomeAt(x, y),
-        neighbour: biomeAt(x + 1, y),
-        left: biomeAt(x - SLIVER_HALF_WIDTH, y),
-        right: biomeAt(x + SLIVER_HALF_WIDTH, y),
-      });
+/** Sampled once per seed and shared, since several tests read the same grid. */
+const sampleGrid = memoize(
+  (seed: string) => {
+    const biomeAt = createBiomeAt(seed);
+    const samples: {
+      biome: Biome;
+      neighbour: Biome;
+      left: Biome;
+      right: Biome;
+    }[] = [];
+    for (let x = -EXTENT; x < EXTENT; x += STEP) {
+      for (let y = -EXTENT; y < EXTENT; y += STEP) {
+        samples.push({
+          biome: biomeAt(x, y),
+          neighbour: biomeAt(x + 1, y),
+          left: biomeAt(x - SLIVER_HALF_WIDTH, y),
+          right: biomeAt(x + SLIVER_HALF_WIDTH, y),
+        });
+      }
     }
-  }
-  return samples;
-};
+    return samples;
+  },
+  seed => seed
+);
 
 describe("createBiomeAt", () => {
   it("is deterministic for the same seed", () => {

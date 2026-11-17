@@ -3,6 +3,7 @@ import {
   createPlayer,
   REGION_SIDE_LENGTH,
   regionPosToId,
+  tileToId,
   unsafeEntityId,
   World,
   type RegionTiles,
@@ -21,7 +22,9 @@ const createState = (): State => ({
 });
 
 const region = (tile: Tile): RegionTiles =>
-  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tile);
+  Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile));
+
+const loaded = (tiles: RegionTiles) => ({ tiles, structures: new Map() });
 
 describe("messageHandler", () => {
   it("stores the player id from an init message", () => {
@@ -75,8 +78,8 @@ describe("messageHandler", () => {
     const grass = region("grass");
 
     messageHandler(state, {
-      type: "terrain",
-      snapshot: new Map([[regionPosToId(2, -3), grass]]),
+      type: "load",
+      snapshot: new Map([[regionPosToId(2, -3), loaded(grass)]]),
     });
 
     expect(state.world.terrain.get(regionPosToId(2, -3))).toBe(grass);
@@ -87,13 +90,13 @@ describe("messageHandler", () => {
     const grass = region("grass");
     const water = region("water");
     messageHandler(state, {
-      type: "terrain",
-      snapshot: new Map([[regionPosToId(0, 0), grass]]),
+      type: "load",
+      snapshot: new Map([[regionPosToId(0, 0), loaded(grass)]]),
     });
 
     messageHandler(state, {
-      type: "terrain",
-      snapshot: new Map([[regionPosToId(1, 0), water]]),
+      type: "load",
+      snapshot: new Map([[regionPosToId(1, 0), loaded(water)]]),
     });
 
     expect(state.world.terrain.get(regionPosToId(0, 0))).toBe(grass);
@@ -110,8 +113,8 @@ describe("messageHandler", () => {
       snapshot: server.entities.takeSnapshot([player]),
     });
     messageHandler(state, {
-      type: "terrain",
-      snapshot: new Map([[regionPosToId(0, 0), region("sand")]]),
+      type: "load",
+      snapshot: new Map([[regionPosToId(0, 0), loaded(region("sand"))]]),
     });
 
     expect(state.world.entities.query("position")).toHaveLength(1);
