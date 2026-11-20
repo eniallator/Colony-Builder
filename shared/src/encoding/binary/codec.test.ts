@@ -28,19 +28,19 @@ import {
   codU32,
   codUInt,
   isPrecision,
-  type Codec,
+  type BinaryCodec,
   type CodecValue,
 } from "./codec.ts";
 
 const codString = codStringOf();
 
-const write = <T extends CodecValue>(codec: Codec<T>, value: T) => {
+const write = <T extends CodecValue>(codec: BinaryCodec<T>, value: T) => {
   const buffer = new ArrayBuffer(codec.size(value));
   codec.write({ view: new DataView(buffer), pos: 0 }, value);
   return [...new Uint8Array(buffer)];
 };
 
-const read = <T extends CodecValue>(codec: Codec<T>, bytes: number[]) => {
+const read = <T extends CodecValue>(codec: BinaryCodec<T>, bytes: number[]) => {
   const cursor = { view: new DataView(new Uint8Array(bytes).buffer), pos: 0 };
   return { value: codec.read(cursor), pos: cursor.pos };
 };
@@ -824,7 +824,7 @@ describe("collection sizes", () => {
 
     for (const [codec, value] of cases) {
       // oxlint-disable-next-line typescript/no-explicit-any
-      const c: Codec<any> = codec;
+      const c: BinaryCodec<any> = codec;
       expect(c.size(value)).toBe(write(c, value).length);
     }
   });

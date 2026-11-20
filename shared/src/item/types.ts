@@ -2,11 +2,11 @@ import { isExactObjectOf, isInteger, isOptional, isUnknown } from "deep-guards";
 import { tuple } from "niall-utils/core";
 
 import {
+  binaryEncodable,
   codObjectOf,
   codOptional,
   codU32,
   encMapOf,
-  encodable,
   type EncodableType,
 } from "../encoding/index.ts";
 import { encItemId } from "./registry.ts";
@@ -14,7 +14,7 @@ import { encItemId } from "./registry.ts";
 export const itemTags = tuple("");
 export type ItemTag = (typeof itemTags)[number];
 
-export const encItem = encodable(
+export const encItem = binaryEncodable(
   isExactObjectOf({
     data: isOptional(isUnknown),
     count: (value): value is number => isInteger(value) && value >= 0,

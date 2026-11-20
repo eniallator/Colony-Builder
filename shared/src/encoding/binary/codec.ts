@@ -8,7 +8,8 @@ import {
 } from "niall-utils/core";
 import { typedToEntries } from "niall-utils/data";
 
-import { createTextDecoder, createTextEncoder } from "../lib/text.ts";
+import { createTextDecoder, createTextEncoder } from "../../lib/text.ts";
+import type { Codec, Format } from "../format.ts";
 
 export interface Cursor {
   view: DataView;
@@ -17,8 +18,14 @@ export interface Cursor {
 
 export type CodecValue = NonNullable<unknown> | undefined;
 
+export type BinaryFormat = Format<
+  "binary",
+  Uint8Array<ArrayBuffer>,
+  Uint8Array
+>;
+
 /** Fixed-layout binary codec. All multi-byte values are little-endian. */
-export interface Codec<T extends CodecValue> {
+export interface BinaryCodec<T extends CodecValue> extends Codec<BinaryFormat> {
   // Method syntax keeps `T` bivariant, so an `object` codec (required keys that may be
   // `undefined`) is assignable to a guard's type (optional keys).
   size(value: T): number;
@@ -27,14 +34,14 @@ export interface Codec<T extends CodecValue> {
 }
 
 // oxlint-disable-next-line typescript/no-explicit-any
-export type CodecType<C extends Codec<any>> =
-  C extends Codec<infer T> ? T : never;
+export type CodecType<C extends BinaryCodec<any>> =
+  C extends BinaryCodec<infer T> ? T : never;
 
 export const codMap = <const A extends CodecValue, const B extends CodecValue>(
-  codec: Codec<B>,
+  codec: BinaryCodec<B>,
   encode: (value: A) => B,
   decode: (value: B) => A
-): Codec<A> => ({
+): BinaryCodec<A> => ({
   size: value => codec.size(encode(value)),
   write: (cursor, value) => {
     codec.write(cursor, encode(value));
@@ -43,8 +50,8 @@ export const codMap = <const A extends CodecValue, const B extends CodecValue>(
 });
 
 export const codTagged = <T extends Tagged<CodecValue, string>>(
-  codec: Codec<Untag<T>>
-): Codec<T> => codec as unknown as Codec<T>;
+  codec: BinaryCodec<Untag<T>>
+): BinaryCodec<T> => codec as unknown as BinaryCodec<T>;
 
 const LITTLE_ENDIAN = true;
 
@@ -52,7 +59,7 @@ const fixedCodec = (
   bytes: number,
   write: (view: DataView, pos: number, value: number) => void,
   read: (view: DataView, pos: number) => number
-): Codec<number> => ({
+): BinaryCodec<number> => ({
   size: () => bytes,
   write: (cursor, value) => {
     write(cursor.view, cursor.pos, value);
@@ -149,11 +156,12 @@ const numberCodecs = {
   f64: codF64,
 };
 export type NumberCodec = keyof typeof numberCodecs;
-export const codNumber = (tpe: NumberCodec): Codec<number> => numberCodecs[tpe];
+export const codNumber = (tpe: NumberCodec): BinaryCodec<number> =>
+  numberCodecs[tpe];
 
 export const U8_MAX = 2 ** 8;
 export const U16_MAX = 2 ** 16;
-export const chooseUIntCod = (value: number): Codec<number> =>
+export const chooseUIntCod = (value: number): BinaryCodec<number> =>
   value < U8_MAX ? codU8 : value < U16_MAX ? codU16 : codU32;
 
 export const codBoolean = codMap<boolean, number>(codU8, Number, v => !!v);
@@ -163,7 +171,7 @@ export const isPrecision = isOneOf(...PRECISIONS);
 /** Width of the unsigned integer used for a length prefix or run length. */
 export type Precision = TypeFromGuard<typeof isPrecision>;
 
-const PRECISION_CODECS: Record<Precision, Codec<number>> = {
+const PRECISION_CODECS: Record<Precision, BinaryCodec<number>> = {
   u8: codU8,
   u16: codU16,
   u32: codU32,
@@ -173,7 +181,7 @@ const precisionMax = (precision: Precision): number =>
   2 ** (8 * PRECISION_CODECS[precision].size(0)) - 1;
 
 /** Unsigned integer codec of the given precision that rejects overflowing values. */
-export const codUInt = (precision: Precision): Codec<number> => {
+export const codUInt = (precision: Precision): BinaryCodec<number> => {
   const codec = PRECISION_CODECS[precision];
   const max = precisionMax(precision);
 
@@ -210,7 +218,7 @@ const textDecoder = createTextDecoder("utf-8", { fatal: true });
 /** A length prefix of the given precision followed by the UTF-8 bytes. */
 export const codStringOf = (
   lengthPrecision: Precision = "u32"
-): Codec<string> => {
+): BinaryCodec<string> => {
   const codLength = codUInt(lengthPrecision);
 
   return {
@@ -240,15 +248,15 @@ export const codStringOf = (
 
 export const codExact = <const T extends string | number | boolean>(
   value: T
-): Codec<T> => ({
+): BinaryCodec<T> => ({
   size: () => 0,
   write: () => undefined,
   read: () => value,
 });
 
 export const codOptional = <const T extends CodecValue>(
-  codec: Codec<T>
-): Codec<T | undefined> => ({
+  codec: BinaryCodec<T>
+): BinaryCodec<T | undefined> => ({
   size: value => 1 + (value === undefined ? 0 : codec.size(value)),
   write: (cursor, value) => {
     codU8.write(cursor, value === undefined ? 0 : 1);
@@ -262,7 +270,7 @@ export const codOneOf = <
 >(
   values: T,
   precision?: Precision
-): Codec<T[number]> => {
+): BinaryCodec<T[number]> => {
   const cod =
     precision != null ? codUInt(precision) : chooseUIntCod(values.length);
 
@@ -277,8 +285,8 @@ export const codOneOf = <
 };
 
 export const codTupleOf = <const T extends readonly CodecValue[]>(
-  ...codecs: { [K in keyof T]: Codec<T[K]> }
-): Codec<T> => ({
+  ...codecs: { [K in keyof T]: BinaryCodec<T[K]> }
+): BinaryCodec<T> => ({
   size: values =>
     codecs.reduce((acc, codec, i) => acc + codec.size(values[i]), 0),
   write: (cursor, values) => {
@@ -290,9 +298,9 @@ export const codTupleOf = <const T extends readonly CodecValue[]>(
 });
 
 export const codSetOf = <const T extends CodecValue>(
-  codec: Codec<T>,
+  codec: BinaryCodec<T>,
   lengthPrecision: Precision = "u8"
-): Codec<Set<T>> => {
+): BinaryCodec<Set<T>> => {
   const codLength = codUInt(lengthPrecision);
 
   return {
@@ -321,9 +329,9 @@ export interface ArrayOptions {
 }
 
 export const codArrayOf = <const T extends CodecValue>(
-  codec: Codec<T>,
+  codec: BinaryCodec<T>,
   opts: ArrayOptions = {}
-): Codec<T[]> => {
+): BinaryCodec<T[]> => {
   const { fixedLength, lengthPrecision = "u32", runPrecision = "u8" } = opts;
   const codLength = codUInt(lengthPrecision);
   const codRun = codUInt(runPrecision);
@@ -337,7 +345,7 @@ export const codArrayOf = <const T extends CodecValue>(
     const units: [T, number][] = rle
       ? values.reduce<[T, number][]>((runs, value) => {
           const last = runs.at(-1);
-          if (last != null && last[0] === value && last[1] < maxRun) last[1]++;
+          if (last?.[0] === value && last[1] < maxRun) last[1]++;
           else runs.push([value, 1]);
           return runs;
         }, [])
@@ -408,10 +416,10 @@ export const codEntries = <
   const K extends CodecValue,
   const V extends CodecValue,
 >(
-  codKey: Codec<K>,
-  codVal: Codec<V>,
+  codKey: BinaryCodec<K>,
+  codVal: BinaryCodec<V>,
   lengthPrecision: Precision = "u32"
-): Codec<[K, V][]> => {
+): BinaryCodec<[K, V][]> => {
   const codLength = codUInt(lengthPrecision);
 
   return {
@@ -444,10 +452,10 @@ export const codRecordOf = <
   const K extends string | number,
   const V extends CodecValue,
 >(
-  codKey: Codec<K>,
-  codVal: Codec<V>,
+  codKey: BinaryCodec<K>,
+  codVal: BinaryCodec<V>,
   lengthPrecision: Precision = "u32"
-): Codec<Record<K, V>> => {
+): BinaryCodec<Record<K, V>> => {
   const codLength = codUInt(lengthPrecision);
 
   return {
@@ -480,8 +488,8 @@ export const codRecordOf = <
 export const codObjectOf = <
   const T extends { [K in keyof T]: CodecValue },
 >(shape: {
-  [K in keyof T]: Codec<T[K]>;
-}): Codec<T> => {
+  [K in keyof T]: BinaryCodec<T[K]>;
+}): BinaryCodec<T> => {
   const fields = typedToEntries(shape);
 
   return {
@@ -504,10 +512,10 @@ export const codMapOf = <
   const K extends CodecValue,
   const V extends CodecValue,
 >(
-  codKey: Codec<K>,
-  codVal: Codec<V>,
+  codKey: BinaryCodec<K>,
+  codVal: BinaryCodec<V>,
   lengthPrecision: Precision = "u32"
-): Codec<Map<K, V>> => {
+): BinaryCodec<Map<K, V>> => {
   const codLength = codUInt(lengthPrecision);
 
   return {

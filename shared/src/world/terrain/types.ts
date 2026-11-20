@@ -3,16 +3,17 @@ import { tuple, type Tagged } from "niall-utils/core";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
+  binaryEncodable,
   chooseUIntCod,
   codI32,
+  codMap,
   codTagged,
+  codTupleOf,
   encArrayOf,
-  encodable,
-  type Codec,
   type EncodableType,
 } from "../../encoding/index.ts";
 
-/** Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32. */
+// Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32.
 export type RegionId = Tagged<bigint, "RegionId">;
 
 const I32_BITS = 32;
@@ -55,20 +56,12 @@ export const regionsAround = (
     )
   );
 
-const codRegionId: Codec<RegionId> = {
-  size: () => 2 * codI32.size(0),
-  write: (cursor, id) => {
-    const [x, y] = regionIdToPos(id);
-    codI32.write(cursor, x);
-    codI32.write(cursor, y);
-  },
-  read: cursor => regionPosToId(codI32.read(cursor), codI32.read(cursor)),
-};
-
-export const encRegionId = encodable<RegionId>(
+export const encRegionId = binaryEncodable<RegionId>(
   (value): value is RegionId =>
     typeof value === "bigint" && value >= 0n && value < U64_LIMIT,
-  codRegionId
+  codMap(codTupleOf(codI32, codI32), regionIdToPos, ([x, y]) =>
+    regionPosToId(x, y)
+  )
 );
 
 export const tiles = tuple(
@@ -88,7 +81,7 @@ export const tiles = tuple(
 export type Tile = (typeof tiles)[number];
 export type TileId = Tagged<number, "TileId">;
 
-export const encTileId = encodable<TileId>(
+export const encTileId = binaryEncodable<TileId>(
   (value): value is TileId =>
     isInteger(value) && value >= 0 && value < tiles.length,
   codTagged(chooseUIntCod(tiles.length))

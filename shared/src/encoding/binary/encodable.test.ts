@@ -3,22 +3,22 @@ import { describe, expect, it } from "vitest";
 
 import { codStringOf, codU8 } from "./codec.ts";
 import {
+  binaryEncodable,
   encArrayOf,
   encExact,
   encNumber,
   encObjectOf,
-  encodable,
   encOneOf,
   encOptional,
   encRecordOf,
   encSetOf,
   encTupleOf,
   encUnionOf,
-  type Encodable,
+  type BinaryEncodable,
 } from "./encodable.ts";
 
-const byte = encodable(isNumber, codU8);
-const text = encodable(isString, codStringOf());
+const byte = binaryEncodable(isNumber, codU8);
+const text = binaryEncodable(isString, codStringOf());
 
 describe("encodable", () => {
   it("encodes and decodes through the codec", () => {
@@ -39,7 +39,10 @@ describe("encodable", () => {
   });
 
   it("returns undefined when the decoded value fails the guard", () => {
-    const small = encodable((v): v is number => isNumber(v) && v < 10, codU8);
+    const small = binaryEncodable(
+      (v): v is number => isNumber(v) && v < 10,
+      codU8
+    );
 
     expect(small.decode(Uint8Array.of(9))).toBe(9);
     expect(small.decode(Uint8Array.of(10))).toBeUndefined();
@@ -362,7 +365,7 @@ describe("encUnionOf", () => {
   });
 
   it("uses the first variant whose guard accepts the value", () => {
-    const first = encUnionOf(byte, encodable(isNumber, codU8));
+    const first = encUnionOf(byte, binaryEncodable(isNumber, codU8));
 
     expect(first.encode(1)).toEqual(Uint8Array.of(0, 1));
   });
@@ -380,7 +383,7 @@ describe("encUnionOf", () => {
   it("widens the tag past 256 variants", () => {
     const variants = Array.from({ length: 300 }, (_, i) => encExact(i));
     const many = encUnionOf<[number, ...number[]]>(
-      ...(variants as [Encodable<number>, ...Encodable<number>[]])
+      ...(variants as [BinaryEncodable<number>, ...BinaryEncodable<number>[]])
     );
 
     expect(many.encode(299)).toEqual(Uint8Array.of(0x2b, 0x01));

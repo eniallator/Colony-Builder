@@ -3,3 +3,5 @@ packages:
   - server-core
   - server-node
   - shared
+minimumReleaseAgeExclude:
+  - webpack@5.113.0

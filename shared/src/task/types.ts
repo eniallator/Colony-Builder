@@ -1,12 +1,12 @@
 import { isNumber } from "deep-guards";
 
 import {
+  binaryEncodable,
   codF16,
   encArrayOf,
   encBoolean,
   encExact,
   encObjectOf,
-  encodable,
   encUnionOf,
   encVec2,
   type EncodableWritableType,
@@ -15,7 +15,7 @@ import {
 export const encGatherResource = encObjectOf({
   type: encExact("gatherResource"),
   target: encVec2,
-  progress: encodable(
+  progress: binaryEncodable(
     (value): value is number => isNumber(value) && value >= 0,
     codF16
   ),

@@ -7,12 +7,12 @@ import {
 } from "niall-utils/core";
 
 import {
+  binaryEncodable,
   codF32,
   codTagged,
   codU32,
   encMapOf,
   encObjectOf,
-  encodable,
   encOneOf,
   encOptional,
   encVec2,
@@ -24,7 +24,7 @@ import { encTaskList } from "../../task/types.ts";
 export type EntityId = Tagged<number, "EntityId">;
 export const unsafeEntityId = unsafeTag<EntityId>();
 
-export const encEntityId = encodable<EntityId>(
+export const encEntityId = binaryEncodable<EntityId>(
   (value): value is EntityId =>
     isInteger(value) && Number.isFinite(value) && value >= 0,
   codTagged(codU32)
@@ -34,7 +34,7 @@ export const allEntityTypes = tuple("player", "robot", "item");
 export const encEntityType = encOneOf(allEntityTypes);
 export type EntityType = EncodableType<typeof encEntityType>;
 
-const encFiniteNumber = encodable(
+const encFiniteNumber = binaryEncodable(
   (value): value is number => isNumber(value) && Number.isFinite(value),
   codF32
 );

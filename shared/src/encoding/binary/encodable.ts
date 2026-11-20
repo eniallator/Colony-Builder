@@ -22,6 +22,7 @@ import { mapObject, typedToEntries } from "niall-utils/data";
 import { mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 
+import type { Encodable } from "../format.ts";
 import {
   chooseUIntCod,
   codArrayOf,
@@ -38,24 +39,22 @@ import {
   codSetOf,
   codTupleOf,
   type ArrayOptions,
-  type Codec,
+  type BinaryCodec,
+  type BinaryFormat,
   type CodecValue,
   type NumberCodec,
   type Precision,
 } from "./codec.ts";
 
-export interface Encodable<
-  // oxlint-disable-next-line typescript/no-explicit-any
-  T extends CodecValue = any,
-> {
-  guard: Guard<T>;
-  codec: Codec<T>;
-  encode: (value: T) => Uint8Array<ArrayBuffer>;
-  decode: (encoded: Uint8Array) => T | undefined;
-}
+// oxlint-disable-next-line typescript/no-explicit-any
+export type BinaryEncodable<T extends CodecValue = any> = Encodable<
+  T,
+  BinaryFormat,
+  BinaryCodec<T>
+>;
 
-export type EncodableType<E extends Encodable> =
-  E extends Encodable<infer T> ? T : never;
+export type EncodableType<E extends BinaryEncodable> =
+  E extends BinaryEncodable<infer T> ? T : never;
 
 type DeepWritable<T> =
   T extends Vector<infer _N extends number>
@@ -70,14 +69,14 @@ type DeepWritable<T> =
             ? { -readonly [K in keyof T]: DeepWritable<T[K]> }
             : T;
 
-export type EncodableWritableType<E extends Encodable> = DeepWritable<
+export type EncodableWritableType<E extends BinaryEncodable> = DeepWritable<
   EncodableType<E>
 >;
 
-export const encodable = <const T extends CodecValue>(
+export const binaryEncodable = <const T extends CodecValue>(
   guard: Guard<T>,
-  codec: Codec<T>
-): Encodable<T> => ({
+  codec: BinaryCodec<T>
+): BinaryEncodable<T> => ({
   guard,
   codec,
   encode: value => {
@@ -97,13 +96,13 @@ export const encodable = <const T extends CodecValue>(
   },
 });
 
-export const encBoolean = encodable(isBoolean, codBoolean);
+export const encBoolean = binaryEncodable(isBoolean, codBoolean);
 
 export const encNumber: {
-  (tpe: NumberCodec): Encodable<number>;
-  (tpe: "uChoose", value: number): Encodable<number>;
-} = (tpe: NumberCodec | "uChoose", value?: number): Encodable<number> =>
-  encodable(
+  (tpe: NumberCodec): BinaryEncodable<number>;
+  (tpe: "uChoose", value: number): BinaryEncodable<number>;
+} = (tpe: NumberCodec | "uChoose", value?: number): BinaryEncodable<number> =>
+  binaryEncodable(
     isNumber,
     tpe === "uChoose" ? chooseUIntCod(value as number) : codNumber(tpe)
   );
@@ -115,7 +114,7 @@ const isVec =
     value.isSize(size) &&
     value.every(Number.isFinite);
 
-export const encVec2 = encodable<Vector<2>>(
+export const encVec2 = binaryEncodable<Vector<2>>(
   isVec(2),
   codMap(
     codTupleOf(codF32, codF32),
@@ -126,50 +125,52 @@ export const encVec2 = encodable<Vector<2>>(
 
 export const encExact = <const T extends string | number | boolean>(
   value: T
-): Encodable<T> => encodable(isExact(value), codExact(value));
+): BinaryEncodable<T> => binaryEncodable(isExact(value), codExact(value));
 
 export const encOptional = <const T extends CodecValue>(
-  inner: Encodable<T>
-): Encodable<T | undefined> =>
-  encodable(isOptional(inner.guard), codOptional(inner.codec));
+  inner: BinaryEncodable<T>
+): BinaryEncodable<T | undefined> =>
+  binaryEncodable(isOptional(inner.guard), codOptional(inner.codec));
 
 export const encOneOf = <
   const T extends ReadonlyNonEmptyArray<string | number | boolean>,
 >(
   values: T,
   precision?: Precision
-): Encodable<T[number]> =>
-  encodable(isOneOf(...values), codOneOf(values, precision));
+): BinaryEncodable<T[number]> =>
+  binaryEncodable(isOneOf(...values), codOneOf(values, precision));
 
 export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
-  ...inners: { [K in keyof T]: Encodable<T[K]> }
-): Encodable<T> =>
-  encodable(
+  ...inners: { [K in keyof T]: BinaryEncodable<T[K]> }
+): BinaryEncodable<T> =>
+  binaryEncodable(
     isTupleOf(
       ...(inners.map(enc => enc.guard) as NonEmptyArray<Guard<unknown>>)
     ) as unknown as Guard<T>,
     codTupleOf<T>(
-      ...(inners.map(({ codec }) => codec) as { [K in keyof T]: Codec<T[K]> })
+      ...(inners.map(({ codec }) => codec) as {
+        [K in keyof T]: BinaryCodec<T[K]>;
+      })
     )
   );
 
 export const encSetOf = <const T extends CodecValue>(
-  inner: Encodable<T>,
+  inner: BinaryEncodable<T>,
   lengthPrecision?: Precision
-): Encodable<Set<T>> =>
-  encodable(
+): BinaryEncodable<Set<T>> =>
+  binaryEncodable(
     (value): value is Set<T> =>
       value instanceof Set && value.values().every(item => inner.guard(item)),
     codSetOf(inner.codec, lengthPrecision)
   );
 
 export const encArrayOf = <const T extends CodecValue>(
-  inner: Encodable<T>,
+  inner: BinaryEncodable<T>,
   opts?: ArrayOptions
-): Encodable<T[]> => {
+): BinaryEncodable<T[]> => {
   const isItems = isArrayOf(inner.guard);
 
-  return encodable(
+  return binaryEncodable(
     (value): value is T[] =>
       isItems(value) &&
       (opts?.fixedLength == null || value.length === opts.fixedLength),
@@ -181,18 +182,20 @@ export const encRecordOf = <
   const K extends string | number,
   const V extends CodecValue,
 >(
-  encKey: Encodable<K>,
-  encVal: Encodable<V>
-): Encodable<Record<K, V>> =>
-  encodable(
+  encKey: BinaryEncodable<K>,
+  encVal: BinaryEncodable<V>
+): BinaryEncodable<Record<K, V>> =>
+  binaryEncodable(
     isRecordOf(encKey.guard, encVal.guard),
     codRecordOf(encKey.codec, encVal.codec)
   );
 
 export const encObjectOf = <
   const T extends { [K in keyof T]: CodecValue },
->(shape: { [K in keyof T]-?: Encodable<T[K]> }): Encodable<T> =>
-  encodable(
+>(shape: {
+  [K in keyof T]-?: BinaryEncodable<T[K]>;
+}): BinaryEncodable<T> =>
+  binaryEncodable(
     isExactObjectOf(
       mapObject<typeof shape, Record<string, Guard<unknown>>>(
         shape,
@@ -200,7 +203,7 @@ export const encObjectOf = <
       )
     ) as Guard<T>,
     codObjectOf(
-      mapObject<typeof shape, { [K in keyof T]: Codec<T[K]> }>(
+      mapObject<typeof shape, { [K in keyof T]: BinaryCodec<T[K]> }>(
         shape,
         ([key, { codec }]) => [key, codec]
       )
@@ -211,10 +214,10 @@ export const encMapOf = <
   const K extends CodecValue,
   const V extends CodecValue,
 >(
-  encKey: Encodable<K>,
-  encVal: Encodable<V>
-): Encodable<Map<K, V>> =>
-  encodable(
+  encKey: BinaryEncodable<K>,
+  encVal: BinaryEncodable<V>
+): BinaryEncodable<Map<K, V>> =>
+  binaryEncodable(
     (value): value is Map<K, V> =>
       value instanceof Map &&
       value
@@ -224,15 +227,15 @@ export const encMapOf = <
   );
 
 export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
-  ...encs: { [K in keyof T]: Encodable<T[K]> }
-): Encodable<T[number]> => {
+  ...encs: { [K in keyof T]: BinaryEncodable<T[K]> }
+): BinaryEncodable<T[number]> => {
   const cod = chooseUIntCod(encs.length - 1);
   const matchEncodable = (value: T[number]) =>
     mapFind(encs, (encodable, index) =>
       encodable.guard(value) ? { index, encodable } : null
     ) ?? raise(new TypeError("Value matches no union variant"));
 
-  return encodable(
+  return binaryEncodable(
     isUnionOf(
       ...(encs.map(enc => enc.guard) as NonEmptyArray<Guard<unknown>>)
     ) as Guard<T[number]>,
@@ -253,17 +256,19 @@ export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
 };
 
 type RegistryValues<
-  Reg extends Record<string, Encodable>,
+  Reg extends Record<string, BinaryEncodable>,
   Ids = UnionToTuple<keyof Reg>,
 > = Ids extends [infer Id extends keyof Reg, ...infer Rest]
   ? { id: Id; data: EncodableType<Reg[Id]> } | RegistryValues<Reg, Rest>
   : never;
 
-export const encRegistryValues = <const Reg extends Record<string, Encodable>>(
+export const encRegistryValues = <
+  const Reg extends Record<string, BinaryEncodable>,
+>(
   registry: Reg
-): Encodable<RegistryValues<Reg>> =>
+): BinaryEncodable<RegistryValues<Reg>> =>
   encUnionOf(
     ...(typedToEntries(registry).map(([id, data]) =>
       encObjectOf({ id: encExact(id as string), data })
-    ) as NonEmptyArray<Encodable>)
-  ) as Encodable<RegistryValues<Reg>>;
+    ) as NonEmptyArray<BinaryEncodable>)
+  ) as BinaryEncodable<RegistryValues<Reg>>;

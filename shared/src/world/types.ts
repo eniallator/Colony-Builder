@@ -2,7 +2,7 @@ import {
   encMapOf,
   encObjectOf,
   type EncodableType,
-} from "../encoding/encodable.ts";
+} from "../encoding/binary/encodable.ts";
 import {
   encRegionStructures,
   type RegionStructures,

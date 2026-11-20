@@ -1,17 +1,17 @@
 import { isInteger } from "deep-guards";
-import { positiveMod } from "niall-utils";
 import type { Tagged } from "niall-utils/core";
+import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
+  binaryEncodable,
   codU16,
   encExact,
   encMapOf,
-  encodable,
   encRegistryValues,
   U16_MAX,
-  type Codec,
-  type Encodable,
+  type BinaryCodec,
+  type BinaryEncodable,
   type EncodableType,
 } from "../../encoding/index.ts";
 import {
@@ -25,16 +25,16 @@ import {
 export const structureRegistry = {
   cactus: encExact(true),
   tree: encExact(true),
-} as const satisfies Record<string, Encodable>;
+} as const satisfies Record<string, BinaryEncodable>;
 
 export const encStructureData = encRegistryValues(structureRegistry);
 export type StructureData = EncodableType<typeof encStructureData>;
 
 export type SubRegionId = Tagged<number, "RegionPos">;
-export const encSubRegionId = encodable(
+export const encSubRegionId = binaryEncodable(
   (value): value is SubRegionId =>
     isInteger(value) && value >= 0 && value < U16_MAX,
-  codU16 as Codec<SubRegionId>
+  codU16 as BinaryCodec<SubRegionId>
 );
 
 export const subRegionIdToPos = (id: SubRegionId): [x: number, y: number] => [
