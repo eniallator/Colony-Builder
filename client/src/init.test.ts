@@ -13,7 +13,12 @@ import {
 } from "vitest";
 
 import type { State } from "./state.ts";
-import type { AppContext, StatefulAppContext } from "./ui/index.ts";
+import type { ClickableTarget } from "./ui/clickable.ts";
+import {
+  createStateful,
+  type AppContext,
+  type StatefulAppContext,
+} from "./ui/index.ts";
 
 interface MockApp {
   init: Mock<(ctx: AppContext) => State>;
@@ -38,6 +43,8 @@ const NOW_MS = 1_000_000;
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
   world: new World(),
+  clickTarget: createStateful<ClickableTarget | null>(null),
+  clickHandlers: {},
   send: vi.fn(),
 });
 

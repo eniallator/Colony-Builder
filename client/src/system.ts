@@ -7,11 +7,15 @@ import {
 import {
   prepareRender,
   renderAboveGround,
+  renderHUD,
   renderTiles,
-} from "./render/system.ts";
+} from "./render/system/index.ts";
 import type { Camera } from "./ui/camera.ts";
+import type { ClickableHandlers, ClickableTarget } from "./ui/clickable.ts";
 import { renderInventoryDialog } from "./ui/inventory.ts";
-import type { Time } from "./ui/types.ts";
+import type { Keyboard } from "./ui/keyboard.ts";
+import type { Mouse } from "./ui/mouse.ts";
+import type { Stateful, Time } from "./ui/types.ts";
 
 export type ClientSystem = System<{
   playerId?: EntityId;
@@ -20,6 +24,10 @@ export type ClientSystem = System<{
   canvas: HTMLCanvasElement;
   camera: Camera;
   inventoryId?: EntityId;
+  clickTarget: Stateful<ClickableTarget | null>;
+  clickHandlers: Partial<ClickableHandlers>;
+  mouse: Mouse;
+  keyboard: Keyboard;
 }>;
 
 export const clientSystems: ClientSystem[] = [
@@ -27,5 +35,6 @@ export const clientSystems: ClientSystem[] = [
   prepareRender,
   renderTiles,
   renderAboveGround,
+  renderHUD,
   renderInventoryDialog,
 ];

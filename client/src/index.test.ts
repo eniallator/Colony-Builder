@@ -34,12 +34,14 @@ import {
 import { app } from "./index.ts";
 import type { State } from "./state.ts";
 import type { ClientSystem } from "./system.ts";
+import type { ClickableTarget } from "./ui/clickable.ts";
 import {
   Keyboard,
   Mouse,
   type AppContext,
   type StatefulAppContext,
 } from "./ui/index.ts";
+import { createStateful } from "./ui/types.ts";
 
 const { systems } = vi.hoisted((): { systems: Mock<ClientSystem>[] } => ({
   systems: [vi.fn(), vi.fn()],
@@ -396,6 +398,8 @@ describe("app.animationFrame", () => {
       camera: { center: Vector.zero(2), zoom: 0 },
       world,
       playerId: createPlayer(world, playerPosition),
+      clickTarget: createStateful<ClickableTarget | null>(null),
+      clickHandlers: {},
       send: vi.fn(),
     };
   };
@@ -459,6 +463,8 @@ describe("app.animationFrame", () => {
         camera: { center: Vector.zero(2), zoom: 0 },
         world,
         playerId,
+        clickTarget: createStateful<ClickableTarget | null>(null),
+        clickHandlers: {},
         send: vi.fn(),
       };
     };

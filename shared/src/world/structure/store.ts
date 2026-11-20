@@ -57,7 +57,7 @@ export class StructureStore {
     worldX: number,
     worldY: number,
     sideLength: number
-  ): Structure[] {
+  ): (Structure & { regionId: RegionId; id: SubRegionId })[] {
     return regionsAround(
       ...worldToRegionPos(worldX, worldY),
       Math.ceil(sideLength / REGION_SIDE_LENGTH)
@@ -69,6 +69,8 @@ export class StructureStore {
           .map(([id, data]) => ({
             ...data,
             worldPos: regionIdsToWorldPos(regionId, id),
+            regionId,
+            id,
           }))
           .toArray() ?? []
     );

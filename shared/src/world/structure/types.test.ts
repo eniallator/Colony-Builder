@@ -103,8 +103,8 @@ describe("encSubRegionId", () => {
 describe("encRegionStructures", () => {
   it("round-trips the structures of a region", () => {
     const structures: RegionStructures = new Map([
-      [subRegionPosToId(1, 2), { id: "tree", data: true }],
-      [subRegionPosToId(200, 9), { id: "cactus", data: true }],
+      [subRegionPosToId(1, 2), { type: "tree", data: true }],
+      [subRegionPosToId(200, 9), { type: "cactus", data: true }],
     ]);
 
     expect(
@@ -121,7 +121,7 @@ describe("encRegionStructures", () => {
   it("rejects a structure that is not in the registry", () => {
     expect(
       encRegionStructures.guard(
-        new Map([[subRegionPosToId(0, 0), { id: "rock", data: true }]])
+        new Map([[subRegionPosToId(0, 0), { type: "rock", data: true }]])
       )
     ).toBe(false);
   });

@@ -208,16 +208,16 @@ from constants in `client/src`. Sprite definitions (`scripts/atlas/sprites/`)
 can pass these as the last argument of `animated`, `directional` and `still`
 (or as fields on the sprite object); `pack.mjs` writes them out:
 
-| Field     | Meaning                                                                                                                                                                          |
-| --------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| `ground`  | Pixel line the sprite rests on, measured from the lowest visible pixel automatically. Only set it by hand where that is wrong (the shadows use their ellipse's centre).          |
-| `rows`    | How many tiles tall each frame is. Written by `pnpm atlas` when above 1 (trees are 2), so you never set it by hand. Tall sprites pack into their own rows after the 1-tile ones. |
-| `frameMs` | Time each animation frame shows, in ms (water, walk cycles).                                                                                                                     |
-| `stepPx`  | For animations that depict motion at a game speed (belts): pixels the art moves per frame. The client turns it into a frame time using the game's speed.                         |
+| Field      | Meaning                                                                                                                                                                          |
+| ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| `ground`   | Pixel line the sprite rests on, measured from the lowest visible pixel automatically. Only set it by hand where that is wrong (the shadows use their ellipse's centre).          |
+| `rows`     | How many tiles tall each frame is. Written by `pnpm atlas` when above 1 (trees are 2), so you never set it by hand. Tall sprites pack into their own rows after the 1-tile ones. |
+| `frameSec` | Time each animation frame shows, in seconds (water, walk cycles).                                                                                                                |
+| `stepPx`   | For animations that depict motion at a game speed (belts): pixels the art moves per frame. The client turns it into a frame time using the game's speed.                         |
 
-A sprite with more than one animation frame must give `frameMs` or `stepPx`;
+A sprite with more than one animation frame must give `frameSec` or `stepPx`;
 `pnpm atlas` fails otherwise. If a new animation depicts motion at a game speed,
-also add its tile to `TILE_SPEEDS` in `client/src/render/system.ts`.
+also add its tile to `TILE_SPEEDS` in `client/src/render/system/frame.ts`.
 
 ## Adding new art
 

@@ -12,12 +12,16 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { getAtlas, type Atlas, type AtlasSprite } from "../render/atlas.ts";
 import type { State } from "../state.ts";
+import type { ClickableTarget } from "./clickable.ts";
 import {
   createInventoryRow,
   renderInventoryDialog,
   renderInventoryList,
   setupInventoryDialog,
 } from "./inventory.ts";
+import { Keyboard } from "./keyboard.ts";
+import { Mouse } from "./mouse.ts";
+import { createStateful } from "./types.ts";
 
 vi.mock("../render/atlas.ts", () => ({ getAtlas: vi.fn() }));
 
@@ -205,6 +209,10 @@ describe("renderInventoryDialog", () => {
       camera: { center: Vector.zero(2), zoom: 0 },
       time: { now: 1, start: 0, lastFrame: 0.99, delta: 0.01 },
       dt: 0.01,
+      mouse: new Mouse(canvas),
+      keyboard: new Keyboard(),
+      clickTarget: createStateful<ClickableTarget | null>(null),
+      clickHandlers: {},
     });
   };
 

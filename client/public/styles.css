@@ -177,6 +177,24 @@ canvas {
   image-rendering: pixelated;
 }
 
+/* Placed by renderHUD (left/top) just below the clicked target's feet. */
+.click-popover {
+  position: fixed;
+  inset: auto;
+  margin: 0;
+  padding: 0.25rem;
+  border: 0;
+  border-radius: 0.6rem;
+  background-color: var(--bg-primary);
+  transform: translate(-50%, 0.5rem);
+
+  &:popover-open {
+    display: flex;
+    flex-direction: column;
+    gap: 0.25rem;
+  }
+}
+
 .config-item {
   display: flex;
   justify-content: space-between;

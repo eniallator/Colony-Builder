@@ -30,6 +30,8 @@ export const structureRegistry = {
 export const encStructureData = encRegistryValues(structureRegistry);
 export type StructureData = EncodableType<typeof encStructureData>;
 
+export type StructureType = StructureData["type"];
+
 export type SubRegionId = Tagged<number, "RegionPos">;
 export const encSubRegionId = binaryEncodable(
   (value): value is SubRegionId =>

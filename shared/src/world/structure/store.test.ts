@@ -10,8 +10,8 @@ import {
   type StructureData,
 } from "./types.ts";
 
-const tree: StructureData = { id: "tree", data: true };
-const cactus: StructureData = { id: "cactus", data: true };
+const tree: StructureData = { type: "tree", data: true };
+const cactus: StructureData = { type: "cactus", data: true };
 
 const origin = regionPosToId(0, 0);
 const other = regionPosToId(-1, 2);
@@ -127,9 +127,21 @@ describe("StructureStore", () => {
       // Two regions across, so regions -1 and 0 in each direction.
       const found = store.structuresAround(0, 0, 2 * REGION_SIDE_LENGTH);
 
+      const [treeRegion, treeSub] = worldPosToRegionIds(5.5, 5.5);
+      const [cactusRegion, cactusSub] = worldPosToRegionIds(-3.5, -3.5);
       expect(found).toHaveLength(2);
-      expect(found).toContainEqual({ ...tree, worldPos: [5.5, 5.5] });
-      expect(found).toContainEqual({ ...cactus, worldPos: [-3.5, -3.5] });
+      expect(found).toContainEqual({
+        ...tree,
+        worldPos: [5.5, 5.5],
+        regionId: treeRegion,
+        id: treeSub,
+      });
+      expect(found).toContainEqual({
+        ...cactus,
+        worldPos: [-3.5, -3.5],
+        regionId: cactusRegion,
+        id: cactusSub,
+      });
     });
 
     it("leaves out structures in regions that are too far", () => {

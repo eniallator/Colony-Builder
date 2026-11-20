@@ -1,1 +1,1 @@
-export * from "./system.ts";
+export * from "./system/index.ts";

@@ -8,6 +8,22 @@ export interface Time {
   now: number;
 }
 
+/** A mutable value that systems share: `value` always reflects the latest `setValue`. */
+export interface Stateful<T> {
+  value: T;
+  setValue: (value: T) => void;
+}
+
+export const createStateful = <T>(initial: T): Stateful<T> => {
+  const stateful: Stateful<T> = {
+    value: initial,
+    setValue: value => {
+      stateful.value = value;
+    },
+  };
+  return stateful;
+};
+
 export interface AppContext {
   canvas: HTMLCanvasElement;
   ctx: CanvasRenderingContext2D;

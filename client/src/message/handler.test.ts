@@ -13,11 +13,15 @@ import { Vector } from "vectyped";
 import { describe, expect, it, vi } from "vitest";
 
 import type { State } from "../state.ts";
+import type { ClickableTarget } from "../ui/clickable.ts";
+import { createStateful } from "../ui/types.ts";
 import { messageHandler } from "./handler.ts";
 
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
   world: new World(),
+  clickTarget: createStateful<ClickableTarget | null>(null),
+  clickHandlers: {},
   send: vi.fn(),
 });
 

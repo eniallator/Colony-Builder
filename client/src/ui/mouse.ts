@@ -1,9 +1,18 @@
+import { tuple } from "niall-utils/core";
 import { Vector } from "vectyped";
 
+const mouseButtons = tuple("left", "middle", "right");
+export type MouseButton = (typeof mouseButtons)[number];
+
 type MouseCallback = (this: Mouse, evt: MouseEvent | TouchEvent) => void;
+type MouseDownCallback = (
+  this: Mouse,
+  evt: MouseEvent | TouchEvent,
+  button: MouseButton | undefined
+) => void;
 
 interface MouseListeners {
-  onDown?: MouseCallback;
+  onDown?: MouseDownCallback;
   onMove?: MouseCallback;
   onUp?: MouseCallback;
 }
@@ -13,9 +22,14 @@ const isMouseEvent = (evt: MouseEvent | TouchEvent): evt is MouseEvent =>
 
 export class Mouse {
   private readonly listeners: MouseListeners;
-  private readonly _pos: Vector<2>;
-  private readonly _relativePos: Vector<2>;
-  private _down: boolean;
+  private readonly _pos: Vector<2> = Vector.zero(2);
+  private readonly _relativePos: Vector<2> = Vector.zero(2);
+  private readonly _clicked: Record<MouseButton, boolean> = {
+    left: false,
+    middle: false,
+    right: false,
+  };
+  private _down: boolean = false;
 
   /**
    * Tracks mouse events for a given DOM element
@@ -23,9 +37,6 @@ export class Mouse {
    */
   constructor(element: HTMLElement, listeners?: MouseListeners) {
     this.listeners = listeners ?? {};
-    this._down = false;
-    this._relativePos = Vector.zero(2);
-    this._pos = Vector.zero(2);
 
     const onChange = (cb: MouseCallback) => (evt: MouseEvent | TouchEvent) => {
       const evtPos = isMouseEvent(evt) ? evt : evt.touches[0];
@@ -41,8 +52,13 @@ export class Mouse {
       this.listeners.onMove?.call(this, evt);
     });
     element.onmousedown = element.ontouchstart = onChange(evt => {
+      const button: MouseButton | undefined = isMouseEvent(evt)
+        ? mouseButtons[evt.button]
+        : "left";
+      if (button != null) this._clicked[button] = true;
+
       this._down = true;
-      this.listeners.onDown?.call(this, evt);
+      this.listeners.onDown?.call(this, evt, button);
     });
     element.onmouseup = element.ontouchend = onChange(evt => {
       this._down = false;
@@ -50,12 +66,16 @@ export class Mouse {
     });
   }
 
+  endFrame() {
+    for (const button of mouseButtons) this._clicked[button] = false;
+  }
+
   /**
    * Triggered when the mouse down or touch down event is fired on the element
    *
    * @param {MouseCallback} onDown
    */
-  setOnDown(onDown: MouseCallback) {
+  setOnDown(onDown: MouseDownCallback) {
     this.listeners.onDown = onDown;
   }
 
@@ -87,5 +107,9 @@ export class Mouse {
 
   get relativePos(): Vector<2> {
     return this._relativePos;
+  }
+
+  clicked(button: MouseButton): boolean {
+    return this._clicked[button];
   }
 }

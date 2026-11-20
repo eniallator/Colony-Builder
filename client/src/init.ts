@@ -64,6 +64,7 @@ const animate = () => {
 
     app.animationFrame(statefulCtx);
     statefulCtx.keyboard.endFrame();
+    statefulCtx.mouse.endFrame();
     requestAnimationFrame(animate);
   }
 };

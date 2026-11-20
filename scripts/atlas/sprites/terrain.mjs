@@ -249,5 +249,5 @@ export const terrain = [
   variants("jungle", jungle),
   variants("iron_deposit", ironDeposit),
   variants("copper_deposit", copperDeposit),
-  animated("water", 4, water, { frameMs: 300 }),
+  animated("water", 4, water, { frameSec: 0.3 }),
 ];

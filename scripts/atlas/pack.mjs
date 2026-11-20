@@ -107,17 +107,17 @@ const lowestLine = frames => {
 
 /** The `atlas.json` entry for one sprite (see define.mjs for the metadata). */
 const describe = (
-  { name, frames, mode = "frames", ground, frameMs, stepPx },
+  { name, frames, mode = "frames", ground, frameSec, stepPx },
   cells
 ) => {
   if (
     mode === "frames" &&
     frames.length > 1 &&
-    frameMs == null &&
+    frameSec == null &&
     stepPx == null
   )
     throw new Error(
-      `"${name}" has ${frames.length} animation frames but no frameMs or stepPx`
+      `"${name}" has ${frames.length} animation frames but no frameSec or stepPx`
     );
   const tall = heightOf({ name, frames });
   return {
@@ -127,7 +127,7 @@ const describe = (
     ground: ground ?? lowestLine(frames),
     // Optional fields are left out rather than written as null.
     ...(tall > 1 && { rows: tall }),
-    ...(frameMs != null && { frameMs }),
+    ...(frameSec != null && { frameSec }),
     ...(stepPx != null && { stepPx }),
   };
 };
@@ -149,7 +149,7 @@ export const writeAtlas = sprites => {
     encodePng(width, height, pixels)
   );
   // atlas.json: `sprites[name] = { mode, cells: [[col, row], ...], colour:
-  // "#rrggbb", ground, rows?, frameMs?, stepPx? }`. `rows` is how many tiles
+  // "#rrggbb", ground, rows?, frameSec?, stepPx? }`. `rows` is how many tiles
   // tall each frame is (left out when 1); a cell is the frame's top-left tile.
   // `mode`: "variants" = pick one per tile; "frames" = animation (or a single
   // frame). Sprites that don't say are "frames".

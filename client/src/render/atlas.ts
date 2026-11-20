@@ -33,8 +33,8 @@ const isSpriteJson = isObjectOf({
   ground: isNumber,
   // How many tiles tall each frame is (1 when left out), e.g. a tree is 2.
   rows: isOptional(isInteger),
-  // How long each animation frame shows, in ms.
-  frameMs: isOptional(isNumber),
+  // How long each animation frame shows, in seconds.
+  frameSec: isOptional(isNumber),
   // How many art pixels the animation moves per frame, for animations that
   // depict motion at a game speed. The frame time comes from that speed.
   stepPx: isOptional(isNumber),

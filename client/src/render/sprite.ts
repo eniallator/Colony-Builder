@@ -35,13 +35,13 @@ const mix = (value: number): number => {
 export const variantIndex = (x: number, y: number, count: number): number =>
   count <= 1 ? 0 : mix(Math.imul(x, 0x9e3779b1) ^ mix(y)) % count;
 
-/** The frame of a looping animation showing at `nowMs` (see niall-utils `sequence`). */
+/** The frame of a looping animation showing at `now` seconds (see niall-utils `sequence`). */
 export const frameAt = <F>(
   frames: F[],
-  frameMs: number,
-  nowMs: number
+  frameSec: number,
+  now: number
 ): { frame: F; delta: number; index: number } =>
-  sequence(frames, frameMs)(nowMs);
+  sequence(frames, frameSec)(now);
 
 /** Splits `[from, to)` into runs of consecutive equal values: `[value, start, end)`. */
 export function* runsOf<T>(

@@ -2,12 +2,12 @@
 // where `frames` is a list of 16x16 RGBA buffers (variants OR animation frames),
 // plus optional metadata that pack.mjs copies into atlas.json for the renderer
 // (so nothing about the art is hard-coded in the client):
-//   frameMs  time each animation frame is shown, in ms
+//   frameSec time each animation frame is shown, in seconds
 //   stepPx   pixels the art moves per frame, for animations that depict motion
 //            at a game speed (the client derives the frame time from the speed)
 //   ground   pixel row line the sprite rests on; measured from the lowest
 //            opaque pixel unless given here (see pack.mjs)
-// Every sprite with more than one animation frame needs `frameMs` or `stepPx`.
+// Every sprite with more than one animation frame needs `frameSec` or `stepPx`.
 //
 // Naming contract with the game (checked by coverage.mjs):
 //   terrain tile `x`        -> sprite `x`

@@ -151,8 +151,8 @@ describe("frameAt", () => {
   const frames = ["a", "b", "c"];
 
   it("steps through the frames over time and loops", () => {
-    const at = (ms: number) => frameAt(frames, 100, ms).frame;
-    expect([0, 99, 100, 250, 300, 550, 650].map(at)).toEqual([
+    const at = (sec: number) => frameAt(frames, 1, sec).frame;
+    expect([0, 0.99, 1, 2.5, 3, 5.5, 6.5].map(at)).toEqual([
       "a",
       "a",
       "b",
@@ -164,6 +164,6 @@ describe("frameAt", () => {
   });
 
   it("reports the frame's index too", () => {
-    expect(frameAt(frames, 100, 150).index).toBe(1);
+    expect(frameAt(frames, 1, 1.5).index).toBe(1);
   });
 });

@@ -20,7 +20,7 @@ const validJson = {
       cells: [[2, 0]],
       colour: "#3a68a8",
       ground: 16,
-      frameMs: 300,
+      frameSec: 0.3,
     },
     conveyor_up: {
       mode: "frames",
@@ -84,7 +84,7 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        water: { ...validJson.sprites.water, frameMs: "fast" },
+        water: { ...validJson.sprites.water, frameSec: "fast" },
       },
     };
     expect(isAtlasJson(bad)).toBe(false);
@@ -153,7 +153,7 @@ describe("loadAtlas", () => {
     expect(grass?.mode).toBe("variants");
     expect(grass?.colour).toBe("#4b8341");
     expect(grass?.ground).toBe(16);
-    expect(atlas.sprites.get("water")?.frameMs).toBe(300);
+    expect(atlas.sprites.get("water")?.frameSec).toBe(0.3);
     expect(atlas.sprites.get("conveyor_up")?.stepPx).toBe(2);
     expect(grass?.cells).toEqual([
       [0, 0],

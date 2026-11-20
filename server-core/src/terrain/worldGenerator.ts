@@ -30,12 +30,12 @@ const WATER_LEVEL = -0.6;
 const BIOME_STRUCTURES: Partial<
   Record<Biome, { structure: StructureData; chance: number }>
 > = {
-  plains: { structure: { id: "tree", data: true }, chance: 0.005 },
-  desert: { structure: { id: "cactus", data: true }, chance: 0.02 },
+  plains: { structure: { type: "tree", data: true }, chance: 0.005 },
+  desert: { structure: { type: "cactus", data: true }, chance: 0.02 },
 };
 
 /** The tiles each kind of structure can grow on. */
-const GROWS_ON: Record<StructureData["id"], Tile[]> = {
+const GROWS_ON: Record<StructureData["type"], Tile[]> = {
   tree: ["grass", "swampland", "jungle"],
   cactus: ["sand"],
 };
@@ -79,7 +79,7 @@ const generateStructures = (
     const growth = BIOME_STRUCTURES[biome];
     if (growth == null || roll >= growth.chance) return;
     // Only on tiles it can grow on, so never on water, stone or ore.
-    if (!GROWS_ON[growth.structure.id].includes(tile)) return;
+    if (!GROWS_ON[growth.structure.type].includes(tile)) return;
 
     const [dx, dy] = idxToDeltaXY(idx);
     structures.set(

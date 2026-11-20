@@ -16,13 +16,13 @@ import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { clientSystems, type ClientSystem } from "./system.ts";
 import { connectLocal, connectWebSocket } from "./transport/index.ts";
+import type { ClickableTarget } from "./ui/clickable.ts";
 import {
   appMethods,
+  createStateful,
   fromCanvasCoords,
   setupInventoryDialog,
 } from "./ui/index.ts";
-
-const RIGHT_MOUSE_BUTTON = 2;
 
 const ZOOM_STEPS: Partial<Record<string, number>> = {
   Equal: 1,
@@ -40,6 +40,9 @@ export const app = appMethods<State>({
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 2 },
       world: new World(),
+      clickTarget: createStateful<ClickableTarget | null>(null),
+      // No click actions exist in the game yet; register them here by target type.
+      clickHandlers: {},
       send: message => {
         transport.send(encClientMessage.encode(message));
       },
@@ -56,8 +59,8 @@ export const app = appMethods<State>({
       evt.preventDefault();
     });
 
-    mouse.setOnDown(evt => {
-      if (evt instanceof MouseEvent && evt.button === RIGHT_MOUSE_BUTTON) {
+    mouse.setOnDown((evt, button) => {
+      if (evt instanceof MouseEvent && button === "right") {
         const mouseWorldPos = fromCanvasCoords(canvas, state.camera, mouse.pos);
         state.send({ type: "move", position: mouseWorldPos });
       }
@@ -71,8 +74,16 @@ export const app = appMethods<State>({
     return state;
   },
 
-  animationFrame: ({ getState, canvas, ctx, time }) => {
-    const { playerId, inventoryId, world, camera, send } = getState();
+  animationFrame: ({ getState, canvas, ctx, time, mouse, keyboard }) => {
+    const {
+      playerId,
+      inventoryId,
+      world,
+      camera,
+      clickTarget,
+      clickHandlers,
+      send,
+    } = getState();
     const dt = Math.min(time.delta, MAX_DT);
 
     const playerPos =
@@ -91,11 +102,15 @@ export const app = appMethods<State>({
       camera,
       playerId,
       inventoryId,
+      clickTarget,
+      clickHandlers,
       time,
       canvas,
       ctx,
       world,
       dt,
+      mouse,
+      keyboard,
     };
 
     for (const system of clientSystems) system(systemCtx);

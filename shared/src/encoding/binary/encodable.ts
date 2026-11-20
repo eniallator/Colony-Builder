@@ -257,9 +257,9 @@ export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
 
 type RegistryValues<
   Reg extends Record<string, BinaryEncodable>,
-  Ids = UnionToTuple<keyof Reg>,
-> = Ids extends [infer Id extends keyof Reg, ...infer Rest]
-  ? { id: Id; data: EncodableType<Reg[Id]> } | RegistryValues<Reg, Rest>
+  Tpes = UnionToTuple<keyof Reg>,
+> = Tpes extends [infer Tpe extends keyof Reg, ...infer Rest]
+  ? { type: Tpe; data: EncodableType<Reg[Tpe]> } | RegistryValues<Reg, Rest>
   : never;
 
 export const encRegistryValues = <
@@ -268,7 +268,7 @@ export const encRegistryValues = <
   registry: Reg
 ): BinaryEncodable<RegistryValues<Reg>> =>
   encUnionOf(
-    ...(typedToEntries(registry).map(([id, data]) =>
-      encObjectOf({ id: encExact(id as string), data })
+    ...(typedToEntries(registry).map(([type, data]) =>
+      encObjectOf({ type: encExact(type as string), data })
     ) as NonEmptyArray<BinaryEncodable>)
   ) as BinaryEncodable<RegistryValues<Reg>>;
