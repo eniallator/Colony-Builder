@@ -1,13 +1,17 @@
 import {
   addItemToInventory,
   dropInventory,
+  regionIdsToWorldPos,
   TASK_DURATION,
   type DropInventory,
-  type GatherResource,
+  type GatherStructure,
+  type GatherTile,
   type Item,
   type ItemId,
+  type StructureType,
   type Tile,
 } from "@colony-builder/shared";
+import { Vector } from "vectyped";
 
 import type { ServerSystem } from "../system.ts";
 import { destinationFor, isInRange } from "./helpers.ts";
@@ -18,12 +22,14 @@ const tileDrops: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
   copper_deposit: { id: "copper_ore", item: { count: 5 } },
 };
 
-const gatherResourceTask: TaskRunner<GatherResource> = (
-  entity,
-  task,
-  world,
-  dt
-) => {
+const structureDrops: Partial<
+  Record<StructureType, { id: ItemId; item: Item }>
+> = {
+  tree: { id: "log", item: { count: 5 } },
+  cactus: { id: "cactus", item: { count: 5 } },
+};
+
+const gatherTileTask: TaskRunner<GatherTile> = (entity, task, world, dt) => {
   if (!isInRange(entity, task.target)) {
     if (world.entities.optGet(entity.id, "destination") == null) {
       world.entities.add(
@@ -41,6 +47,41 @@ const gatherResourceTask: TaskRunner<GatherResource> = (
   const targetTile = world.terrain.optTileAt(task.target.x(), task.target.y());
   const gatheredItem = targetTile != null ? tileDrops[targetTile] : null;
 
+  if (task.progress >= TASK_DURATION && gatheredItem != null) {
+    addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
+    return { done: true, cleanTask: { ...task, progress: 0 } };
+  } else return { done: false };
+};
+
+const gatherStructureTask: TaskRunner<GatherStructure> = (
+  entity,
+  task,
+  world,
+  dt
+) => {
+  const structure = world.structures.optGetStructure(
+    task.regionId,
+    task.subRegionId
+  );
+  if (structure == null) return { done: true, cleanTask: null };
+
+  const worldPos = Vector.create(
+    ...regionIdsToWorldPos(task.regionId, task.subRegionId)
+  );
+  if (!isInRange(entity, worldPos)) {
+    if (world.entities.optGet(entity.id, "destination") == null) {
+      world.entities.add(
+        entity.id,
+        "destination",
+        destinationFor(entity, worldPos)
+      );
+    }
+
+    return { done: false };
+  }
+
+  task.progress += dt;
+  const gatheredItem = structureDrops[structure.type];
   if (task.progress >= TASK_DURATION && gatheredItem != null) {
     addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
     return { done: true, cleanTask: { ...task, progress: 0 } };
@@ -67,8 +108,9 @@ const dropInventoryTask: TaskRunner<DropInventory> = (entity, task, world) => {
 };
 
 const taskRunners: TaskRunners = {
+  gatherTile: gatherTileTask,
+  gatherStructure: gatherStructureTask,
   dropInventory: dropInventoryTask,
-  gatherResource: gatherResourceTask,
 };
 
 export const taskSystem: ServerSystem = ({ world, dt }) => {
@@ -86,7 +128,9 @@ export const taskSystem: ServerSystem = ({ world, dt }) => {
 
     if (result.done) {
       taskList.tasks.shift();
-      if (taskList.repeat) taskList.tasks.push(result.cleanTask);
+      if (taskList.repeat && result.cleanTask) {
+        taskList.tasks.push(result.cleanTask);
+      }
     }
   }
 };

@@ -1,7 +1,7 @@
 import type { ClientMessage, EntityId, World } from "@colony-builder/shared";
 
 import type { Camera } from "./ui/camera.ts";
-import type { ClickableHandlers, ClickableTarget } from "./ui/clickable.ts";
+import type { ClickDetails } from "./ui/clickable.ts";
 import type { Stateful } from "./ui/types.ts";
 
 export interface State {
@@ -9,8 +9,6 @@ export interface State {
   world: World;
   playerId?: EntityId;
   inventoryId?: EntityId;
-  /** What the player last clicked, until its click action has finished. */
-  clickTarget: Stateful<ClickableTarget | null>;
-  clickHandlers: Partial<ClickableHandlers>;
+  clickDetails: Stateful<ClickDetails | null>;
   send: (message: ClientMessage) => void;
 }

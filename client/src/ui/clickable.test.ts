@@ -2,103 +2,93 @@ import {
   regionPosToId,
   subRegionPosToId,
   unsafeEntityId,
-  type EntityId,
-  type RegionId,
-  type SubRegionId,
+  type EntityType,
+  type StructureType,
 } from "@colony-builder/shared";
 import { describe, expect, it, vi } from "vitest";
 
 import {
-  actionFor,
   clickableCallback,
   clickableSelect,
   isSameTarget,
   type ClickableTarget,
 } from "./clickable.ts";
 
-const entity = (id: number): ClickableTarget => [
-  "entity.robot",
-  unsafeEntityId(id),
-];
-const structure = (region: number, sub: number): ClickableTarget => [
-  "structure.tree",
-  regionPosToId(region, 0),
-  subRegionPosToId(sub, 0),
-];
+const entity = (id: number, type: EntityType = "robot"): ClickableTarget => ({
+  domain: "entity",
+  type,
+  id: unsafeEntityId(id),
+});
+
+const structure = (
+  region: number,
+  sub: number,
+  type: StructureType = "tree"
+): ClickableTarget => ({
+  domain: "structure",
+  type,
+  regionId: regionPosToId(region, 0),
+  subRegionId: subRegionPosToId(sub, 0),
+});
 
 describe("isSameTarget", () => {
-  it("is true for equal targets, and for two nulls", () => {
+  it("is true for the same target, equal targets and two nulls", () => {
+    const target = entity(1);
+
+    expect(isSameTarget(target, target)).toBe(true);
     expect(isSameTarget(entity(1), entity(1))).toBe(true);
     expect(isSameTarget(structure(1, 2), structure(1, 2))).toBe(true);
     expect(isSameTarget(null, null)).toBe(true);
   });
 
-  it("tells apart different ids and types", () => {
+  it("tells apart entities with a different id or type", () => {
     expect(isSameTarget(entity(1), entity(2))).toBe(false);
-    expect(isSameTarget(entity(1), ["entity.player", unsafeEntityId(1)])).toBe(
-      false
-    );
+    expect(isSameTarget(entity(1, "robot"), entity(1, "player"))).toBe(false);
   });
 
-  it("needs both ids of a structure to match", () => {
+  it("needs the type and both ids of a structure to match", () => {
     expect(isSameTarget(structure(1, 2), structure(2, 2))).toBe(false);
     expect(isSameTarget(structure(1, 2), structure(1, 3))).toBe(false);
+    expect(
+      isSameTarget(structure(1, 2, "tree"), structure(1, 2, "cactus"))
+    ).toBe(false);
+  });
+
+  it("never matches an entity with a structure", () => {
+    expect(isSameTarget(entity(1), structure(1, 1))).toBe(false);
+    expect(isSameTarget(structure(1, 1), entity(1))).toBe(false);
   });
 
   it("is false when only one side is null", () => {
     expect(isSameTarget(entity(1), null)).toBe(false);
-    expect(isSameTarget(null, entity(1))).toBe(false);
+    expect(isSameTarget(null, structure(1, 2))).toBe(false);
   });
 });
 
-describe("actionFor", () => {
-  it("is undefined when nothing handles the target's type", () => {
-    expect(actionFor({}, entity(1))).toBeUndefined();
+describe("clickableCallback", () => {
+  it("wraps the callback", () => {
+    const onClick = vi.fn();
+    const run = clickableCallback(onClick);
+
+    expect(run.type).toBe("callback");
+    run.onClick();
+    expect(onClick).toHaveBeenCalledOnce();
   });
+});
 
-  it("binds an entity's id to a callback", () => {
-    const onClick = vi.fn<(id: EntityId) => void>();
-    const action = actionFor(
-      { "entity.robot": clickableCallback(onClick) },
-      entity(7)
-    );
-
-    expect(action?.type).toBe("Callback");
-    if (action?.type === "Callback") action.run();
-    expect(onClick).toHaveBeenCalledExactlyOnceWith(7);
-  });
-
-  it("binds both ids of a structure to a callback", () => {
-    const onClick = vi.fn<(region: RegionId, sub: SubRegionId) => void>();
-    const action = actionFor(
-      { "structure.tree": clickableCallback(onClick) },
-      structure(3, 4)
-    );
-
-    expect(action?.type).toBe("Callback");
-    if (action?.type === "Callback") action.run();
-    expect(onClick).toHaveBeenCalledExactlyOnceWith(
-      regionPosToId(3, 0),
-      subRegionPosToId(4, 0)
-    );
-  });
-
-  it("offers a select's options and passes the picked value before the ids", () => {
-    const onSelect = vi.fn<(value: string, id: EntityId) => void>();
+describe("clickableSelect", () => {
+  it("keeps the options and passes the picked value to the handler", () => {
+    const onSelect = vi.fn<(value: string) => void>();
     const options = [
       { label: "Follow", value: "follow" },
       { label: "Stop", value: "stop" },
     ];
-    const action = actionFor(
-      { "entity.robot": clickableSelect(options, onSelect) },
-      entity(5)
-    );
+    const run = clickableSelect("Pick one", options, onSelect);
 
-    expect(action?.type).toBe("Select");
-    if (action?.type !== "Select") return;
-    expect(action.options).toEqual(options);
-
-    action.run("stop");
-    expect(onSelect).toHaveBeenCalledExactlyOnceWith("stop", 5);
+    expect(run.type).toBe("select");
+    expect(run.title).toBe("Pick one");
+    expect(run.options).toEqual(options);
+    run.onSelect("stop");
+    expect(onSelect).toHaveBeenCalledExactlyOnceWith("stop");
   });
 });

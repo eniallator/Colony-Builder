@@ -52,7 +52,7 @@ const robot: Components = {
   inventory: new Map(),
   taskList: {
     tasks: [
-      { type: "gatherResource", target: Vector.create(3, 4), progress: 0.5 },
+      { type: "gatherTile", target: Vector.create(3, 4), progress: 0.5 },
       { type: "dropInventory", target: Vector.create(-1, 2) },
     ],
     repeat: true,

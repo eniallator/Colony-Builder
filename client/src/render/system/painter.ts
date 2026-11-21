@@ -36,8 +36,8 @@ const drawCell = (
  * square sitting on `foot`; otherwise it is centred horizontally with its
  * `ground` line at `foot`.
  */
-const spriteRect = (
-  { atlas, textured }: Painter,
+export const spriteRect = (
+  { atlas, textured }: Pick<Painter, "atlas" | "textured">,
   sprite: AtlasSprite,
   foot: Vector<2>,
   size: number

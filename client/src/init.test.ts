@@ -13,7 +13,7 @@ import {
 } from "vitest";
 
 import type { State } from "./state.ts";
-import type { ClickableTarget } from "./ui/clickable.ts";
+import type { ClickDetails } from "./ui/clickable.ts";
 import {
   createStateful,
   type AppContext,
@@ -43,8 +43,7 @@ const NOW_MS = 1_000_000;
 const createState = (): State => ({
   camera: { center: Vector.zero(2), zoom: 0 },
   world: new World(),
-  clickTarget: createStateful<ClickableTarget | null>(null),
-  clickHandlers: {},
+  clickDetails: createStateful<ClickDetails | null>(null),
   send: vi.fn(),
 });
 

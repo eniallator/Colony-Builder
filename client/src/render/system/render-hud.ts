@@ -1,21 +1,25 @@
-import type { World } from "@colony-builder/shared";
+import type { ClientMessage, World } from "@colony-builder/shared";
 import { memoize } from "niall-utils/data";
+import { clamp } from "niall-utils/math";
 import { addListener, toElement } from "niall-utils/ui";
 import { Vector } from "vectyped";
 
 import type { ClientSystem } from "../../system.ts";
-import { toCanvasCoords } from "../../ui/camera.ts";
+import { toCanvasCoords, type Camera } from "../../ui/camera.ts";
 import {
-  actionFor,
-  isSameTarget,
-  type ClickableAction,
+  clickableCallback,
+  clickableSelect,
+  type AnyClickableSelect,
   type ClickableTarget,
+  type ClickDetails,
 } from "../../ui/clickable.ts";
-
-type SelectAction = Extract<ClickableAction, { type: "Select" }>;
+import { getAtlas } from "../atlas.ts";
+import { usesTextures } from "../sprite.ts";
+import { spriteRect } from "./painter.ts";
 
 interface Shown {
-  target: ClickableTarget;
+  /** The click this popover belongs to. */
+  details: ClickDetails;
   popover: HTMLElement;
   /** Runs once the popover has been dismissed, whatever the reason. */
   onFinished: () => void;
@@ -51,32 +55,36 @@ const listenForDismissal = memoize(() => {
   });
 });
 
-/** Where `target` stands in the world, or undefined if it no longer exists. */
-const worldPosOf = (
+const footPosOf = (
   world: World,
   target: ClickableTarget
 ): Vector<2> | undefined => {
-  if (target.length === 2) return world.entities.optGet(target[1], "position");
+  switch (target.domain) {
+    case "entity":
+      return world.entities.optGet(target.id, "position");
 
-  const worldPos = world.structures.optGetStructure(
-    target[1],
-    target[2]
-  )?.worldPos;
-  return worldPos != null ? Vector.create(...worldPos) : undefined;
+    case "structure": {
+      const worldPos = world.structures.optGetStructure(
+        target.regionId,
+        target.subRegionId
+      )?.worldPos;
+      return worldPos != null ? Vector.create(...worldPos) : undefined;
+    }
+  }
 };
 
-const createPopover = ({ options, run }: SelectAction): HTMLElement => {
+const createPopover = (select: AnyClickableSelect): HTMLElement => {
   const popover = toElement(
-    '<div class="click-popover" popover="manual"></div>'
+    `<div class="click-popover" popover="manual"><div class="click-popover-title">${select.title}</div></div>`
   );
 
-  for (const { label, value } of options) {
+  for (const { label, value } of select.options) {
     const button = toElement(
       '<button type="button" class="secondary"></button>'
     );
     button.textContent = label;
     addListener(button, "click", () => {
-      run(value);
+      select.onSelect(value);
       finish();
     });
     popover.append(button);
@@ -85,62 +93,195 @@ const createPopover = ({ options, run }: SelectAction): HTMLElement => {
 };
 
 const showPopover = (
-  target: ClickableTarget,
-  action: SelectAction,
+  details: ClickDetails,
+  select: AnyClickableSelect,
   onFinished: () => void
 ): Shown => {
   listenForDismissal();
 
-  const popover = createPopover(action);
+  const popover = createPopover(select);
   document.body.append(popover);
   popover.showPopover();
-  return { target, popover, onFinished };
+  return { details, popover, onFinished };
 };
 
 /**
- * Acts on the `clickTarget`: a callback runs straight away, while a select
- * opens a popover of its options that follows the target around the screen.
- * The `clickTarget` is cleared once the click is finished: the callback has
- * run, an option was picked, the popover was dismissed, or the target moved off
- * the screen (or no longer exists).
+ * Whether any part of `target` is on the canvas. A structure counts by its whole
+ * sprite, so a tall one stays while its top is in view after its base has
+ * scrolled off. Anything else, or any target before the atlas has loaded, counts
+ * by its foot.
  */
+const isOnScreen = (
+  canvas: HTMLCanvasElement,
+  camera: Camera,
+  target: ClickableTarget | null,
+  foot: Vector<2>
+): boolean => {
+  const atlas = getAtlas();
+  const sprite =
+    target?.domain === "structure"
+      ? atlas?.sprites.get(target.type)
+      : undefined;
+  if (atlas == null || sprite == null) {
+    return foot.inBounds([canvas.width, canvas.height]);
+  }
+
+  const pxPerTile = 2 ** camera.zoom;
+  const { topLeft, dimensions } = spriteRect(
+    { atlas, textured: usesTextures(pxPerTile) },
+    sprite,
+    foot,
+    pxPerTile
+  );
+  const bottomRight = topLeft.copy().add(dimensions);
+  return (
+    bottomRight.x() > 0 &&
+    bottomRight.y() > 0 &&
+    topLeft.x() < canvas.width &&
+    topLeft.y() < canvas.height
+  );
+};
+
+const POPOVER_GAP_PX = 8;
+
+/**
+ * The top left corner for a popover of `size` belonging to a target standing at
+ * `foot`: centred below it, or above it when there is no room below, and never
+ * outside the canvas.
+ */
+const popoverPosOf = (
+  foot: Vector<2>,
+  size: Vector<2>,
+  canvas: HTMLCanvasElement
+): Vector<2> => {
+  const below = foot.y() + POPOVER_GAP_PX;
+  const fitsBelow = below + size.y() <= canvas.height;
+  return Vector.create(
+    clamp(foot.x() - size.x() / 2, 0, Math.max(0, canvas.width - size.x())),
+    clamp(
+      fitsBelow ? below : foot.y() - POPOVER_GAP_PX - size.y(),
+      0,
+      Math.max(0, canvas.height - size.y())
+    )
+  ).round();
+};
+
+const terrainRunFor = (
+  worldPos: Vector<2>,
+  world: World,
+  send: (message: ClientMessage) => void
+) => {
+  const tile = world.terrain.optTileAt(worldPos.x(), worldPos.y());
+  if (tile == null) return null;
+
+  switch (tile) {
+    case "iron_deposit":
+    case "copper_deposit":
+      return clickableSelect(
+        tile === "iron_deposit" ? "Iron Deposit" : "Copper Deposit",
+        [{ label: "Gather", value: worldPos }],
+        position => {
+          send({ type: "gatherTile", position });
+        }
+      );
+
+    case "grass":
+    case "swampland":
+    case "jungle":
+    case "water":
+    case "sand":
+    case "stone":
+    case "conveyor_up":
+    case "conveyor_down":
+    case "conveyor_left":
+    case "conveyor_right":
+    default:
+      return null;
+  }
+};
+
+const targetRunFor = (
+  target: ClickableTarget,
+  send: (message: ClientMessage) => void
+) => {
+  switch (target.domain) {
+    case "entity":
+      return clickableCallback(() => {
+        console.log(target.type, target.id);
+      });
+
+    case "structure":
+      return clickableSelect(
+        target.type,
+        [
+          {
+            label: "Gather",
+            value: {
+              regionId: target.regionId,
+              subRegionId: target.subRegionId,
+            },
+          },
+        ],
+        value => {
+          send({ type: "gatherStructure", ...value });
+        }
+      );
+  }
+};
+
 export const renderHUD: ClientSystem = ({
   canvas,
   camera,
+  clickDetails,
   world,
-  clickTarget,
-  clickHandlers,
+  send,
 }) => {
-  const target = clickTarget.value;
-  if (target == null) {
+  const details = clickDetails.value;
+  const run =
+    details == null
+      ? null
+      : details.target != null
+        ? targetRunFor(details.target, send)
+        : terrainRunFor(details.worldPos, world, send);
+
+  if (details == null || run == null) {
     dismiss();
     return;
   }
 
-  const action = actionFor(clickHandlers, target);
-  if (action?.type !== "Select") {
+  if (run.type !== "select") {
     dismiss();
-    action?.run();
-    clickTarget.setValue(null);
+    run.onClick();
+    clickDetails.setValue(null);
     return;
   }
 
-  const worldPos = worldPosOf(world, target);
+  // A target stands where it is now; a terrain click stays where it landed.
+  const worldPos =
+    details.target != null
+      ? footPosOf(world, details.target)
+      : details.worldPos;
   const foot =
-    worldPos != null ? toCanvasCoords(canvas, camera, worldPos) : undefined;
-  if (!foot?.inBounds([canvas.width, canvas.height])) {
+    worldPos != null ? toCanvasCoords(canvas, camera, worldPos) : null;
+  if (foot == null || !isOnScreen(canvas, camera, details.target, foot)) {
     dismiss();
-    clickTarget.setValue(null);
+    clickDetails.setValue(null);
     return;
   }
 
-  if (shown == null || !isSameTarget(shown.target, target)) {
+  // Every click makes a new `details`, so this is one popover per click.
+  if (shown?.details !== details) {
     dismiss();
-    shown = showPopover(target, action, () => {
-      clickTarget.setValue(null);
+    shown = showPopover(details, run, () => {
+      clickDetails.setValue(null);
     });
   }
 
-  shown.popover.style.left = `${Math.round(foot.x())}px`;
-  shown.popover.style.top = `${Math.round(foot.y())}px`;
+  const [left, top] = popoverPosOf(
+    foot,
+    Vector.create(shown.popover.offsetWidth, shown.popover.offsetHeight),
+    canvas
+  ).toArray();
+  shown.popover.style.left = `${left}px`;
+  shown.popover.style.top = `${top}px`;
 };

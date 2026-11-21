@@ -42,7 +42,7 @@ export const renderAboveGround: ClientSystem = ({
   world,
   time,
   mouse,
-  clickTarget,
+  clickDetails,
 }) => {
   const atlas = getAtlas();
   if (atlas == null) return;
@@ -96,7 +96,7 @@ export const renderAboveGround: ClientSystem = ({
     });
 
     considerTarget(
-      [`structure.${type}`, regionId, id],
+      { domain: "structure", type, regionId, subRegionId: id },
       clickDist(type, pos, pxPerTile)
     );
   }
@@ -119,7 +119,7 @@ export const renderAboveGround: ClientSystem = ({
         facings.set(id, facing);
 
         considerTarget(
-          [`entity.${entityType}`, id],
+          { domain: "entity", type: entityType, id },
           clickDist(`${entityType}_${facing}`, pos, pxPerTile)
         );
 
@@ -148,7 +148,7 @@ export const renderAboveGround: ClientSystem = ({
 
         if (itemId != null) {
           considerTarget(
-            ["entity.item", id],
+            { domain: "entity", type: entityType, id },
             clickDist(`item_${itemId}`, pos, ITEM_TILES * pxPerTile)
           );
           aboveGround.push({
@@ -180,6 +180,13 @@ export const renderAboveGround: ClientSystem = ({
   // Forget entities that no longer exist.
   for (const id of new Set(facings.keys()).difference(seen)) facings.delete(id);
 
-  // oxlint-disable-next-line typescript/no-unnecessary-condition
-  if (clicked != null) clickTarget.setValue(clicked[1]);
+  if (hasClicked) {
+    // Where the click landed in the world: the inverse of `footOf`.
+    const clickPos = mouse.pos.copy().sub(origin).divide(pxPerTile);
+    clickDetails.setValue({
+      // oxlint-disable-next-line typescript/no-unnecessary-condition
+      target: clicked?.[1] ?? null,
+      worldPos: clickPos,
+    });
+  }
 };

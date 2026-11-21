@@ -56,18 +56,24 @@ export type BinaryEncodable<T extends CodecValue = any> = Encodable<
 export type EncodableType<E extends BinaryEncodable> =
   E extends BinaryEncodable<infer T> ? T : never;
 
+type Primitive = string | number | bigint | boolean | symbol | null | undefined;
+
 type DeepWritable<T> =
   T extends Vector<infer _N extends number>
     ? T
-    : T extends (...args: never[]) => unknown
+    : // Tagged primitives (e.g. RegionId) are `primitive & object`, so they
+      // must be kept whole before the object branch maps them.
+      T extends Primitive
       ? T
-      : T extends Map<infer K, infer V>
-        ? Map<DeepWritable<K>, DeepWritable<V>>
-        : T extends Set<infer U>
-          ? Set<DeepWritable<U>>
-          : T extends object
-            ? { -readonly [K in keyof T]: DeepWritable<T[K]> }
-            : T;
+      : T extends (...args: never[]) => unknown
+        ? T
+        : T extends Map<infer K, infer V>
+          ? Map<DeepWritable<K>, DeepWritable<V>>
+          : T extends Set<infer U>
+            ? Set<DeepWritable<U>>
+            : T extends object
+              ? { -readonly [K in keyof T]: DeepWritable<T[K]> }
+              : T;
 
 export type EncodableWritableType<E extends BinaryEncodable> = DeepWritable<
   EncodableType<E>

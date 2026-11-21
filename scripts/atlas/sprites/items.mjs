@@ -106,4 +106,36 @@ export const items = [
       b: PALETTE.log.barkDark,
     }
   ),
+  // A cut cactus segment lying on its side: pale cut face on the left, ribs
+  // running along the body with a groove between them, and a few spines.
+  item(
+    "cactus",
+    [
+      "................",
+      "................",
+      "................",
+      "................",
+      "...OOOOOOOOOOO..",
+      "..OsssOhhhhhhhO.",
+      ".OsSSssOBpBBpBbO",
+      ".OsSssSOgggggggO",
+      ".OsSSssOBBpBBpbO",
+      "..OsssObbbbbbbO.",
+      "...OOOOOOOOOOO..",
+      "................",
+      "................",
+      "................",
+      "................",
+      "................",
+    ],
+    {
+      s: PALETTE.cactus[3],
+      S: PALETTE.cactus[2],
+      h: PALETTE.cactus[3],
+      B: PALETTE.cactus[2],
+      b: PALETTE.cactus[1],
+      g: PALETTE.cactus[0],
+      p: PALETTE.sand[3],
+    }
+  ),
 ];

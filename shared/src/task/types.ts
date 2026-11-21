@@ -11,16 +11,29 @@ import {
   encVec2,
   type EncodableWritableType,
 } from "../encoding/index.ts";
+import { encSubRegionId } from "../world/structure/types.ts";
+import { encRegionId } from "../world/terrain/types.ts";
 
-export const encGatherResource = encObjectOf({
-  type: encExact("gatherResource"),
+export const encGatherTile = encObjectOf({
+  type: encExact("gatherTile"),
   target: encVec2,
   progress: binaryEncodable(
     (value): value is number => isNumber(value) && value >= 0,
     codF16
   ),
 });
-export type GatherResource = EncodableWritableType<typeof encGatherResource>;
+export type GatherTile = EncodableWritableType<typeof encGatherTile>;
+
+export const encGatherStructure = encObjectOf({
+  type: encExact("gatherStructure"),
+  regionId: encRegionId,
+  subRegionId: encSubRegionId,
+  progress: binaryEncodable(
+    (value): value is number => isNumber(value) && value >= 0,
+    codF16
+  ),
+});
+export type GatherStructure = EncodableWritableType<typeof encGatherStructure>;
 
 export const encDropInventory = encObjectOf({
   type: encExact("dropInventory"),
@@ -28,7 +41,11 @@ export const encDropInventory = encObjectOf({
 });
 export type DropInventory = EncodableWritableType<typeof encDropInventory>;
 
-export const encTask = encUnionOf(encGatherResource, encDropInventory);
+export const encTask = encUnionOf(
+  encGatherTile,
+  encGatherStructure,
+  encDropInventory
+);
 export type Task = EncodableWritableType<typeof encTask>;
 
 export const encTaskList = encObjectOf({

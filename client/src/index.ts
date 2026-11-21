@@ -16,7 +16,7 @@ import { messageHandler } from "./message/handler.ts";
 import type { State } from "./state.ts";
 import { clientSystems, type ClientSystem } from "./system.ts";
 import { connectLocal, connectWebSocket } from "./transport/index.ts";
-import type { ClickableTarget } from "./ui/clickable.ts";
+import type { ClickDetails } from "./ui/clickable.ts";
 import {
   appMethods,
   createStateful,
@@ -40,9 +40,7 @@ export const app = appMethods<State>({
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 2 },
       world: new World(),
-      clickTarget: createStateful<ClickableTarget | null>(null),
-      // No click actions exist in the game yet; register them here by target type.
-      clickHandlers: {},
+      clickDetails: createStateful<ClickDetails | null>(null),
       send: message => {
         transport.send(encClientMessage.encode(message));
       },
@@ -75,15 +73,8 @@ export const app = appMethods<State>({
   },
 
   animationFrame: ({ getState, canvas, ctx, time, mouse, keyboard }) => {
-    const {
-      playerId,
-      inventoryId,
-      world,
-      camera,
-      clickTarget,
-      clickHandlers,
-      send,
-    } = getState();
+    const { playerId, inventoryId, world, camera, clickDetails, send } =
+      getState();
     const dt = Math.min(time.delta, MAX_DT);
 
     const playerPos =
@@ -102,8 +93,8 @@ export const app = appMethods<State>({
       camera,
       playerId,
       inventoryId,
-      clickTarget,
-      clickHandlers,
+      clickDetails,
+      send,
       time,
       canvas,
       ctx,

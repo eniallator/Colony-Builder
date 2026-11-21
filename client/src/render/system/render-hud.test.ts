@@ -1,11 +1,11 @@
 import {
-  createPlayer,
+  REGION_SIDE_LENGTH,
+  regionPosToId,
+  tileToId,
   unsafeEntityId,
   World,
   worldPosToRegionIds,
-  type EntityId,
-  type RegionId,
-  type SubRegionId,
+  type ClientMessage,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
 import { toElement } from "niall-utils/ui";
@@ -21,23 +21,37 @@ import {
 } from "vitest";
 
 import type { ClientSystem } from "../../system.ts";
-import {
-  clickableCallback,
-  clickableSelect,
-  type ClickableHandlers,
-  type ClickableTarget,
-} from "../../ui/clickable.ts";
+import type { ClickableTarget, ClickDetails } from "../../ui/clickable.ts";
 import { Keyboard } from "../../ui/keyboard.ts";
 import { Mouse } from "../../ui/mouse.ts";
 import { createStateful } from "../../ui/types.ts";
+import { getAtlas, type Atlas, type AtlasSprite } from "../atlas.ts";
 import { renderHUD } from "./render-hud.ts";
+
+vi.mock("../atlas.ts", () => ({ getAtlas: vi.fn() }));
+
+type StructureTarget = Extract<ClickableTarget, { domain: "structure" }>;
 
 const CANVAS_SIZE = [100, 50] as const;
 
-const OPTIONS = [
-  { label: "Follow", value: "follow" },
-  { label: "Stop", value: "stop" },
-];
+/** The space between a structure and its popover; matches `render-hud.ts`. */
+const POPOVER_GAP = 8;
+
+/** A tree is two tiles tall and rests on its 30th pixel row (of 32). */
+const treeSprite = {
+  mode: "variants",
+  cells: [[0, 0]],
+  colour: "#0a0",
+  ground: 30,
+  rows: 2,
+  frames: [],
+} satisfies AtlasSprite;
+
+const atlas: Atlas = {
+  tileSize: 16,
+  sheet: { width: 16, height: 32 } as ImageBitmap,
+  sprites: new Map([["tree", treeSprite]]),
+};
 
 describe("renderHUD", () => {
   const canvas = toElement("<canvas></canvas>");
@@ -45,14 +59,15 @@ describe("renderHUD", () => {
   canvas.height = CANVAS_SIZE[1];
 
   const showPopover = vi.fn();
-  const onClick = vi.fn<(id: EntityId) => void>();
-  const onSelect = vi.fn<(value: string, id: EntityId) => void>();
+  const send = vi.fn<(message: ClientMessage) => void>();
+  const log = vi.spyOn(console, "log");
+  const clickDetails = createStateful<ClickDetails | null>(null);
+  const sizeSpies: { mockRestore: () => void }[] = [];
 
   let world: World;
-  let playerId: EntityId;
   let camera: { center: Vector<2>; zoom: number };
-  const clickTarget = createStateful<ClickableTarget | null>(null);
-  let clickHandlers: Partial<ClickableHandlers>;
+  let tree: StructureTarget;
+  let treePos: Vector<2>;
 
   beforeAll(() => {
     // jsdom has no Popover API.
@@ -65,22 +80,29 @@ describe("renderHUD", () => {
   beforeEach(() => {
     document.body.replaceChildren();
     showPopover.mockReset();
-    onClick.mockReset();
-    onSelect.mockReset();
+    send.mockReset();
+    vi.mocked(getAtlas).mockReset();
+    log.mockReset();
+    log.mockImplementation(() => undefined);
 
     world = new World();
-    playerId = createPlayer(world, Vector.create(10, 10));
-    camera = { center: Vector.create(10, 10), zoom: 0 };
-    clickTarget.setValue(null);
-    clickHandlers = {
-      "entity.player": clickableSelect(OPTIONS, onSelect),
-      "entity.robot": clickableCallback(onClick),
-    };
+    world.structures.addStructure(30, 40, { type: "tree", data: true });
+    const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
+    tree = { domain: "structure", type: "tree", regionId, subRegionId };
+    treePos = Vector.create(
+      ...(world.structures.optGetStructure(regionId, subRegionId)?.worldPos ??
+        raise(new Error("Structure was not added")))
+    );
+
+    // Centred on the tree, so it is in the middle of the canvas.
+    camera = { center: treePos.copy(), zoom: 0 };
+    clickDetails.setValue(null);
   });
 
   afterEach(() => {
+    for (const spy of sizeSpies.splice(0)) spy.mockRestore();
     // Clears any popover left on screen.
-    clickTarget.setValue(null);
+    clickDetails.setValue(null);
     run();
   });
 
@@ -95,9 +117,21 @@ describe("renderHUD", () => {
       dt: 0.01,
       mouse: new Mouse(canvas),
       keyboard: new Keyboard(),
-      clickTarget,
-      clickHandlers,
+      clickDetails,
+      send,
     });
+  };
+
+  /** jsdom does no layout, so every element is 0x0 unless told otherwise. */
+  const stubPopoverSize = (width: number, height: number) => {
+    sizeSpies.push(
+      vi
+        .spyOn(HTMLElement.prototype, "offsetWidth", "get")
+        .mockReturnValue(width),
+      vi
+        .spyOn(HTMLElement.prototype, "offsetHeight", "get")
+        .mockReturnValue(height)
+    );
   };
 
   const popovers = () =>
@@ -105,73 +139,207 @@ describe("renderHUD", () => {
   const popover = () => popovers()[0] ?? raise(new Error("No popover shown"));
   const buttons = () => [...popover().querySelectorAll("button")];
 
-  const click = (target: ClickableTarget) => {
-    clickTarget.setValue(target);
+  const click = (target: ClickableTarget | null) => {
+    clickDetails.setValue({ target, worldPos: Vector.zero(2) });
     run();
   };
-  const clickPlayer = () => {
-    click(["entity.player", playerId]);
-  };
 
-  it("does nothing without a click target", () => {
+  it("does nothing without click details", () => {
     run();
 
     expect(popovers()).toHaveLength(0);
-    expect(clickTarget.value).toBeNull();
+    expect(log).not.toHaveBeenCalled();
+    expect(clickDetails.value).toBeNull();
   });
 
-  it("runs a callback straight away and then clears the target", () => {
-    const robotId = unsafeEntityId(42);
-    click(["entity.robot", robotId]);
+  it("runs an entity's callback straight away and then clears the click", () => {
+    click({ domain: "entity", type: "robot", id: unsafeEntityId(42) });
 
-    expect(onClick).toHaveBeenCalledExactlyOnceWith(robotId);
-    expect(clickTarget.value).toBeNull();
+    expect(log).toHaveBeenCalledExactlyOnceWith("robot", 42);
+    expect(clickDetails.value).toBeNull();
     expect(popovers()).toHaveLength(0);
   });
 
-  it("clears a target that nothing handles", () => {
-    clickHandlers = {};
-    clickPlayer();
+  it("dismisses an open popover when the click hit nothing", () => {
+    click(tree);
+    expect(popovers()).toHaveLength(1);
 
-    expect(clickTarget.value).toBeNull();
+    click(null);
+
     expect(popovers()).toHaveLength(0);
+    expect(clickDetails.value?.target).toBeNull();
   });
 
-  describe("a select", () => {
-    it("opens a popover of its options and keeps the target", () => {
-      clickPlayer();
+  describe("a click on terrain", () => {
+    const orePos = Vector.create(5, 5);
+
+    beforeEach(() => {
+      world.terrain.add(
+        regionPosToId(0, 0),
+        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId("grass"))
+      );
+      world.terrain.addTile(5, 5, tileToId("iron_deposit"));
+      camera.center = orePos.copy();
+    });
+
+    const clickOre = () => {
+      clickDetails.setValue({ target: null, worldPos: orePos });
+      run();
+    };
+
+    it("offers to mine an ore deposit", () => {
+      clickOre();
+
+      expect(buttons().map(button => button.textContent)).toEqual(["Mine"]);
+      expect(send).not.toHaveBeenCalled();
+    });
+
+    it("sends a gather message for the clicked position on Mine, then clears the click", () => {
+      clickOre();
+
+      buttons()[0]?.click();
+
+      expect(send).toHaveBeenCalledExactlyOnceWith({
+        type: "gather",
+        position: orePos,
+      });
+      expect(clickDetails.value).toBeNull();
+      expect(popovers()).toHaveLength(0);
+    });
+
+    it("offers nothing on ground that cannot be mined", () => {
+      world.terrain.addTile(5, 5, tileToId("grass"));
+
+      clickOre();
+
+      expect(popovers()).toHaveLength(0);
+      expect(send).not.toHaveBeenCalled();
+    });
+  });
+
+  describe("a structure's select", () => {
+    it("opens a popover of its options and keeps the click", () => {
+      click(tree);
 
       expect(popovers()).toHaveLength(1);
       expect(showPopover).toHaveBeenCalledOnce();
       expect(buttons().map(button => button.textContent)).toEqual([
-        "Follow",
-        "Stop",
+        "Foo",
+        "Bar",
       ]);
-      expect(clickTarget.value).toEqual(["entity.player", playerId]);
+      expect(clickDetails.value?.target).toBe(tree);
     });
 
-    it("puts the popover at the target's position on screen", () => {
-      clickPlayer();
+    it("puts the popover at the structure's position on screen", () => {
+      click(tree);
 
-      // The camera is centred on the player, so it is mid-canvas.
+      // The camera is centred on the tree, so it is mid-canvas; the popover
+      // hangs just below it.
       expect(popover().style.left).toBe(`${CANVAS_SIZE[0] / 2}px`);
-      expect(popover().style.top).toBe(`${CANVAS_SIZE[1] / 2}px`);
+      expect(popover().style.top).toBe(`${CANVAS_SIZE[1] / 2 + POPOVER_GAP}px`);
     });
 
-    it("runs the handler with the picked option and then clears the target", () => {
-      clickPlayer();
+    describe("placement", () => {
+      it("is centred below the structure when there is room", () => {
+        stubPopoverSize(40, 10);
+
+        click(tree);
+
+        expect(popover().style.left).toBe(`${CANVAS_SIZE[0] / 2 - 20}px`);
+        expect(popover().style.top).toBe(
+          `${CANVAS_SIZE[1] / 2 + POPOVER_GAP}px`
+        );
+      });
+
+      it("flips above the structure near the bottom of the canvas", () => {
+        stubPopoverSize(40, 10);
+        // Moves the structure down to y = 45, where 10px more does not fit.
+        camera.center = treePos.copy().sub([0, 20]);
+
+        click(tree);
+
+        expect(popover().style.top).toBe(`${45 - POPOVER_GAP - 10}px`);
+      });
+
+      it("stays inside the canvas at the right edge", () => {
+        stubPopoverSize(40, 10);
+        camera.center = treePos.copy().sub([45, 0]);
+
+        click(tree);
+
+        expect(popover().style.left).toBe(`${CANVAS_SIZE[0] - 40}px`);
+      });
+
+      it("stays inside the canvas at the left edge", () => {
+        stubPopoverSize(40, 10);
+        camera.center = treePos.copy().add([45, 0]);
+
+        click(tree);
+
+        expect(popover().style.left).toBe("0px");
+      });
+    });
+
+    describe("visibility", () => {
+      // At 8px per tile the tree is 16px tall, and its top is 15px above its
+      // base (the point it stands on).
+      beforeEach(() => {
+        camera.zoom = 3;
+      });
+
+      it("stays up while its top is on the canvas, though its base is off it", () => {
+        vi.mocked(getAtlas).mockReturnValue(atlas);
+        stubPopoverSize(40, 10);
+        // Base at y = 60, below the 50px canvas; top at y = 45, on it.
+        camera.center = treePos.copy().sub([0, 35 / 8]);
+
+        click(tree);
+
+        expect(popovers()).toHaveLength(1);
+        // Kept inside the canvas, even though the base is not.
+        expect(popover().style.top).toBe(`${CANVAS_SIZE[1] - 10}px`);
+      });
+
+      it("is dismissed once none of it is on the canvas", () => {
+        vi.mocked(getAtlas).mockReturnValue(atlas);
+        // Base at y = 80, top at y = 65.
+        camera.center = treePos.copy().sub([0, 55 / 8]);
+
+        click(tree);
+
+        expect(popovers()).toHaveLength(0);
+        expect(clickDetails.value).toBeNull();
+      });
+
+      it("goes by its base until the atlas has loaded", () => {
+        camera.center = treePos.copy().sub([0, 35 / 8]);
+
+        click(tree);
+
+        expect(popovers()).toHaveLength(0);
+        expect(clickDetails.value).toBeNull();
+      });
+    });
+
+    it("runs the handler with the picked option and then clears the click", () => {
+      click(tree);
 
       buttons()[1]?.click();
 
-      expect(onSelect).toHaveBeenCalledExactlyOnceWith("stop", playerId);
-      expect(clickTarget.value).toBeNull();
+      expect(log).toHaveBeenCalledExactlyOnceWith(
+        "tree",
+        tree.regionId,
+        tree.subRegionId,
+        "bar"
+      );
+      expect(clickDetails.value).toBeNull();
       expect(popovers()).toHaveLength(0);
     });
 
-    it("follows the target as it moves on screen", () => {
-      clickPlayer();
+    it("follows the structure as it moves on screen", () => {
+      click(tree);
 
-      camera.center = Vector.create(5, 10);
+      camera.center = treePos.copy().sub([5, 0]);
       run();
 
       expect(popover().style.left).toBe(`${CANVAS_SIZE[0] / 2 + 5}px`);
@@ -179,54 +347,56 @@ describe("renderHUD", () => {
       expect(showPopover).toHaveBeenCalledOnce();
     });
 
-    it("dismisses when the target moves off the screen", () => {
-      clickPlayer();
+    it("dismisses when the structure moves off the screen", () => {
+      click(tree);
 
-      camera.center = Vector.create(1000, 10);
+      camera.center = treePos.copy().add([1000, 0]);
       run();
 
       expect(popovers()).toHaveLength(0);
-      expect(clickTarget.value).toBeNull();
+      expect(clickDetails.value).toBeNull();
     });
 
-    it("dismisses when the target no longer exists", () => {
-      click(["entity.player", unsafeEntityId(999)]);
+    it("dismisses when the structure no longer exists", () => {
+      const [regionId, subRegionId] = worldPosToRegionIds(-500, -500);
+
+      click({ ...tree, regionId, subRegionId });
 
       expect(popovers()).toHaveLength(0);
-      expect(clickTarget.value).toBeNull();
+      expect(clickDetails.value).toBeNull();
     });
 
     it("dismisses on a pointer press outside the popover", () => {
-      clickPlayer();
+      click(tree);
 
       document.body.dispatchEvent(new Event("pointerdown", { bubbles: true }));
 
       expect(popovers()).toHaveLength(0);
-      expect(clickTarget.value).toBeNull();
+      expect(clickDetails.value).toBeNull();
     });
 
     it("stays open on a pointer press inside the popover", () => {
-      clickPlayer();
+      click(tree);
 
       popover().dispatchEvent(new Event("pointerdown", { bubbles: true }));
 
       expect(popovers()).toHaveLength(1);
-      expect(clickTarget.value).toEqual(["entity.player", playerId]);
+      expect(clickDetails.value?.target).toBe(tree);
     });
 
     it("dismisses on Escape", () => {
-      clickPlayer();
+      click(tree);
 
       document.body.dispatchEvent(
         new KeyboardEvent("keydown", { code: "Escape", bubbles: true })
       );
 
       expect(popovers()).toHaveLength(0);
-      expect(clickTarget.value).toBeNull();
+      expect(clickDetails.value).toBeNull();
     });
 
     it("ignores other keys", () => {
-      clickPlayer();
+      click(tree);
 
       document.body.dispatchEvent(
         new KeyboardEvent("keydown", { code: "KeyA", bubbles: true })
@@ -236,11 +406,10 @@ describe("renderHUD", () => {
     });
 
     it("is replaced by the popover of a newly clicked target", () => {
-      clickPlayer();
+      click(tree);
       const first = popover();
 
-      const other = createPlayer(world, Vector.create(20, 10));
-      click(["entity.player", other]);
+      click({ ...tree, type: "cactus" });
 
       expect(popovers()).toHaveLength(1);
       expect(popover()).not.toBe(first);
@@ -249,32 +418,12 @@ describe("renderHUD", () => {
     });
 
     it("keeps one popover while the same target stays clicked", () => {
-      clickPlayer();
+      click(tree);
       run();
       run();
 
       expect(popovers()).toHaveLength(1);
       expect(showPopover).toHaveBeenCalledOnce();
-    });
-
-    it("is found by region and sub-region id for a structure", () => {
-      world.structures.addStructure(30, 40, { type: "tree", data: true });
-      const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
-      const structurePos =
-        world.structures.optGetStructure(regionId, subRegionId)?.worldPos ??
-        raise(new Error("Structure was not added"));
-      clickHandlers = {
-        "structure.tree": clickableSelect<[RegionId, SubRegionId], string>(
-          OPTIONS,
-          vi.fn()
-        ),
-      };
-      camera.center = Vector.create(...structurePos);
-
-      click(["structure.tree", regionId, subRegionId]);
-
-      expect(popovers()).toHaveLength(1);
-      expect(popover().style.left).toBe(`${CANVAS_SIZE[0] / 2}px`);
     });
   });
 });

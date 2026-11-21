@@ -6,6 +6,7 @@ export const itemDataRegistry = {
   iron_ore: { label: "Iron Ore" },
   copper_ore: { label: "Copper Ore" },
   log: { label: "Log" },
+  cactus: { label: "Cactus" },
 } as const satisfies Record<string, { label: string; data?: unknown }>;
 
 export const encItemId = encOneOf(

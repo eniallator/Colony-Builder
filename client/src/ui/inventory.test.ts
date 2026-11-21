@@ -12,7 +12,7 @@ import { beforeEach, describe, expect, it, vi, type Mock } from "vitest";
 
 import { getAtlas, type Atlas, type AtlasSprite } from "../render/atlas.ts";
 import type { State } from "../state.ts";
-import type { ClickableTarget } from "./clickable.ts";
+import type { ClickDetails } from "./clickable.ts";
 import {
   createInventoryRow,
   renderInventoryDialog,
@@ -211,8 +211,8 @@ describe("renderInventoryDialog", () => {
       dt: 0.01,
       mouse: new Mouse(canvas),
       keyboard: new Keyboard(),
-      clickTarget: createStateful<ClickableTarget | null>(null),
-      clickHandlers: {},
+      clickDetails: createStateful<ClickDetails | null>(null),
+      send: vi.fn(),
     });
   };
 

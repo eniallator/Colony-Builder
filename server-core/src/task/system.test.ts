@@ -8,7 +8,7 @@ import {
   tileToId,
   World,
   type EntityId,
-  type GatherResource,
+  type GatherTile,
   type Task,
   type Tile,
 } from "@colony-builder/shared";
@@ -44,8 +44,8 @@ const stopRepeating = (world: World, id: EntityId): void => {
   });
 };
 
-const gather = (progress = 0): GatherResource => ({
-  type: "gatherResource",
+const gather = (progress = 0): GatherTile => ({
+  type: "gatherTile",
   target: target.copy(),
   progress,
 });
@@ -57,7 +57,7 @@ const centre = () => target.copy().add(0.5);
 const nearTarget = centre;
 
 describe("taskSystem", () => {
-  describe("gatherResource", () => {
+  describe("gatherTile", () => {
     it("sends the entity to within reach of the target", () => {
       const world = worldWithTile("iron_deposit");
       const id = createRobot(world, Vector.zero(2), [gather()]);
@@ -106,7 +106,7 @@ describe("taskSystem", () => {
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
 
-    it("gathers the resource once the duration has elapsed", () => {
+    it("gathers the tile once the duration has elapsed", () => {
       const world = worldWithTile("iron_deposit");
       const id = createRobot(world, nearTarget(), [gather()]);
 
@@ -131,7 +131,7 @@ describe("taskSystem", () => {
       );
     });
 
-    it("gathers nothing from a tile with no resource", () => {
+    it("gathers nothing from a tile with no tile", () => {
       const world = worldWithTile("conveyor_right");
       const id = createRobot(world, nearTarget(), [gather()]);
 
@@ -226,7 +226,7 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 1 });
 
       expect(tasks.map(({ type }) => type)).toEqual([
-        "gatherResource",
+        "gatherTile",
         "dropInventory",
       ]);
     });
@@ -239,7 +239,7 @@ describe("taskSystem", () => {
 
       expect(
         world.entities.get(id, "taskList").tasks.map(({ type }) => type)
-      ).toEqual(["dropInventory", "gatherResource"]);
+      ).toEqual(["dropInventory", "gatherTile"]);
     });
 
     it("resets gather progress when a finished task is repeated", () => {
@@ -278,7 +278,7 @@ describe("taskSystem", () => {
 
       expect(
         world.entities.get(id, "taskList").tasks.map(({ type }) => type)
-      ).toEqual(["gatherResource"]);
+      ).toEqual(["gatherTile"]);
     });
 
     it("does nothing for an empty task list", () => {

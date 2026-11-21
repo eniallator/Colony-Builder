@@ -34,7 +34,7 @@ import {
 import { app } from "./index.ts";
 import type { State } from "./state.ts";
 import type { ClientSystem } from "./system.ts";
-import type { ClickableTarget } from "./ui/clickable.ts";
+import type { ClickDetails } from "./ui/clickable.ts";
 import {
   Keyboard,
   Mouse,
@@ -398,8 +398,7 @@ describe("app.animationFrame", () => {
       camera: { center: Vector.zero(2), zoom: 0 },
       world,
       playerId: createPlayer(world, playerPosition),
-      clickTarget: createStateful<ClickableTarget | null>(null),
-      clickHandlers: {},
+      clickDetails: createStateful<ClickDetails | null>(null),
       send: vi.fn(),
     };
   };
@@ -463,8 +462,7 @@ describe("app.animationFrame", () => {
         camera: { center: Vector.zero(2), zoom: 0 },
         world,
         playerId,
-        clickTarget: createStateful<ClickableTarget | null>(null),
-        clickHandlers: {},
+        clickDetails: createStateful<ClickDetails | null>(null),
         send: vi.fn(),
       };
     };

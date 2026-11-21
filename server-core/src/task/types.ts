@@ -9,7 +9,7 @@ export interface EntityParams {
 }
 
 type TaskRunResult<S extends Task> =
-  { done: false } | { done: true; cleanTask: S };
+  { done: false } | { done: true; cleanTask: S | null };
 
 export type TaskRunner<S extends Task> = (
   entity: EntityParams,

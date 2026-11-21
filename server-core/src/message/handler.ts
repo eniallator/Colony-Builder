@@ -45,6 +45,27 @@ export const messageHandler = (
       break;
     }
 
+    case "gatherTile": {
+      const taskList = state.world.entities.get(playerId, "taskList");
+      taskList.tasks.push({
+        type: "gatherTile",
+        target: message.position,
+        progress: 0,
+      });
+      break;
+    }
+
+    case "gatherStructure": {
+      const taskList = state.world.entities.get(playerId, "taskList");
+      taskList.tasks.push({
+        type: "gatherStructure",
+        regionId: message.regionId,
+        subRegionId: message.subRegionId,
+        progress: 0,
+      });
+      break;
+    }
+
     default:
       return checkExhausted(message);
   }

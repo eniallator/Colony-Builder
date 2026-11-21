@@ -1,5 +1,6 @@
 import {
   predictionSystems,
+  type ClientMessage,
   type EntityId,
   type System,
 } from "@colony-builder/shared";
@@ -11,7 +12,7 @@ import {
   renderTiles,
 } from "./render/system/index.ts";
 import type { Camera } from "./ui/camera.ts";
-import type { ClickableHandlers, ClickableTarget } from "./ui/clickable.ts";
+import type { ClickDetails } from "./ui/clickable.ts";
 import { renderInventoryDialog } from "./ui/inventory.ts";
 import type { Keyboard } from "./ui/keyboard.ts";
 import type { Mouse } from "./ui/mouse.ts";
@@ -24,8 +25,8 @@ export type ClientSystem = System<{
   canvas: HTMLCanvasElement;
   camera: Camera;
   inventoryId?: EntityId;
-  clickTarget: Stateful<ClickableTarget | null>;
-  clickHandlers: Partial<ClickableHandlers>;
+  clickDetails: Stateful<ClickDetails | null>;
+  send: (message: ClientMessage) => void;
   mouse: Mouse;
   keyboard: Keyboard;
 }>;

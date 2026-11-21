@@ -10,6 +10,7 @@ import {
   encEntityId,
   encEntitySnapshot,
   encRegionId,
+  encSubRegionId,
   encTileId,
   encWorldSnapshot,
 } from "../world/index.ts";
@@ -35,10 +36,27 @@ export const encPlaceMessage = encObjectOf({
 });
 export type PlaceMessage = EncodableType<typeof encPlaceMessage>;
 
+export const encGatherTileMessage = encObjectOf({
+  type: encExact("gatherTile"),
+  position: encVec2,
+});
+export type GatherTileMessage = EncodableType<typeof encGatherTileMessage>;
+
+export const encGatherStructureMessage = encObjectOf({
+  type: encExact("gatherStructure"),
+  regionId: encRegionId,
+  subRegionId: encSubRegionId,
+});
+export type GatherStructureMessage = EncodableType<
+  typeof encGatherStructureMessage
+>;
+
 export const encClientMessage = encUnionOf(
   encMoveMessage,
   encUnloadMessage,
-  encPlaceMessage
+  encPlaceMessage,
+  encGatherTileMessage,
+  encGatherStructureMessage
 );
 export type ClientMessage = EncodableType<typeof encClientMessage>;
 
