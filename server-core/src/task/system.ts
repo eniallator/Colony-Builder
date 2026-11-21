@@ -29,7 +29,8 @@ const structureDrops: Partial<
   cactus: { id: "cactus", item: { count: 5 } },
 };
 
-const gatherTileTask: TaskRunner<GatherTile> = (entity, task, world, dt) => {
+const gatherTileTask: TaskRunner<GatherTile> = ctx => {
+  const { entity, task, world, dt } = ctx;
   if (!isInRange(entity, task.target)) {
     if (world.entities.optGet(entity.id, "destination") == null) {
       world.entities.add(
@@ -53,12 +54,8 @@ const gatherTileTask: TaskRunner<GatherTile> = (entity, task, world, dt) => {
   } else return { done: false };
 };
 
-const gatherStructureTask: TaskRunner<GatherStructure> = (
-  entity,
-  task,
-  world,
-  dt
-) => {
+const gatherStructureTask: TaskRunner<GatherStructure> = ctx => {
+  const { entity, task, world, dt, players } = ctx;
   const structure = world.structures.optGetStructure(
     task.regionId,
     task.subRegionId
@@ -84,11 +81,14 @@ const gatherStructureTask: TaskRunner<GatherStructure> = (
   const gatheredItem = structureDrops[structure.type];
   if (task.progress >= TASK_DURATION && gatheredItem != null) {
     addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
+    world.structures.deleteStructure(task.regionId, task.subRegionId);
+    players.forEach(state => state.loadedRegions.delete(task.regionId));
     return { done: true, cleanTask: { ...task, progress: 0 } };
   } else return { done: false };
 };
 
-const dropInventoryTask: TaskRunner<DropInventory> = (entity, task, world) => {
+const dropInventoryTask: TaskRunner<DropInventory> = ctx => {
+  const { entity, task, world } = ctx;
   if (!isInRange(entity, task.target)) {
     if (world.entities.optGet(entity.id, "destination") == null) {
       world.entities.add(
@@ -113,7 +113,7 @@ const taskRunners: TaskRunners = {
   dropInventory: dropInventoryTask,
 };
 
-export const taskSystem: ServerSystem = ({ world, dt }) => {
+export const taskSystem: ServerSystem = ({ world, state, dt }) => {
   for (const id of world.entities.query("taskList", "inventory", "position")) {
     const taskList = world.entities.get(id, "taskList");
     const entity: EntityParams = {
@@ -124,7 +124,13 @@ export const taskSystem: ServerSystem = ({ world, dt }) => {
 
     const first = taskList.tasks[0];
     if (first == null) continue;
-    const result = taskRunners[first.type](entity, first as never, world, dt);
+    const result = taskRunners[first.type]({
+      entity,
+      task: first as never,
+      world,
+      dt,
+      players: state.players,
+    });
 
     if (result.done) {
       taskList.tasks.shift();

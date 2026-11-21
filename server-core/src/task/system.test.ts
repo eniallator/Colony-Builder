@@ -12,13 +12,15 @@ import {
   type EntityId,
   type GatherStructure,
   type GatherTile,
+  type RegionId,
   type StructureType,
   type Task,
   type Tile,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
-import { describe, expect, it } from "vitest";
+import { describe, expect, it, vi } from "vitest";
 
+import type { State } from "../state.ts";
 import type { ServerSystem } from "../system.ts";
 import { taskSystem as serverTaskSystem } from "./system.ts";
 
@@ -26,8 +28,11 @@ import { taskSystem as serverTaskSystem } from "./system.ts";
 const taskSystem = ({
   world,
   dt,
-}: Omit<Parameters<ServerSystem>[0], "state">) => {
-  serverTaskSystem({ world, dt, state: { world, players: new Map() } });
+  players = new Map(),
+}: Omit<Parameters<ServerSystem>[0], "state"> & {
+  players?: State["players"];
+}) => {
+  serverTaskSystem({ world, dt, state: { world, players } });
 };
 
 const target = Vector.create(5.5, 5.5);
@@ -161,6 +166,8 @@ describe("taskSystem", () => {
       world.structures.addStructure(30, 40, { type, data: true });
       const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
       return {
+        regionId,
+        subRegionId,
         position: Vector.create(...regionIdsToWorldPos(regionId, subRegionId)),
         task: (progress = 0): GatherStructure => ({
           type: "gatherStructure",
@@ -231,6 +238,75 @@ describe("taskSystem", () => {
       expect(world.entities.get(id, "inventory")).toEqual(
         new Map([["cactus", { count: 5 }]])
       );
+    });
+
+    it("removes the structure once it has been gathered", () => {
+      const world = new World();
+      const { position, task, regionId, subRegionId } = structureOf(
+        world,
+        "tree"
+      );
+      createRobot(world, position.copy().add(0.5), [task()]);
+
+      taskSystem({ world, dt: TASK_DURATION });
+
+      expect(
+        world.structures.optGetStructure(regionId, subRegionId)
+      ).toBeUndefined();
+    });
+
+    it("keeps the structure until it has been gathered", () => {
+      const world = new World();
+      const { position, task, regionId, subRegionId } = structureOf(
+        world,
+        "tree"
+      );
+      createRobot(world, position.copy().add(0.5), [task()]);
+
+      taskSystem({ world, dt: TASK_DURATION / 2 });
+
+      expect(
+        world.structures.optGetStructure(regionId, subRegionId)
+      ).toBeDefined();
+    });
+
+    describe("loaded regions", () => {
+      const elsewhere = regionPosToId(9, 9);
+      const playerState = (...regions: RegionId[]) => ({
+        send: vi.fn(),
+        loadedRegions: new Set(regions),
+      });
+
+      it("makes every player reload the region it was in, and only that one", () => {
+        const world = new World();
+        const { position, task, regionId } = structureOf(world, "tree");
+        createRobot(world, position.copy().add(0.5), [task()]);
+        const first = playerState(regionId, elsewhere);
+        const second = playerState(regionId);
+        const players: State["players"] = new Map([
+          [createPlayer(world), first],
+          [createPlayer(world), second],
+        ]);
+
+        taskSystem({ world, dt: TASK_DURATION, players });
+
+        expect([...first.loadedRegions]).toEqual([elsewhere]);
+        expect([...second.loadedRegions]).toEqual([]);
+      });
+
+      it("leaves them loaded until the structure has been gathered", () => {
+        const world = new World();
+        const { position, task, regionId } = structureOf(world, "tree");
+        createRobot(world, position.copy().add(0.5), [task()]);
+        const state = playerState(regionId);
+        const players: State["players"] = new Map([
+          [createPlayer(world), state],
+        ]);
+
+        taskSystem({ world, dt: TASK_DURATION / 2, players });
+
+        expect([...state.loadedRegions]).toEqual([regionId]);
+      });
     });
 
     it("resets its progress when the finished task is repeated", () => {

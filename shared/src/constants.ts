@@ -9,7 +9,7 @@ export const CONVEYOR_SPEED = 2;
 export const CONVEYOR_CENTER_SNAP_DISTANCE = 0.08;
 
 export const TASK_DURATION = 3;
-export const TASK_RADIUS = 1;
+export const TASK_RADIUS = 0.5;
 
 export const PICKUP_SQR_RADIUS = 1;
 
