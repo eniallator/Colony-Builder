@@ -4,6 +4,7 @@ import {
   regionPosToId,
   tileToId,
   World,
+  worldPosToRegionIds,
   type EntityId,
   type RegionId,
 } from "@colony-builder/shared";
@@ -180,6 +181,87 @@ describe("messageHandler", () => {
           tile: tileToId("stone"),
         });
       }).toThrow("No region exists for world pos 3,4");
+    });
+  });
+
+  describe("gatherTile", () => {
+    it("queues a gather task for the tile on the player's task list", () => {
+      const world = new World();
+      const player = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "gatherTile",
+        position: Vector.create(3, 4),
+      });
+
+      expect(world.entities.get(player, "taskList").tasks).toEqual([
+        { type: "gatherTile", target: Vector.create(3, 4), progress: 0 },
+      ]);
+    });
+
+    it("queues it after the tasks already there", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const state = stateWith(world, [player, []]);
+
+      messageHandler(state, player, {
+        type: "gatherTile",
+        position: Vector.create(1, 1),
+      });
+      messageHandler(state, player, {
+        type: "gatherTile",
+        position: Vector.create(2, 2),
+      });
+
+      expect(
+        world.entities.get(player, "taskList").tasks.map(task => task.type)
+      ).toEqual(["gatherTile", "gatherTile"]);
+    });
+
+    it("only affects the given player", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const other = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []], [other, []]), player, {
+        type: "gatherTile",
+        position: Vector.create(3, 4),
+      });
+
+      expect(world.entities.get(other, "taskList").tasks).toEqual([]);
+    });
+  });
+
+  describe("gatherStructure", () => {
+    const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
+
+    it("queues a gather task for the structure on the player's task list", () => {
+      const world = new World();
+      const player = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "gatherStructure",
+        regionId,
+        subRegionId,
+      });
+
+      expect(world.entities.get(player, "taskList").tasks).toEqual([
+        { type: "gatherStructure", regionId, subRegionId, progress: 0 },
+      ]);
+    });
+
+    it("only affects the given player", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const other = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []], [other, []]), player, {
+        type: "gatherStructure",
+        regionId,
+        subRegionId,
+      });
+
+      expect(world.entities.get(other, "taskList").tasks).toEqual([]);
     });
   });
 

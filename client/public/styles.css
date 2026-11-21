@@ -160,17 +160,21 @@ button {
   /* The row spans the width of the screen, so let clicks through to the canvas
      beneath it; only the buttons themselves take them. */
   pointer-events: none;
+  gap: 0.25rem;
 
   & > button {
     pointer-events: auto;
-    border-radius: 0;
+  }
 
-    &:first-child {
-      border-radius: 0.6rem 0 0 0.6rem;
-    }
+  #inventory-btn .px-icon {
+    --px-icon: var(--ui-icon-inventory);
+  }
 
-    &:last-child {
-      border-radius: 0 0.6rem 0.6rem 0;
+  #fullscreen-btn .px-icon {
+    --px-icon: var(--ui-icon-fullscreen);
+
+    main:fullscreen & {
+      --px-icon: var(--ui-icon-windowed);
     }
   }
 }
@@ -181,28 +185,103 @@ canvas {
   image-rendering: pixelated;
 }
 
+/* Pixel UI. The popover, the inventory dialog and the bottom-left buttons are
+   drawn from the atlas's interface sprites (art/STYLE_GUIDE.md, "Interface"):
+   a 16px tile drawn at 2x and 9-sliced, so its 3px corners become 6px.
+   `--ui-*` image variables are set from the atlas (ui/ui-textures.ts); the
+   solid borders and backgrounds are what show until it has loaded.
+   These colours are the `ui` group in scripts/atlas/palette.mjs, which CSS
+   can't read, so keep them in step with it. */
+:root {
+  --px-outline: #1b1a22;
+  --px-panel: #3a2f5e;
+  --px-panel-lo: #251e42;
+  --px-button: #2e7344;
+  --px-button-hover: #4a9552;
+  --px-button-lo: #173f27;
+  --px-text: #f4ecd8;
+  --px-font: "Pixelify Sans", monospace;
+  /* CSS size of one art pixel. Set from the display scale by
+     ui/ui-textures.ts so it is a whole number of device pixels. */
+  --art-px: 2px;
+  --px-border: calc(var(--art-px) * 3);
+}
+
+.click-popover,
+#inventory-modal {
+  border: var(--px-border) solid var(--px-panel-lo);
+  border-image: var(--ui-panel) 3 fill / var(--px-border);
+  border-radius: 0;
+  image-rendering: pixelated;
+  background-color: var(--px-panel);
+  color: var(--px-text);
+  font-family: var(--px-font);
+  font-size: 16px;
+  -webkit-font-smoothing: none;
+}
+
+.click-popover button,
+.overlay-buttons > button,
+#inventory-modal button {
+  padding: 0.25rem 0.5rem;
+  border: var(--px-border) solid var(--px-button-lo);
+  border-image: var(--ui-button) 3 fill / var(--px-border);
+  border-radius: 0;
+  background-color: var(--px-button);
+  color: var(--px-text);
+  fill: var(--px-text);
+  font: inherit;
+  image-rendering: pixelated;
+
+  &:hover {
+    border-image-source: var(--ui-button-hover);
+    background-color: var(--px-button-hover);
+  }
+
+  &:active {
+    border-image-source: var(--ui-button-down);
+    background-color: var(--px-button-lo);
+  }
+
+  &:focus-visible {
+    outline: var(--art-px) solid var(--px-text);
+    outline-offset: var(--art-px);
+  }
+}
+
+/* A pixel icon: a 16px atlas sprite, cropped to its middle 12px. */
+.px-icon {
+  display: block;
+  flex: none;
+  width: calc(var(--art-px) * 12);
+  height: calc(var(--art-px) * 12);
+  background: var(--px-icon, none) center / calc(var(--art-px) * 16)
+    calc(var(--art-px) * 16) no-repeat;
+  image-rendering: pixelated;
+}
+
 /* Placed by renderHUD (left/top): by the clicked target, inside the canvas. */
 .click-popover {
   position: fixed;
   inset: auto;
   margin: 0;
-  padding: 0.5rem;
-  border: 0;
-  border-radius: 0.6rem;
-  background-color: var(--bg-primary);
-  color: var(--text-primary);
+  padding: 0.25rem;
+  line-height: 1;
 
   &:popover-open {
     display: flex;
     flex-direction: column;
-    gap: 0.5rem;
+    gap: 0.25rem;
+  }
+
+  button {
+    justify-content: center;
   }
 }
 
 .click-popover-title {
-  /* Line height 1 so the text has no extra space above or below it. */
-  line-height: 1;
   padding: 0 0.25rem;
+  font-weight: 600;
 }
 
 .config-item {
@@ -556,12 +635,21 @@ h1 {
 }
 
 #inventory-modal {
+  h1 {
+    border-bottom: 0;
+    background-color: var(--px-panel);
+  }
+
   input.search {
     display: block;
     box-sizing: border-box;
     width: calc(100% - 3rem);
     margin: 0.75rem 1.5rem 0;
-    border-radius: 0.5rem;
+    border: var(--art-px) solid var(--px-outline);
+    border-radius: 0;
+    background-color: var(--px-panel-lo);
+    color: var(--px-text);
+    font: inherit;
   }
 
   ul {
@@ -579,16 +667,17 @@ h1 {
       column-gap: 0.75rem;
       margin: 0.25rem 0;
       padding: 0.25rem 0.75rem;
-      border-radius: 0.5rem;
+      border: var(--art-px) solid var(--px-outline);
+      border-radius: 0;
       background-color: color-mix(
         in srgb,
-        var(--item-color) 20%,
-        var(--bg-secondary)
+        var(--item-color) 25%,
+        var(--px-panel-lo)
       );
 
       &.empty {
         justify-content: center;
-        background-color: var(--bg-secondary);
+        background-color: var(--px-panel-lo);
       }
 
       .icon {
@@ -618,6 +707,12 @@ h1 {
       }
     }
   }
+}
+
+#inventory-modal .dialog-actions {
+  height: auto;
+  border-top: var(--art-px) solid var(--px-outline);
+  background-color: var(--px-panel);
 }
 
 .dialog-actions {

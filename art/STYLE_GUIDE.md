@@ -187,6 +187,25 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - Items are also drawn small (in inventory UI and on the ground), so avoid
   detail that disappears at half size.
 
+### Interface (panels, buttons)
+
+- Drawn in `sprites/ui.mjs` as 16×16 outlined boxes with the same top-left
+  lighting as everything else, using the `ui` palette group (fill / hi / lo per
+  box). A box is meant to be **9-sliced**: keep all detail inside the 3px
+  corners, and keep the edges and centre flat so they stretch cleanly. Unlike
+  other outlined art, the corner pixels are filled, not left out: at 2x an
+  omitted pixel is a visible 2×2 notch.
+- Sprites: `ui_panel`, `ui_button`, `ui_button_hover`, `ui_button_down`
+  (pressed: the bevel is flipped). They are not game content, so
+  `pnpm atlas:check` doesn't require them.
+- The client cuts them out of the atlas (`client/src/ui/ui-textures.ts`) and
+  CSS draws them with `border-image` at 2× with `image-rendering: pixelated`,
+  so a UI pixel is two screen pixels. Don't use radius, blur or gradients on UI.
+- Text is set in the pixel font **Pixelify Sans** (loaded from Google Fonts in
+  `index.html`) at a whole-pixel size, in `ui.text`. CSS can't read the
+  palette, so the matching hex values in `styles.css` carry a comment saying
+  where they come from.
+
 ## Naming contract with the game
 
 `pnpm atlas` cross-checks the game's registries against the atlas.

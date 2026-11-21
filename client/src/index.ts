@@ -23,6 +23,7 @@ import {
   fromCanvasCoords,
   setupInventoryDialog,
 } from "./ui/index.ts";
+import { setupUiScale } from "./ui/ui-textures.ts";
 
 const ZOOM_STEPS: Partial<Record<string, number>> = {
   Equal: 1,
@@ -52,6 +53,7 @@ export const app = appMethods<State>({
     });
 
     setupInventoryDialog(state);
+    setupUiScale();
 
     addListener(canvas, "contextmenu", evt => {
       evt.preventDefault();

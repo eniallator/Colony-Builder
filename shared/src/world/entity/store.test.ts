@@ -187,7 +187,7 @@ describe("EntityStore", () => {
               conveyable: undefined,
               // Starting inventory contents are temporary
               inventory: world.entities.get(player, "inventory"),
-              taskList: undefined,
+              taskList: { tasks: [], repeat: false },
             },
           ],
           [

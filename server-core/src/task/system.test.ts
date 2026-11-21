@@ -2,13 +2,17 @@ import {
   createPlayer,
   createRobot,
   REGION_SIDE_LENGTH,
+  regionIdsToWorldPos,
   regionPosToId,
   TASK_DURATION,
   TASK_RADIUS,
   tileToId,
   World,
+  worldPosToRegionIds,
   type EntityId,
+  type GatherStructure,
   type GatherTile,
+  type StructureType,
   type Task,
   type Tile,
 } from "@colony-builder/shared";
@@ -148,6 +152,107 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 1 });
 
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(1);
+    });
+  });
+
+  describe("gatherStructure", () => {
+    // A structure on a world position, plus the task that gathers it.
+    const structureOf = (world: World, type: StructureType) => {
+      world.structures.addStructure(30, 40, { type, data: true });
+      const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
+      return {
+        position: Vector.create(...regionIdsToWorldPos(regionId, subRegionId)),
+        task: (progress = 0): GatherStructure => ({
+          type: "gatherStructure",
+          regionId,
+          subRegionId,
+          progress,
+        }),
+      };
+    };
+
+    it("sends the entity to within reach of the structure", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "tree");
+      const id = createRobot(world, Vector.zero(2), [task()]);
+
+      taskSystem({ world, dt: 1 });
+
+      const destination = world.entities.get(id, "destination");
+      expect(destination.distTo(position.copy().add(0.5))).toBeLessThan(
+        TASK_RADIUS
+      );
+    });
+
+    it("does not set a new destination while one is pending", () => {
+      const world = new World();
+      const { task } = structureOf(world, "tree");
+      const id = createRobot(world, Vector.zero(2), [task()]);
+      const pending = Vector.create(1, 1);
+      world.entities.add(id, "destination", pending);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(world.entities.get(id, "destination")).toBe(pending);
+    });
+
+    it("accumulates progress while in reach without gathering early", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "tree");
+      const gathering = task();
+      const id = createRobot(world, position.copy().add(0.5), [gathering]);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(gathering.progress).toBe(1);
+      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.optGet(id, "destination")).toBeUndefined();
+    });
+
+    it("gathers logs from a tree once the duration has elapsed", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "tree");
+      const id = createRobot(world, position.copy().add(0.5), [task()]);
+
+      taskSystem({ world, dt: TASK_DURATION });
+
+      expect(world.entities.get(id, "inventory")).toEqual(
+        new Map([["log", { count: 5 }]])
+      );
+    });
+
+    it("gathers cactus from a cactus once the duration has elapsed", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "cactus");
+      const id = createRobot(world, position.copy().add(0.5), [task()]);
+
+      taskSystem({ world, dt: TASK_DURATION });
+
+      expect(world.entities.get(id, "inventory")).toEqual(
+        new Map([["cactus", { count: 5 }]])
+      );
+    });
+
+    it("resets its progress when the finished task is repeated", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "tree");
+      const id = createRobot(world, position.copy().add(0.5), [task()]);
+      const { tasks } = world.entities.get(id, "taskList");
+
+      taskSystem({ world, dt: TASK_DURATION });
+
+      expect(tasks).toEqual([task(0)]);
+    });
+
+    it("drops the task for good when the structure no longer exists", () => {
+      const world = new World();
+      const { task } = structureOf(new World(), "tree");
+      const id = createRobot(world, Vector.zero(2), [task()]);
+
+      taskSystem({ world, dt: 1 });
+
+      expect(world.entities.get(id, "taskList").tasks).toEqual([]);
+      expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
   });
 

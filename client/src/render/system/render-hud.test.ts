@@ -187,20 +187,23 @@ describe("renderHUD", () => {
       run();
     };
 
-    it("offers to mine an ore deposit", () => {
+    it("offers to gather an ore deposit, titled by its name", () => {
       clickOre();
 
-      expect(buttons().map(button => button.textContent)).toEqual(["Mine"]);
+      expect(popover().querySelector(".click-popover-title")?.textContent).toBe(
+        "Iron Deposit"
+      );
+      expect(buttons().map(button => button.textContent)).toEqual(["Gather"]);
       expect(send).not.toHaveBeenCalled();
     });
 
-    it("sends a gather message for the clicked position on Mine, then clears the click", () => {
+    it("sends a gatherTile message for the clicked position on Gather, then clears the click", () => {
       clickOre();
 
       buttons()[0]?.click();
 
       expect(send).toHaveBeenCalledExactlyOnceWith({
-        type: "gather",
+        type: "gatherTile",
         position: orePos,
       });
       expect(clickDetails.value).toBeNull();
@@ -218,15 +221,15 @@ describe("renderHUD", () => {
   });
 
   describe("a structure's select", () => {
-    it("opens a popover of its options and keeps the click", () => {
+    it("opens a popover of its options, titled by its type, and keeps the click", () => {
       click(tree);
 
       expect(popovers()).toHaveLength(1);
       expect(showPopover).toHaveBeenCalledOnce();
-      expect(buttons().map(button => button.textContent)).toEqual([
-        "Foo",
-        "Bar",
-      ]);
+      expect(popover().querySelector(".click-popover-title")?.textContent).toBe(
+        "tree"
+      );
+      expect(buttons().map(button => button.textContent)).toEqual(["Gather"]);
       expect(clickDetails.value?.target).toBe(tree);
     });
 
@@ -321,17 +324,16 @@ describe("renderHUD", () => {
       });
     });
 
-    it("runs the handler with the picked option and then clears the click", () => {
+    it("sends a gatherStructure message for the picked option and then clears the click", () => {
       click(tree);
 
-      buttons()[1]?.click();
+      buttons()[0]?.click();
 
-      expect(log).toHaveBeenCalledExactlyOnceWith(
-        "tree",
-        tree.regionId,
-        tree.subRegionId,
-        "bar"
-      );
+      expect(send).toHaveBeenCalledExactlyOnceWith({
+        type: "gatherStructure",
+        regionId: tree.regionId,
+        subRegionId: tree.subRegionId,
+      });
       expect(clickDetails.value).toBeNull();
       expect(popovers()).toHaveLength(0);
     });

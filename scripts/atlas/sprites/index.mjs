@@ -8,6 +8,7 @@ import { entities } from "./entities.mjs";
 import { items } from "./items.mjs";
 import { structures } from "./structures.mjs";
 import { terrain } from "./terrain.mjs";
+import { ui } from "./ui.mjs";
 
 export const SPRITES = [
   ...terrain,
@@ -16,6 +17,7 @@ export const SPRITES = [
   ...conveyors,
   ...entities,
   ...structures,
+  ...ui,
 ];
 
 const seen = new Set();

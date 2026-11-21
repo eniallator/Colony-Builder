@@ -13,6 +13,7 @@ import {
   type ClickableTarget,
   type ClickDetails,
 } from "../../ui/clickable.ts";
+import { paintUiTextures } from "../../ui/ui-textures.ts";
 import { getAtlas } from "../atlas.ts";
 import { usesTextures } from "../sprite.ts";
 import { spriteRect } from "./painter.ts";
@@ -79,9 +80,7 @@ const createPopover = (select: AnyClickableSelect): HTMLElement => {
   );
 
   for (const { label, value } of select.options) {
-    const button = toElement(
-      '<button type="button" class="secondary"></button>'
-    );
+    const button = toElement('<button type="button"></button>');
     button.textContent = label;
     addListener(button, "click", () => {
       select.onSelect(value);
@@ -236,6 +235,10 @@ export const renderHUD: ClientSystem = ({
   world,
   send,
 }) => {
+  // The buttons and dialog use these too, so paint them as soon as the atlas
+  // arrives, not when the first popover opens.
+  paintUiTextures();
+
   const details = clickDetails.value;
   const run =
     details == null

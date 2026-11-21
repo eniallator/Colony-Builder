@@ -69,6 +69,18 @@ export const PALETTE = {
     feet: "#3b3140",
   },
 
+  // --- UI (panels and buttons, drawn as 9-slice boxes) ---
+  // Each box is fill / hi (top-left bevel) / lo (bottom-right bevel). Panels
+  // are a deep indigo and buttons the jungle greens, so UI is as colourful as
+  // the world but stays clear of the colour roles below (orange = robots, teal =
+  // player, amber = logistics).
+  ui: {
+    panel: { fill: "#3a2f5e", hi: "#564a86", lo: "#251e42" },
+    button: { fill: "#2e7344", hi: "#4a9552", lo: "#173f27" },
+    buttonHover: { fill: "#4a9552", hi: "#6fb468", lo: "#22583a" },
+    text: "#f4ecd8",
+  },
+
   // --- Accents ---
   flower: "#e8d870",
 };
