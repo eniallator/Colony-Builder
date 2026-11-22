@@ -38,6 +38,9 @@ const isSpriteJson = isObjectOf({
   // How many art pixels the animation moves per frame, for animations that
   // depict motion at a game speed. The frame time comes from that speed.
   stepPx: isOptional(isNumber),
+  // How many art pixels the sprite stands above the ground, for surfaces
+  // things ride on: whatever rides it is drawn that much higher.
+  raise: isOptional(isNumber),
 });
 type SpriteJson = TypeFromGuard<typeof isSpriteJson>;
 

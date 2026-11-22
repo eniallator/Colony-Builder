@@ -1,7 +1,11 @@
 import {
+  conveyorFootprint,
+  conveyorSpriteName,
+  facingOf,
   ITEM_TILES,
   REGION_SIDE_LENGTH,
   type EntityId,
+  type Facing,
 } from "@colony-builder/shared";
 import { checkExhausted } from "niall-utils/core";
 import { Vector } from "vectyped";
@@ -9,8 +13,10 @@ import { Vector } from "vectyped";
 import type { ClientSystem } from "../../system.ts";
 import type { ClickableTarget } from "../../ui/clickable.ts";
 import { getAtlas } from "../atlas.ts";
-import { directionOf, usesTextures, type Direction } from "../sprite.ts";
+import { usesTextures } from "../sprite.ts";
+import { conveyorBend } from "./conveyor-bend.ts";
 import {
+  paintConveyor,
   paintWithShadow,
   sqrDistToSpriteMiddle,
   type Painter,
@@ -25,7 +31,7 @@ interface AboveGround {
 }
 
 /** Last direction each entity faced, so it keeps facing that way when it stops. */
-const facings = new Map<EntityId, Direction>();
+const facings = new Map<EntityId, Facing>();
 
 /**
  * Draws everything above the ground (structures, players, robots, dropped
@@ -77,16 +83,25 @@ export const renderAboveGround: ClientSystem = ({
   };
 
   const viewSide = Math.max(canvas.width, canvas.height) / pxPerTile;
-  for (const {
-    regionId,
-    id,
-    type,
-    worldPos,
-  } of world.structures.structuresAround(
+  for (const structure of world.structures.structuresAround(
     ...camera.center.toArray(),
     // A region of margin each side, since structures stick out of their tile.
     viewSide + 2 * REGION_SIDE_LENGTH
   )) {
+    if (structure.type === "conveyor") {
+      const bend = conveyorBend(world.structures, structure);
+      aboveGround.push({
+        // The belt's top edge, so everything standing on it is drawn after it.
+        depth:
+          structure.worldPos[1] + conveyorFootprint(structure.data).from[1],
+        paint: () => {
+          paintConveyor(painter, structure, bend, origin, pxPerTile);
+        },
+      });
+      continue;
+    }
+
+    const { regionId, id, type, worldPos } = structure;
     const pos = Vector.create(...worldPos);
     aboveGround.push({
       depth: pos.y(),
@@ -101,6 +116,16 @@ export const renderAboveGround: ClientSystem = ({
     );
   }
 
+  // How far above the ground, in tiles, a belt under `pos` holds what rides it.
+  const raiseAt = (pos: Vector<2>): number => {
+    const belt = world.structures.structureAt("conveyor", pos.x(), pos.y());
+    const raise =
+      belt != null
+        ? atlas.sprites.get(conveyorSpriteName(belt.data.facing))?.raise
+        : undefined;
+    return (raise ?? 0) / atlas.tileSize;
+  };
+
   const seen = new Set<EntityId>();
   for (const id of world.entities.query("type", "position")) {
     seen.add(id);
@@ -113,7 +138,7 @@ export const renderAboveGround: ClientSystem = ({
         const destination = world.entities.optGet(id, "destination");
         const heading =
           destination != null
-            ? directionOf(destination.copy().sub(pos))
+            ? facingOf(destination.copy().sub(pos))
             : undefined;
         const facing = heading ?? facings.get(id) ?? "down";
         facings.set(id, facing);
@@ -147,9 +172,11 @@ export const renderAboveGround: ClientSystem = ({
           .next().value;
 
         if (itemId != null) {
+          // Resting on a belt, it is held above the ground.
+          const raised = pos.copy().sub([0, raiseAt(pos)]);
           considerTarget(
             { domain: "entity", type: entityType, id },
-            clickDist(`item_${itemId}`, pos, ITEM_TILES * pxPerTile)
+            clickDist(`item_${itemId}`, raised, ITEM_TILES * pxPerTile)
           );
           aboveGround.push({
             depth: pos.y(),
@@ -158,7 +185,7 @@ export const renderAboveGround: ClientSystem = ({
                 painter,
                 "shadow_small",
                 `item_${itemId}`,
-                footOf(pos),
+                footOf(raised),
                 ITEM_TILES * pxPerTile
               );
             },

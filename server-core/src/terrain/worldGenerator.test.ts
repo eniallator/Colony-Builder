@@ -6,16 +6,17 @@ import {
   type Tile,
   type TileId,
 } from "@colony-builder/shared";
-import { memoize } from "niall-utils/data";
+import { memoize, typedKeys } from "niall-utils/data";
 import { describe, expect, it } from "vitest";
 
-import { biomeTile, createBiomeAt, type Biome } from "./biome.ts";
+import { BIOMES, biomeTile, createBiomeAt } from "./biome.ts";
 import { stoneOres } from "./stone.ts";
 import { createWorldGenerator } from "./worldGenerator.ts";
 
 const idsOf = (names: Tile[]): TileId[] => names.map(tileToId);
 
-const BIOMES: Biome[] = ["plains", "desert", "swamp", "jungle"];
+const biomes = typedKeys(BIOMES);
+
 /** Tiles that replace a biome's land tile. */
 const OVERLAYS = idsOf(["water", "stone", ...stoneOres]);
 
@@ -88,7 +89,7 @@ describe("createWorldGenerator", () => {
 
   it("produces only water, stone, ore and the biomes' land tiles", () => {
     const allowed = idsOf([
-      ...BIOMES.map(biomeTile),
+      ...biomes.map(biomeTile),
       "water",
       "stone",
       ...stoneOres,
@@ -128,7 +129,7 @@ describe("createWorldGenerator", () => {
   it("has both water and land in every biome", () => {
     const samples = sampleTiles("seed");
 
-    for (const biome of BIOMES) {
+    for (const biome of biomes) {
       expect(
         samples.some(s => s.biome === biome && s.tile === tileToId("water"))
       ).toBe(true);

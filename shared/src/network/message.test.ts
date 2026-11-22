@@ -2,6 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
+import { itemIds } from "../item/registry.ts";
 import {
   encComponents,
   encEntitySnapshot,
@@ -29,7 +30,9 @@ import {
 } from "./message.ts";
 
 const playerId = unsafeEntityId(1);
-const itemId = unsafeEntityId(2);
+const itemEntityId = unsafeEntityId(2);
+
+const [heldItem] = itemIds;
 
 const player: Components = {
   type: "player",
@@ -38,7 +41,7 @@ const player: Components = {
   speed: 3,
   canPickup: undefined,
   conveyable: undefined,
-  inventory: new Map([["iron_ore", { data: undefined, count: 5 }]]),
+  inventory: new Map([[heldItem, { data: undefined, count: 5 }]]),
   taskList: undefined,
 };
 
@@ -72,7 +75,7 @@ const item: Components = {
 
 const entities: EntitySnapshot = new Map([
   [playerId, player],
-  [itemId, item],
+  [itemEntityId, item],
 ]);
 
 const REGION_TILE_COUNT = REGION_SIDE_LENGTH ** 2;
@@ -127,13 +130,15 @@ describe("encComponents", () => {
       inventory: new Map([[id, { data: undefined, count }]]),
     });
 
-    expect(encComponents.guard(withItem("gold", 1))).toBe(false);
-    expect(encComponents.guard(withItem("iron_ore", -1))).toBe(false);
-    expect(encComponents.guard(withItem("iron_ore", 1.5))).toBe(false);
+    expect(encComponents.guard(withItem("not an item id", 1))).toBe(false);
+    expect(encComponents.guard(withItem(heldItem, -1))).toBe(false);
+    expect(encComponents.guard(withItem(heldItem, 1.5))).toBe(false);
   });
 
   it("rejects an unknown entity type", () => {
-    expect(encComponents.guard({ ...item, type: "dragon" })).toBe(false);
+    expect(encComponents.guard({ ...item, type: "not an entity type" })).toBe(
+      false
+    );
   });
 });
 
@@ -187,7 +192,7 @@ describe("encRegionTiles", () => {
   });
 
   it("rejects an unknown tile", () => {
-    expect(encRegionTiles.guard(uniform.map(() => "lava"))).toBe(false);
+    expect(encRegionTiles.guard(uniform.map(() => "not a tile"))).toBe(false);
   });
 });
 

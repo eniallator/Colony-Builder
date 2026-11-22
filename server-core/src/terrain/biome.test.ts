@@ -1,7 +1,9 @@
-import { memoize } from "niall-utils/data";
+import { memoize, typedKeys } from "niall-utils/data";
 import { describe, expect, it } from "vitest";
 
-import { createBiomeAt, type Biome } from "./biome.ts";
+import { BIOMES, createBiomeAt, type Biome } from "./biome.ts";
+
+const biomes = typedKeys(BIOMES);
 
 const EXTENT = 2000;
 const STEP = 64;
@@ -61,10 +63,9 @@ describe("createBiomeAt", () => {
       const share = (biome: Biome) =>
         samples.filter(s => s.biome === biome).length / samples.length;
 
-      expect(share("plains")).toBeGreaterThan(0.1);
-      expect(share("desert")).toBeGreaterThan(0.1);
-      expect(share("swamp")).toBeGreaterThan(0.1);
-      expect(share("jungle")).toBeGreaterThan(0.1);
+      for (const biome of biomes) {
+        expect(share(biome), biome).toBeGreaterThan(0.4 / biomes.length);
+      }
     }
   );
 

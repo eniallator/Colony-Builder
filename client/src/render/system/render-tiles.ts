@@ -7,7 +7,7 @@ import { Vector } from "vectyped";
 import type { ClientSystem } from "../../system.ts";
 import { getAtlas, type Atlas, type AtlasSprite } from "../atlas.ts";
 import { patternFor, runsOf, usesTextures, variantIndex } from "../sprite.ts";
-import { frameOf, TILE_SPEEDS } from "./frame.ts";
+import { frameOf } from "./frame.ts";
 import { screenOrigin } from "./screen.ts";
 
 type FillStyle = string | CanvasPattern;
@@ -27,13 +27,8 @@ const tileFillStyles = (
       : [
           patternFor(
             ctx,
-            frameOf(
-              sprite,
-              sprite.frames,
-              atlas.tileSize,
-              now,
-              TILE_SPEEDS[tile]
-            ) ?? raise(new Error(`Sprite "${tile}" has no frames`))
+            frameOf(sprite, sprite.frames, atlas.tileSize, now) ??
+              raise(new Error(`Sprite "${tile}" has no frames`))
           ),
         ];
 

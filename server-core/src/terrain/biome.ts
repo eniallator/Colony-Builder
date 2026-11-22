@@ -11,7 +11,7 @@ interface BiomeDef {
   tile: Tile;
 }
 
-const BIOMES = {
+export const BIOMES = {
   plains: { centre: [-0.2, 0.25], tile: "grass" },
   desert: { centre: [-0.2, -0.25], tile: "sand" },
   swamp: { centre: [0.2, -0.25], tile: "swampland" },

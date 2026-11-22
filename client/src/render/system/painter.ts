@@ -1,6 +1,15 @@
+import {
+  CONVEYOR_SPEED,
+  conveyorLengthToTiles,
+  conveyorSpan,
+  conveyorSpriteName,
+  type ConveyorBend,
+  type ConveyorData,
+} from "@colony-builder/shared";
 import { Vector } from "vectyped";
 
 import type { Atlas, AtlasSprite, Cell } from "../atlas.ts";
+import { patternFor } from "../sprite.ts";
 import { frameOf } from "./frame.ts";
 
 export interface Painter {
@@ -113,6 +122,62 @@ export const sqrDistToSpriteMiddle = (
   return point.inBounds(dimensions, topLeft)
     ? point.sqrDistTo(dimensions.copy().divide(2).add(topLeft))
     : null;
+};
+
+/**
+ * Draws a belt as repeating tiles of its sprites: its head, with the bend if
+ * it has one, then the rest of it straight. It lies on the ground, so it casts
+ * no shadow. The tiles line up with its first one, so the animation runs on
+ * unbroken from the head to the end. A world position is on screen at
+ * `position * pxPerTile + origin`.
+ */
+export const paintConveyor = (
+  painter: Painter,
+  { worldPos, data }: { worldPos: [x: number, y: number]; data: ConveyorData },
+  bend: ConveyorBend | null,
+  origin: Vector<2>,
+  pxPerTile: number
+) => {
+  const { ctx, atlas, textured, now } = painter;
+  const anchor = Vector.create(...worldPos);
+  const tiles = conveyorLengthToTiles(data.length);
+  const screenOf = (world: Vector<2>) =>
+    world.copy().multiply(pxPerTile).add(origin).round();
+
+  const firstTileCorner = screenOf(anchor.copy().sub(0.5));
+  const scale = pxPerTile / atlas.tileSize;
+
+  const spans = [
+    [conveyorSpriteName(data.facing, bend), 0, Math.min(1, tiles)],
+    [conveyorSpriteName(data.facing), 1, tiles],
+  ] as const;
+  for (const [name, from, to] of spans) {
+    const sprite = atlas.sprites.get(name);
+    if (sprite == null || to <= from) continue;
+
+    if (textured) {
+      const frame = frameOf(
+        sprite,
+        sprite.frames,
+        atlas.tileSize,
+        now,
+        CONVEYOR_SPEED
+      );
+      if (frame == null) continue;
+
+      const pattern = patternFor(ctx, frame);
+      const [e, f] = firstTileCorner.toArray();
+      pattern.setTransform({ a: scale, d: scale, e, f });
+      ctx.fillStyle = pattern;
+    } else {
+      ctx.fillStyle = sprite.colour;
+    }
+
+    const span = conveyorSpan(data.facing, from, to);
+    const topLeft = screenOf(anchor.copy().add(span.from));
+    const bottomRight = screenOf(anchor.copy().add(span.from).add(span.size));
+    ctx.fillRect(...topLeft.toArray(), ...bottomRight.sub(topLeft).toArray());
+  }
 };
 
 /**

@@ -5,6 +5,7 @@
     "typeAware": true
   },
   "rules": {
+    "default-case": "error",
     "eqeqeq": ["warn", "smart"],
     "no-array-constructor": "error",
     "no-case-declarations": "error",

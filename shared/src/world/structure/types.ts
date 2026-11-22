@@ -1,29 +1,38 @@
 import { isInteger } from "deep-guards";
-import type { Tagged } from "niall-utils/core";
-import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
   binaryEncodable,
-  codU16,
+  chooseUIntCod,
   encExact,
   encMapOf,
+  encObjectOf,
   encRegistryValues,
-  U16_MAX,
-  type BinaryCodec,
   type BinaryEncodable,
   type EncodableType,
 } from "../../encoding/index.ts";
-import {
-  regionIdToPos,
-  regionPosToId,
-  regionToWorldPos,
-  worldToRegionPos,
-  type RegionId,
-} from "../terrain/index.ts";
+import { encFacing } from "../../facing.ts";
+import { encSubRegionId } from "../region.ts";
+
+// Belt lengths count steps the size of a `SubRegionId` step, so a belt can end
+// anywhere a structure can sit. A segment never leaves its region.
+const MAX_LENGTH = REGION_SIDE_LENGTH ** 2;
+
+export const encConveyorLength = binaryEncodable<number>(
+  (value): value is number =>
+    isInteger(value) && value >= 1 && value <= MAX_LENGTH,
+  chooseUIntCod(MAX_LENGTH)
+);
+
+export const encConveyor = encObjectOf({
+  facing: encFacing,
+  length: encConveyorLength,
+});
+export type ConveyorData = EncodableType<typeof encConveyor>;
 
 export const structureRegistry = {
   cactus: encExact(true),
+  conveyor: encConveyor,
   tree: encExact(true),
 } as const satisfies Record<string, BinaryEncodable>;
 
@@ -32,58 +41,19 @@ export type StructureData = EncodableType<typeof encStructureData>;
 
 export type StructureType = StructureData["type"];
 
-export type SubRegionId = Tagged<number, "RegionPos">;
-export const encSubRegionId = binaryEncodable(
-  (value): value is SubRegionId =>
-    isInteger(value) && value >= 0 && value < U16_MAX,
-  codU16 as BinaryCodec<SubRegionId>
-);
-
-export const subRegionIdToPos = (id: SubRegionId): [x: number, y: number] => [
-  (id >> 8) & 0xff,
-  id & 0xff,
-];
-
-export const subRegionPosToId = (x: number, y: number): SubRegionId =>
-  ((x << 8) | y) as SubRegionId;
-
-export const subRegionPosToRelativePos = (
-  subRegionX: number,
-  subRegionY: number
-): [relativeX: number, relativeY: number] => [
-  subRegionX / REGION_SIDE_LENGTH,
-  subRegionY / REGION_SIDE_LENGTH,
-];
-
-export const relativePosToSubRegionPos = (
-  relativeX: number,
-  relativeY: number
-): [subRegionX: number, subRegionY: number] => [
-  Math.floor(relativeX * REGION_SIDE_LENGTH),
-  Math.floor(relativeY * REGION_SIDE_LENGTH),
-];
-
-export const worldPosToRegionIds = (
-  worldX: number,
-  worldY: number
-): [RegionId, SubRegionId] => [
-  regionPosToId(...worldToRegionPos(worldX, worldY)),
-  subRegionPosToId(
-    ...relativePosToSubRegionPos(
-      positiveMod(worldX, REGION_SIDE_LENGTH),
-      positiveMod(worldY, REGION_SIDE_LENGTH)
-    )
-  ),
-];
-
-export const regionIdsToWorldPos = (
-  reg: RegionId,
-  sub: SubRegionId
-): [worldX: number, worldY: number] => {
-  const [regionX, regionY] = regionToWorldPos(...regionIdToPos(reg));
-  const [relX, relY] = subRegionPosToRelativePos(...subRegionIdToPos(sub));
-  return [regionX + relX, regionY + relY];
+export type StructureDataByType = {
+  [T in StructureType]: Extract<StructureData, { type: T }>["data"];
 };
+
+export type StructureOf<T extends StructureType> = StructureData & {
+  type: T;
+  data: StructureDataByType[T];
+};
+
+export const isStructureOfType = <T extends StructureType>(
+  structure: StructureData,
+  type: T
+): structure is StructureOf<T> => structure.type === type;
 
 export const encRegionStructures = encMapOf(encSubRegionId, encStructureData);
 export type RegionStructures = EncodableType<typeof encRegionStructures>;

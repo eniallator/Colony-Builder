@@ -1,8 +1,6 @@
-import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import {
-  directionOf as directionOfDelta,
   frameAt,
   MIN_TEXTURE_PX_PER_TILE,
   runsOf,
@@ -118,32 +116,6 @@ describe("runsOf", () => {
       ["x", -2, 0],
       ["y", 0, 1],
     ]);
-  });
-});
-
-describe("directionOf", () => {
-  const directionOf = (dx: number, dy: number) =>
-    directionOfDelta(Vector.create(dx, dy));
-
-  it("is undefined when not moving", () => {
-    expect(directionOf(0, 0)).toBeUndefined();
-  });
-
-  it("uses the dominant axis", () => {
-    expect(directionOf(3, 1)).toBe("right");
-    expect(directionOf(-3, 1)).toBe("left");
-    expect(directionOf(1, 3)).toBe("down");
-    expect(directionOf(1, -3)).toBe("up");
-  });
-
-  it("handles movement along a single axis", () => {
-    expect(directionOf(5, 0)).toBe("right");
-    expect(directionOf(0, -5)).toBe("up");
-  });
-
-  it("prefers vertical on an exact diagonal", () => {
-    expect(directionOf(2, 2)).toBe("down");
-    expect(directionOf(2, -2)).toBe("up");
   });
 });
 

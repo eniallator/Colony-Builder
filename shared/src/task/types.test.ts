@@ -1,8 +1,7 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
-import { subRegionPosToId } from "../world/structure/types.ts";
-import { regionPosToId } from "../world/terrain/types.ts";
+import { regionPosToId, subRegionPosToId } from "../world/region.ts";
 import {
   encGatherStructure,
   encGatherTile,

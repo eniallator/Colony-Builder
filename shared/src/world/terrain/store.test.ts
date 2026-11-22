@@ -1,13 +1,8 @@
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
-import {
-  regionPosToId,
-  tiles,
-  tileToId,
-  type RegionTiles,
-  type Tile,
-} from "./index.ts";
+import { regionPosToId } from "../region.ts";
+import { tiles, tileToId, type RegionTiles, type Tile } from "./index.ts";
 import { TerrainStore } from "./store.ts";
 
 const [baseTile, altTile, markerTile] = tiles;

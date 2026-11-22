@@ -1,5 +1,3 @@
-import type { ReadonlyNonEmptyArray } from "niall-utils/core";
-
 import { encOneOf, type EncodableType } from "../encoding/index.ts";
 
 export const itemDataRegistry = {
@@ -9,9 +7,13 @@ export const itemDataRegistry = {
   cactus: { label: "Cactus" },
 } as const satisfies Record<string, { label: string; data?: unknown }>;
 
-export const encItemId = encOneOf(
-  Object.keys(itemDataRegistry) as unknown as ReadonlyNonEmptyArray<
-    keyof typeof itemDataRegistry
-  >
-);
+type RegistryItemId = keyof typeof itemDataRegistry;
+
+export const itemIds = Object.keys(itemDataRegistry) as unknown as readonly [
+  RegistryItemId,
+  RegistryItemId,
+  ...RegistryItemId[],
+];
+
+export const encItemId = encOneOf(itemIds);
 export type ItemId = EncodableType<typeof encItemId>;

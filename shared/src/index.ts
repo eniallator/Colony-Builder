@@ -1,5 +1,6 @@
 export * from "./constants.ts";
 export * from "./encoding/index.ts";
+export * from "./facing.ts";
 export * from "./item/index.ts";
 export * from "./network/index.ts";
 export * from "./system.ts";

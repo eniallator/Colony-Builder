@@ -2,6 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../../constants.ts";
+import { itemIds } from "../../item/registry.ts";
 import { World } from "../index.ts";
 import { createItem } from "./item.ts";
 import { createPlayer } from "./player.ts";
@@ -32,23 +33,26 @@ describe("createPlayer", () => {
 });
 
 describe("createItem", () => {
+  const [itemId] = itemIds;
+
   it("spawns a pickable, conveyable item holding the given item", () => {
     const world = new World();
-    const id = createItem(world, "log", { count: 4 }, Vector.zero(2));
+    const item = { count: 1 };
+    const id = createItem(world, itemId, item, Vector.zero(2));
 
     expect(world.entities.get(id, "type")).toBe("item");
     expect(world.entities.get(id, "position").toArray()).toEqual([0, 0]);
     expect(world.entities.get(id, "canPickup")).toBe(true);
     expect(world.entities.get(id, "conveyable")).toBe(true);
     expect(world.entities.get(id, "inventory")).toEqual(
-      new Map([["log", { count: 4 }]])
+      new Map([[itemId, item]])
     );
     expect(world.entities.optGet(id, "speed")).toBeUndefined();
   });
 
   it("spawns at the given position", () => {
     const world = new World();
-    const id = createItem(world, "log", { count: 1 }, Vector.create(-1, 2));
+    const id = createItem(world, itemId, { count: 1 }, Vector.create(-1, 2));
 
     expect(world.entities.get(id, "position").toArray()).toEqual([-1, 2]);
   });

@@ -1,10 +1,14 @@
 import {
+  allEntityTypes,
   regionPosToId,
+  structureRegistry,
   subRegionPosToId,
   unsafeEntityId,
   type EntityType,
   type StructureType,
 } from "@colony-builder/shared";
+import { raise } from "niall-utils/core";
+import { typedKeys } from "niall-utils/data";
 import { describe, expect, it, vi } from "vitest";
 
 import {
@@ -14,7 +18,20 @@ import {
   type ClickableTarget,
 } from "./clickable.ts";
 
-const entity = (id: number, type: EntityType = "robot"): ClickableTarget => ({
+const [entityType, otherEntityType] = allEntityTypes;
+
+const structureTypeAt = (index: number): StructureType =>
+  typedKeys(structureRegistry)[index] ??
+  raise(new Error(`No structure type at ${index}`));
+const [structureType, otherStructureType] = [
+  structureTypeAt(0),
+  structureTypeAt(1),
+];
+
+const entity = (
+  id: number,
+  type: EntityType = entityType
+): ClickableTarget => ({
   domain: "entity",
   type,
   id: unsafeEntityId(id),
@@ -23,7 +40,7 @@ const entity = (id: number, type: EntityType = "robot"): ClickableTarget => ({
 const structure = (
   region: number,
   sub: number,
-  type: StructureType = "tree"
+  type: StructureType = structureType
 ): ClickableTarget => ({
   domain: "structure",
   type,
@@ -43,14 +60,19 @@ describe("isSameTarget", () => {
 
   it("tells apart entities with a different id or type", () => {
     expect(isSameTarget(entity(1), entity(2))).toBe(false);
-    expect(isSameTarget(entity(1, "robot"), entity(1, "player"))).toBe(false);
+    expect(
+      isSameTarget(entity(1, entityType), entity(1, otherEntityType))
+    ).toBe(false);
   });
 
   it("needs the type and both ids of a structure to match", () => {
     expect(isSameTarget(structure(1, 2), structure(2, 2))).toBe(false);
     expect(isSameTarget(structure(1, 2), structure(1, 3))).toBe(false);
     expect(
-      isSameTarget(structure(1, 2, "tree"), structure(1, 2, "cactus"))
+      isSameTarget(
+        structure(1, 2, structureType),
+        structure(1, 2, otherStructureType)
+      )
     ).toBe(false);
   });
 

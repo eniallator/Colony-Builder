@@ -2,6 +2,7 @@ import {
   createPlayer,
   REGION_SIDE_LENGTH,
   regionPosToId,
+  tiles,
   tileToId,
   World,
   worldPosToRegionIds,
@@ -123,11 +124,15 @@ describe("messageHandler", () => {
   });
 
   describe("place", () => {
+    const [existing, placed] = tiles;
+
     const worldWithOrigin = () => {
       const world = new World();
       world.terrain.add(
         origin,
-        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId("grass"))
+        Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
+          tileToId(existing)
+        )
       );
       return world;
     };
@@ -139,11 +144,11 @@ describe("messageHandler", () => {
       messageHandler(stateWith(world, [player, []]), player, {
         type: "place",
         position: Vector.create(3, 4),
-        tile: tileToId("conveyor_right"),
+        tile: tileToId(placed),
       });
 
-      expect(world.terrain.optTileAt(3, 4)).toBe("conveyor_right");
-      expect(world.terrain.optTileAt(4, 4)).toBe("grass");
+      expect(world.terrain.optTileAt(3, 4)).toBe(placed);
+      expect(world.terrain.optTileAt(4, 4)).toBe(existing);
     });
 
     it("makes every player reload the changed region only", () => {
@@ -159,7 +164,7 @@ describe("messageHandler", () => {
       messageHandler(state, player, {
         type: "place",
         position: Vector.create(3, 4),
-        tile: tileToId("stone"),
+        tile: tileToId(placed),
       });
 
       expect([...(state.players.get(player)?.loadedRegions ?? [])]).toEqual([
@@ -178,7 +183,7 @@ describe("messageHandler", () => {
         messageHandler(stateWith(world, [player, []]), player, {
           type: "place",
           position: Vector.create(3, 4),
-          tile: tileToId("stone"),
+          tile: tileToId(placed),
         });
       }).toThrow("No region exists for world pos 3,4");
     });

@@ -1,4 +1,5 @@
 import type { ClientMessage, World } from "@colony-builder/shared";
+import { checkExhausted } from "niall-utils";
 import { memoize } from "niall-utils/data";
 import { clamp } from "niall-utils/math";
 import { addListener, toElement } from "niall-utils/ui";
@@ -71,6 +72,9 @@ const footPosOf = (
       )?.worldPos;
       return worldPos != null ? Vector.create(...worldPos) : undefined;
     }
+
+    default:
+      return checkExhausted(target);
   }
 };
 
@@ -190,10 +194,6 @@ const terrainRunFor = (
     case "water":
     case "sand":
     case "stone":
-    case "conveyor_up":
-    case "conveyor_down":
-    case "conveyor_left":
-    case "conveyor_right":
     default:
       return null;
   }
@@ -225,6 +225,9 @@ const targetRunFor = (
           send({ type: "gatherStructure", ...value });
         }
       );
+
+    default:
+      return checkExhausted(target);
   }
 };
 

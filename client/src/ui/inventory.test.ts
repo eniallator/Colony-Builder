@@ -1,5 +1,7 @@
 import {
   createPlayer,
+  itemDataRegistry,
+  itemIds,
   unsafeEntityId,
   World,
   type EntityId,
@@ -25,10 +27,24 @@ import { createStateful } from "./types.ts";
 
 vi.mock("../render/atlas.ts", () => ({ getAtlas: vi.fn() }));
 
+const [itemA, itemB] = itemIds;
+const labelA = itemDataRegistry[itemA].label;
+const labelB = itemDataRegistry[itemB].label;
+
+// A count big enough to need a thousands separator, so localising shows.
+const bigCount = 1234;
+const smallCount = 2;
+
 const inventory: Inventory = new Map([
-  ["iron_ore", { count: 1234 }],
-  ["log", { count: 2 }],
+  [itemA, { count: bigCount }],
+  [itemB, { count: smallCount }],
 ]);
+
+// What a full list reads as, row by row.
+const fullList = [
+  `${labelA} ${bigCount.toLocaleString()}`,
+  `${labelB} ${smallCount}`,
+];
 
 const atlasWith = (sprites: Atlas["sprites"]): Atlas => ({
   tileSize: 16,
@@ -36,7 +52,7 @@ const atlasWith = (sprites: Atlas["sprites"]): Atlas => ({
   sprites,
 });
 
-const logSprite = {
+const itemSprite = {
   mode: "variants",
   cells: [[2, 1]],
   colour: "#b07840",
@@ -51,19 +67,19 @@ const texts = (list: HTMLUListElement) =>
 
 describe("createInventoryRow", () => {
   it("shows the icon, label and localised count", () => {
-    const row = createInventoryRow("iron_ore", { count: 1234 });
+    const row = createInventoryRow(itemA, { count: bigCount });
 
     expect(row.classList.contains("item")).toBe(true);
     expect(row.querySelector(".icon")).not.toBeNull();
-    expect(row.querySelector(".label")?.textContent).toBe("Iron Ore");
+    expect(row.querySelector(".label")?.textContent).toBe(labelA);
     expect(row.querySelector(".count")?.textContent).toBe(
-      (1234).toLocaleString()
+      bigCount.toLocaleString()
     );
   });
 });
 
 describe("renderInventoryList icons", () => {
-  const log: Inventory = new Map([["log", { count: 2 }]]);
+  const held: Inventory = new Map([[itemA, { count: smallCount }]]);
   const icon = (list: HTMLUListElement) => getElement(".icon", list);
 
   beforeEach(() => {
@@ -73,7 +89,7 @@ describe("renderInventoryList icons", () => {
   it("leaves the icon blank until the atlas loads", () => {
     const list = toElement("<ul></ul>");
 
-    renderInventoryList(list, "", log);
+    renderInventoryList(list, "", held);
 
     expect(icon(list).dataset["painted"]).toBeUndefined();
   });
@@ -82,18 +98,18 @@ describe("renderInventoryList icons", () => {
     vi.mocked(getAtlas).mockReturnValue(atlasWith(new Map()));
     const list = toElement("<ul></ul>");
 
-    renderInventoryList(list, "", log);
+    renderInventoryList(list, "", held);
 
     expect(icon(list).dataset["painted"]).toBeUndefined();
   });
 
   it("offsets the atlas sheet to the item's cell and tints the row", () => {
     vi.mocked(getAtlas).mockReturnValue(
-      atlasWith(new Map([["item_log", logSprite]]))
+      atlasWith(new Map([[`item_${itemA}`, itemSprite]]))
     );
     const list = toElement("<ul></ul>");
 
-    renderInventoryList(list, "", log);
+    renderInventoryList(list, "", held);
 
     const { style, dataset } = icon(list);
     expect(dataset["painted"]).toBe("");
@@ -105,18 +121,18 @@ describe("renderInventoryList icons", () => {
     expect(style.getPropertyValue("--sheet-cols")).toBe("4");
     expect(style.getPropertyValue("--sheet-rows")).toBe("2");
     expect(getElement("li", list).style.getPropertyValue("--item-color")).toBe(
-      logSprite.colour
+      itemSprite.colour
     );
   });
 
   it("paints each row only once", () => {
     vi.mocked(getAtlas).mockReturnValue(
-      atlasWith(new Map([["item_log", logSprite]]))
+      atlasWith(new Map([[`item_${itemA}`, itemSprite]]))
     );
     const list = toElement("<ul></ul>");
 
-    renderInventoryList(list, "", log);
-    renderInventoryList(list, "", log);
+    renderInventoryList(list, "", held);
+    renderInventoryList(list, "", held);
 
     expect(getAtlas).toHaveBeenCalledOnce();
   });
@@ -128,20 +144,17 @@ describe("renderInventoryList", () => {
   it("renders a row per item", () => {
     renderInventoryList(list, "", inventory);
 
-    expect(texts(list)).toEqual([
-      `Iron Ore ${(1234).toLocaleString()}`,
-      "Log 2",
-    ]);
+    expect(texts(list)).toEqual(fullList);
   });
 
   it("filters by label, ignoring case and surrounding whitespace", () => {
-    renderInventoryList(list, "  LOG ", inventory);
+    renderInventoryList(list, `  ${labelB.toUpperCase()} `, inventory);
 
-    expect(texts(list)).toEqual(["Log 2"]);
+    expect(texts(list)).toEqual([`${labelB} ${smallCount}`]);
   });
 
   it("says when nothing matches the search", () => {
-    renderInventoryList(list, "zzz", inventory);
+    renderInventoryList(list, "not in any label", inventory);
 
     expect(texts(list)).toEqual(["No matching items"]);
   });
@@ -160,32 +173,33 @@ describe("renderInventoryList", () => {
 
   it("removes rows that no longer match", () => {
     renderInventoryList(list, "", inventory);
-    renderInventoryList(list, "log", inventory);
+    renderInventoryList(list, labelB, inventory);
 
     expect(list.children).toHaveLength(1);
   });
 
   it("updates existing rows in place", () => {
-    renderInventoryList(list, "", new Map([["log", { count: 2 }]]));
+    renderInventoryList(list, "", new Map([[itemB, { count: smallCount }]]));
     const row = list.children[0];
 
-    renderInventoryList(list, "", new Map([["log", { count: 5 }]]));
+    renderInventoryList(
+      list,
+      "",
+      new Map([[itemB, { count: smallCount + 1 }]])
+    );
 
     expect(list.children[0]).toBe(row);
-    expect(texts(list)).toEqual(["Log 5"]);
+    expect(texts(list)).toEqual([`${labelB} ${smallCount + 1}`]);
   });
 
   it("adds rows for new items without touching existing ones", () => {
-    renderInventoryList(list, "", new Map([["log", { count: 2 }]]));
+    renderInventoryList(list, "", new Map([[itemB, { count: smallCount }]]));
     const row = list.children[0];
 
     renderInventoryList(list, "", inventory);
 
     expect(list.children[1]).toBe(row);
-    expect(texts(list)).toEqual([
-      `Iron Ore ${(1234).toLocaleString()}`,
-      "Log 2",
-    ]);
+    expect(texts(list)).toEqual(fullList);
   });
 
   it("replaces the placeholder once items arrive", () => {
@@ -193,7 +207,7 @@ describe("renderInventoryList", () => {
     renderInventoryList(list, "", inventory);
 
     expect(list.querySelector(".empty")).toBeNull();
-    expect(list.children).toHaveLength(2);
+    expect(list.children).toHaveLength(inventory.size);
   });
 });
 
@@ -239,10 +253,12 @@ describe("renderInventoryDialog", () => {
     dialog.open = true;
 
     run(id, world);
-    world.entities.optGet(id, "inventory")?.set("log", { count: 3 });
+    world.entities.optGet(id, "inventory")?.set(itemA, { count: smallCount });
     run(id, world);
 
-    expect(texts(getElement("ul", dialog))).toEqual(["Log 3"]);
+    expect(texts(getElement("ul", dialog))).toEqual([
+      `${labelA} ${smallCount}`,
+    ]);
   });
 
   it("is empty when no entity is being inspected", () => {

@@ -7,12 +7,15 @@
 //            at a game speed (the client derives the frame time from the speed)
 //   ground   pixel row line the sprite rests on; measured from the lowest
 //            opaque pixel unless given here (see pack.mjs)
+//   raise    pixels the sprite stands above the ground, for surfaces things
+//            ride on (belts); the client lifts what rides on it by this much
 // Every sprite with more than one animation frame needs `frameSec` or `stepPx`.
 //
 // Naming contract with the game (checked by coverage.mjs):
 //   terrain tile `x`        -> sprite `x`
 //   item id `x`             -> sprite `item_x`
 //   entity type `x`         -> sprites `x_up|down|left|right`
+//   structure type `x`      -> the sprites `structureSprites[x]` lists
 
 import { hash, mulberry32 } from "../core.mjs";
 

@@ -3,6 +3,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../../constants.ts";
+import { itemIds } from "../../item/registry.ts";
 import { World } from "../index.ts";
 import {
   createItem,
@@ -13,6 +14,7 @@ import {
 } from "./index.ts";
 import { EntityStore } from "./store.ts";
 import {
+  allEntityTypes,
   componentNames,
   encEntitySnapshot,
   type EntitySnapshot,
@@ -22,8 +24,12 @@ const a = unsafeEntityId(0);
 const b = unsafeEntityId(1);
 const c = unsafeEntityId(2);
 
+const [typeA, typeB] = allEntityTypes;
+const [itemId] = itemIds;
+const speed = 1;
+
 const component = (overrides: Partial<Components> = {}): Components => ({
-  type: "player",
+  type: typeA,
   position: Vector.create(1, 2),
   destination: undefined,
   speed: undefined,
@@ -172,7 +178,7 @@ describe("EntityStore", () => {
     it("captures players and items by id", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, "log", sampleItem, Vector.create(3, 4));
+      const item = createItem(world, itemId, sampleItem, Vector.create(3, 4));
 
       expect(world.entities.takeSnapshot([player, item])).toEqual(
         new Map([
@@ -199,7 +205,7 @@ describe("EntityStore", () => {
               speed: undefined,
               canPickup: true,
               conveyable: true,
-              inventory: new Map([["log", { count: 1 }]]),
+              inventory: new Map([[itemId, sampleItem]]),
               taskList: undefined,
             },
           ],
@@ -210,10 +216,10 @@ describe("EntityStore", () => {
     it("captures the contents of an inventory", () => {
       const world = new World();
       const contents = { data: undefined, count: 3 };
-      const item = createItem(world, "iron_ore", contents, Vector.zero(2));
+      const item = createItem(world, itemId, contents, Vector.zero(2));
 
       expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual(
-        new Map([["iron_ore", contents]])
+        new Map([[itemId, contents]])
       );
     });
 
@@ -221,7 +227,7 @@ describe("EntityStore", () => {
       const world = new World();
       const item = createItem(
         world,
-        "iron_ore",
+        itemId,
         { data: undefined, count: 3 },
         Vector.zero(2)
       );
@@ -245,7 +251,7 @@ describe("EntityStore", () => {
     it("only captures the requested ids", () => {
       const world = new World();
       createPlayer(world);
-      const item = createItem(world, "log", sampleItem, Vector.zero(2));
+      const item = createItem(world, itemId, sampleItem, Vector.zero(2));
 
       expect([...world.entities.takeSnapshot([item]).keys()]).toEqual([item]);
     });
@@ -260,7 +266,7 @@ describe("EntityStore", () => {
     it("survives an encode / decode round trip", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1.5, 2.5));
-      const item = createItem(world, "log", sampleItem, Vector.zero(2));
+      const item = createItem(world, itemId, sampleItem, Vector.zero(2));
 
       const snapshot = world.entities.takeSnapshot([player, item]);
 
@@ -272,7 +278,7 @@ describe("EntityStore", () => {
     it("can be applied to another EntityStore", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, "log", sampleItem, Vector.create(3, 4));
+      const item = createItem(world, itemId, sampleItem, Vector.create(3, 4));
       const store = new EntityStore();
 
       store.applySnapshot(world.entities.takeSnapshot([player, item]));
@@ -293,13 +299,13 @@ describe("EntityStore", () => {
             a,
             component({
               destination: Vector.create(7, 8),
-              speed: PLAYER_SPEED,
+              speed,
             }),
           ],
           [
             b,
             component({
-              type: "item",
+              type: typeB,
               position: Vector.create(3, 4),
               conveyable: true,
             }),
@@ -307,12 +313,12 @@ describe("EntityStore", () => {
         )
       );
 
-      expect(store.get(a, "type")).toBe("player");
+      expect(store.get(a, "type")).toBe(typeA);
       expect(store.get(a, "position").toArray()).toEqual([1, 2]);
       expect(store.get(a, "destination").toArray()).toEqual([7, 8]);
-      expect(store.get(a, "speed")).toBe(PLAYER_SPEED);
+      expect(store.get(a, "speed")).toBe(speed);
       expect(store.optGet(a, "conveyable")).toBeUndefined();
-      expect(store.get(b, "type")).toBe("item");
+      expect(store.get(b, "type")).toBe(typeB);
       expect(store.get(b, "position").toArray()).toEqual([3, 4]);
       expect(store.get(b, "conveyable")).toBe(true);
       expect(store.optGet(b, "speed")).toBeUndefined();
@@ -348,7 +354,7 @@ describe("EntityStore", () => {
             b,
             component({
               destination: Vector.create(7, 8),
-              speed: PLAYER_SPEED,
+              speed,
               conveyable: true,
             }),
           ]
@@ -380,10 +386,10 @@ describe("EntityStore", () => {
               a,
               component({
                 destination: Vector.create(7, 8),
-                speed: PLAYER_SPEED,
+                speed,
               }),
             ],
-            [b, component({ type: "item", conveyable: true })]
+            [b, component({ type: typeB, conveyable: true })]
           )
         );
         return store;
@@ -392,12 +398,10 @@ describe("EntityStore", () => {
       it("clears a destination the snapshot no longer has", () => {
         const store = populated();
 
-        store.applySnapshot(
-          snapshotOf([a, component({ speed: PLAYER_SPEED })])
-        );
+        store.applySnapshot(snapshotOf([a, component({ speed })]));
 
         expect(store.query("destination")).toEqual([]);
-        expect(store.get(a, "speed")).toBe(PLAYER_SPEED);
+        expect(store.get(a, "speed")).toBe(speed);
       });
 
       it("clears a speed the snapshot no longer has", () => {
@@ -414,23 +418,21 @@ describe("EntityStore", () => {
       it("clears a conveyable the snapshot no longer has", () => {
         const store = populated();
 
-        store.applySnapshot(snapshotOf([b, component({ type: "item" })]));
+        store.applySnapshot(snapshotOf([b, component({ type: typeB })]));
 
         expect(store.query("conveyable")).toEqual([]);
       });
 
       it("stores and then clears an inventory", () => {
         const store = populated();
-        const inventory = new Map([
-          ["iron_ore" as const, { data: undefined, count: 2 }],
-        ]);
+        const inventory = new Map([[itemId, { data: undefined, count: 2 }]]);
 
         store.applySnapshot(
-          snapshotOf([b, component({ type: "item", inventory })])
+          snapshotOf([b, component({ type: typeB, inventory })])
         );
         expect(store.get(b, "inventory")).toEqual(inventory);
 
-        store.applySnapshot(snapshotOf([b, component({ type: "item" })]));
+        store.applySnapshot(snapshotOf([b, component({ type: typeB })]));
         expect(store.query("inventory")).toEqual([]);
       });
 

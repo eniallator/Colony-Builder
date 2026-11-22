@@ -3,15 +3,12 @@ import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
-  idToTile,
   regionIdToPos,
   regionPosToId,
   worldToRegionPos,
   type RegionId,
-  type RegionTiles,
-  type Tile,
-  type TileId,
-} from "./types.ts";
+} from "../region.ts";
+import { idToTile, type RegionTiles, type Tile, type TileId } from "./types.ts";
 
 const flatRegionIdx = (x: number, y: number): number =>
   positiveMod(Math.floor(y), REGION_SIDE_LENGTH) * REGION_SIDE_LENGTH +

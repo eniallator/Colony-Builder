@@ -6,6 +6,7 @@ import {
   REGION_SIDE_LENGTH,
   regionIdToPos,
   regionPosToId,
+  tiles,
   tileToId,
   TPS,
   type RegionId,
@@ -30,10 +31,10 @@ interface Client {
 
 const DT = 1 / TPS;
 
-/** Flat grass and no structures. Most tests are not about the terrain, and the real generator is slow. */
+/** One flat tile and no structures. Most tests are not about the terrain, and the real generator is slow. */
 const flatGenerator: WorldGenerator = () => ({
   tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
-    tileToId("grass")
+    tileToId(tiles[0])
   ),
   structures: new Map(),
 });
@@ -182,10 +183,10 @@ describe("terrain", () => {
     tick(game);
 
     const [first] = terrainSnapshots(client);
-    const tiles = new Set(
+    const distinctTiles = new Set(
       [...(first?.values() ?? [])].flatMap(region => region.tiles)
     );
-    expect(tiles.size).toBeGreaterThan(1);
+    expect(distinctTiles.size).toBeGreaterThan(1);
   });
 
   it("sends the regions around a new player on the first tick", () => {

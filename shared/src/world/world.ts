@@ -6,15 +6,15 @@ import {
   type ComponentName,
   type EntityId,
 } from "./entity/index.ts";
-import { StructureStore } from "./structure/store.ts";
 import {
   regionIdToPos,
   regionPosToId,
   regionsAround,
-  TerrainStore,
   worldToRegionPos,
   type RegionId,
-} from "./terrain/index.ts";
+} from "./region.ts";
+import { StructureStore } from "./structure/store.ts";
+import { TerrainStore } from "./terrain/store.ts";
 import type { WorldGenerator, WorldSnapshot } from "./types.ts";
 
 export class World {

@@ -1,11 +1,5 @@
-import { isOneOf, type TypeFromGuard } from "deep-guards";
-import { raise, tuple } from "niall-utils/core";
+import { raise } from "niall-utils/core";
 import { sequence } from "niall-utils/ui";
-import { Vector } from "vectyped";
-
-export const DIRECTIONS = tuple("up", "down", "left", "right");
-export const isDirection = isOneOf(...DIRECTIONS);
-export type Direction = TypeFromGuard<typeof isDirection>;
 
 export const MIN_TEXTURE_PX_PER_TILE = 8;
 
@@ -63,26 +57,6 @@ export function* runsOf<T>(
   }
   yield [current, start, to];
 }
-
-const CARDINALS: Record<Direction, Vector<2>> = {
-  up: Vector.UP,
-  down: Vector.DOWN,
-  left: Vector.LEFT,
-  right: Vector.RIGHT,
-};
-
-/**
- * Which cardinal direction a movement `delta` points most towards, or
- * `undefined` if it is zero. Ties go to the earlier of up, down, left, right.
- */
-export const directionOf = (delta: Vector<2>): Direction | undefined =>
-  delta.getSquaredMagnitude() === 0
-    ? undefined
-    : DIRECTIONS.reduce((best, direction) =>
-        delta.dot(CARDINALS[direction]) > delta.dot(CARDINALS[best])
-          ? direction
-          : best
-      );
 
 const patterns = new WeakMap<ImageBitmap, CanvasPattern>();
 

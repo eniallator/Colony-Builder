@@ -2,11 +2,12 @@ import { afterEach, describe, expect, it, vi } from "vitest";
 
 import { isAtlasJson, loadAtlas } from "./atlas.ts";
 
+// The loader treats sprite names as opaque, so these say what each one is for.
 const validJson = {
   tileSize: 16,
   columns: 16,
   sprites: {
-    grass: {
+    variants: {
       mode: "variants",
       cells: [
         [0, 0],
@@ -15,19 +16,20 @@ const validJson = {
       colour: "#4b8341",
       ground: 16,
     },
-    water: {
+    timed: {
       mode: "frames",
       cells: [[2, 0]],
       colour: "#3a68a8",
       ground: 16,
       frameSec: 0.3,
     },
-    conveyor_up: {
+    moving: {
       mode: "frames",
       cells: [[3, 0]],
       colour: "#444444",
       ground: 16,
       stepPx: 2,
+      raise: 3,
     },
   },
 };
@@ -41,7 +43,7 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        grass: { ...validJson.sprites.grass, mode: "random" },
+        variants: { ...validJson.sprites.variants, mode: "random" },
       },
     };
     expect(isAtlasJson(bad)).toBe(false);
@@ -50,7 +52,7 @@ describe("isAtlasJson", () => {
   it("rejects a sprite with no colour", () => {
     const bad = {
       ...validJson,
-      sprites: { grass: { mode: "variants", cells: [[0, 0]] } },
+      sprites: { variants: { mode: "variants", cells: [[0, 0]] } },
     };
     expect(isAtlasJson(bad)).toBe(false);
   });
@@ -59,7 +61,7 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        grass: {
+        variants: {
           mode: "variants",
           cells: [[0]],
           colour: "#000000",
@@ -74,7 +76,7 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        grass: { mode: "variants", cells: [[0, 0]], colour: "#000000" },
+        variants: { mode: "variants", cells: [[0, 0]], colour: "#000000" },
       },
     };
     expect(isAtlasJson(bad)).toBe(false);
@@ -84,7 +86,17 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        water: { ...validJson.sprites.water, frameSec: "fast" },
+        timed: { ...validJson.sprites.timed, frameSec: "fast" },
+      },
+    };
+    expect(isAtlasJson(bad)).toBe(false);
+  });
+
+  it("rejects a non-numeric raise", () => {
+    const bad = {
+      ...validJson,
+      sprites: {
+        moving: { ...validJson.sprites.moving, raise: "high" },
       },
     };
     expect(isAtlasJson(bad)).toBe(false);
@@ -94,7 +106,7 @@ describe("isAtlasJson", () => {
     const bad = {
       ...validJson,
       sprites: {
-        grass: { ...validJson.sprites.grass, rows: "two" },
+        variants: { ...validJson.sprites.variants, rows: "two" },
       },
     };
     expect(isAtlasJson(bad)).toBe(false);
@@ -142,47 +154,46 @@ describe("loadAtlas", () => {
     const { createImageBitmap, sheet } = stubNetwork(validJson);
     const atlas = await loadAtlas();
 
-    expect(atlas.tileSize).toBe(16);
-    expect([...atlas.sprites.keys()]).toEqual([
-      "grass",
-      "water",
-      "conveyor_up",
-    ]);
+    const { variants, timed, moving } = validJson.sprites;
+    expect(atlas.tileSize).toBe(validJson.tileSize);
+    expect([...atlas.sprites.keys()]).toEqual(Object.keys(validJson.sprites));
 
-    const grass = atlas.sprites.get("grass");
-    expect(grass?.mode).toBe("variants");
-    expect(grass?.colour).toBe("#4b8341");
-    expect(grass?.ground).toBe(16);
-    expect(atlas.sprites.get("water")?.frameSec).toBe(0.3);
-    expect(atlas.sprites.get("conveyor_up")?.stepPx).toBe(2);
-    expect(grass?.cells).toEqual([
-      [0, 0],
-      [1, 0],
-    ]);
-    expect(grass?.frames).toHaveLength(2);
+    const loaded = atlas.sprites.get("variants");
+    expect(loaded?.mode).toBe(variants.mode);
+    expect(loaded?.colour).toBe(variants.colour);
+    expect(loaded?.ground).toBe(variants.ground);
+    expect(atlas.sprites.get("timed")?.frameSec).toBe(timed.frameSec);
+    expect(atlas.sprites.get("moving")?.stepPx).toBe(moving.stepPx);
+    expect(atlas.sprites.get("moving")?.raise).toBe(moving.raise);
+    expect(loaded?.cells).toEqual(variants.cells);
+    expect(loaded?.frames).toHaveLength(variants.cells.length);
 
     // Cells are cropped at col * tileSize, row * tileSize.
+    const { tileSize } = validJson;
     const crops = createImageBitmap.mock.calls
       .filter(([source]) => source === sheet)
       .map(([, ...rest]) => rest);
-    expect(crops).toEqual([
-      [0, 0, 16, 16],
-      [16, 0, 16, 16],
-      [32, 0, 16, 16],
-      [48, 0, 16, 16],
-    ]);
+    expect(crops).toEqual(
+      [...variants.cells, ...timed.cells, ...moving.cells].map(([col, row]) => [
+        (col ?? 0) * tileSize,
+        (row ?? 0) * tileSize,
+        tileSize,
+        tileSize,
+      ])
+    );
   });
 
   it("cuts a tall sprite's cells as tall as its rows", async () => {
+    const [col, row, rows] = [4, 2, 2];
     const tall = {
       ...validJson,
       sprites: {
-        tree: {
+        tall: {
           mode: "frames",
-          cells: [[4, 2]],
+          cells: [[col, row]],
           colour: "#33703a",
           ground: 32,
-          rows: 2,
+          rows,
         },
       },
     };
@@ -190,12 +201,13 @@ describe("loadAtlas", () => {
 
     const atlas = await loadAtlas();
 
-    expect(atlas.sprites.get("tree")?.rows).toBe(2);
+    const { tileSize } = validJson;
+    expect(atlas.sprites.get("tall")?.rows).toBe(rows);
     expect(
       createImageBitmap.mock.calls
         .filter(([source]) => source === sheet)
         .map(([, ...rest]) => rest)
-    ).toEqual([[64, 32, 16, 32]]);
+    ).toEqual([[col * tileSize, row * tileSize, tileSize, rows * tileSize]]);
   });
 
   it("rejects when a file fails to load", async () => {

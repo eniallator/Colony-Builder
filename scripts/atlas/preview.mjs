@@ -3,6 +3,7 @@
 
 import { writeFileSync } from "node:fs";
 
+import { conveyorSpriteName } from "../../shared/src/world/structure/conveyor.ts";
 import { TILE } from "./core.mjs";
 import { blit, encodePng } from "./png.mjs";
 
@@ -12,12 +13,12 @@ const SCENE = [
   "jjjgggggggggggsswwww",
   "mmgggggggggggssswwww",
   "mmmggggggggggsssswww",
-  "ggggggg>>>>>>>>>gsss",
-  "ggggggggggggggggvggg",
-  "ttttggggggggggggvgjj",
+  "gggggggggggggggggsss",
+  "gggggggggggggggggggg",
+  "ttttggggggggggggggjj",
   "ttiiggggggggggggjjjj",
   "ttiittgggggggggggjjj",
-  "tttttttggggg<<<<<ggg",
+  "tttttttggggggggggggg",
   "ttttttgggggggggggggg",
 ];
 const SCENE_TILES = {
@@ -28,10 +29,6 @@ const SCENE_TILES = {
   i: "iron_deposit",
   j: "jungle",
   m: "swampland",
-  ">": "conveyor_right",
-  "<": "conveyor_left",
-  v: "conveyor_down",
-  "^": "conveyor_up",
 };
 const SCENE_ENTITIES = [
   [9, 6, "robot_right"],
@@ -47,6 +44,15 @@ const SCENE_STRUCTURES = [
   [9, 9, "tree"],
   [2, 3, "cactus"],
   [5, 4, "cactus"],
+];
+// A belt going right that turns up, and one going left that turns up.
+const SCENE_BELTS = [
+  ...[7, 8, 9, 10, 11, 12].map(x => [x, 5, conveyorSpriteName("right")]),
+  [13, 5, conveyorSpriteName("up", "anticlockwise")],
+  ...[4, 3, 2].map(y => [13, y, conveyorSpriteName("up")]),
+  ...[17, 16, 15, 14, 13].map(x => [x, 10, conveyorSpriteName("left")]),
+  [12, 10, conveyorSpriteName("up", "clockwise")],
+  ...[9, 8].map(y => [12, y, conveyorSpriteName("up")]),
 ];
 const SCALE = 4;
 
@@ -81,14 +87,11 @@ export const writePreview = (path, sprites) => {
       const name = SCENE_TILES[ch];
       if (name == null) throw new Error(`unknown scene char "${ch}"`);
       // Deterministic per-position variant so the preview shows variety.
-      draw(
-        name,
-        name.startsWith("conveyor") ? 1 : (tx * 7 + ty * 13) % 4,
-        tx,
-        ty
-      );
+      draw(name, (tx * 7 + ty * 13) % 4, tx, ty);
     });
   });
+  // Belts lie on the ground, so they have no shadow.
+  for (const [tx, ty, name] of SCENE_BELTS) draw(name, 1, tx, ty);
   // Structures stand on their tile; a taller sprite reaches up from its foot.
   for (const [tx, ty, name] of SCENE_STRUCTURES) {
     const tall = frameOf(name, 0).length / (TILE * TILE * 4);

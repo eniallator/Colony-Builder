@@ -1,16 +1,21 @@
 import { describe, expect, it } from "vitest";
 
+import { itemIds } from "./registry.ts";
 import { encInventory, encItem } from "./types.ts";
 
+const [itemA, itemB] = itemIds;
+
 describe("encItem", () => {
+  const count = 1;
+
   it("round-trips a count without data", () => {
-    expect(encItem.decode(encItem.encode({ count: 7 }))).toEqual({ count: 7 });
+    expect(encItem.decode(encItem.encode({ count }))).toEqual({ count });
   });
 
   it("drops any data when round-tripping", () => {
-    const encoded = encItem.encode({ count: 7, data: { any: "thing" } });
+    const encoded = encItem.encode({ count, data: { any: "thing" } });
 
-    expect(encItem.decode(encoded)).toEqual({ count: 7 });
+    expect(encItem.decode(encoded)).toEqual({ count });
   });
 
   it("only accepts non-negative integer counts", () => {
@@ -23,9 +28,9 @@ describe("encItem", () => {
 describe("encInventory", () => {
   it("round-trips", () => {
     const inventory = new Map([
-      ["iron_ore", { count: 3 }],
-      ["log", { count: 9 }],
-    ] as const);
+      [itemA, { count: 1 }],
+      [itemB, { count: 2 }],
+    ]);
 
     expect(encInventory.decode(encInventory.encode(inventory))).toEqual(
       inventory

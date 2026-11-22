@@ -3,24 +3,26 @@ import { describe, expect, it } from "vitest";
 
 import { LOADED_SIDE_LENGTH, REGION_SIDE_LENGTH } from "../constants.ts";
 import { EntityStore } from "./entity/index.ts";
+import { regionPosToId, type RegionId } from "./region.ts";
 import { StructureStore } from "./structure/index.ts";
 import {
-  regionPosToId,
   TerrainStore,
+  tiles,
   tileToId,
-  type RegionId,
   type RegionTiles,
   type Tile,
 } from "./terrain/index.ts";
 import type { WorldGenerator } from "./types.ts";
 import { World } from "./world.ts";
 
+const [generatedTile, otherTile] = tiles;
+
 const flatTiles = (tile: Tile): RegionTiles =>
   Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile));
 
-/** Generates flat grass regions with no structures. */
+/** Generates flat regions of one tile with no structures. */
 const flatGenerator: WorldGenerator = () => ({
-  tiles: flatTiles("grass"),
+  tiles: flatTiles(generatedTile),
   structures: new Map(),
 });
 
@@ -117,13 +119,13 @@ describe("World", () => {
 
       expect(world.terrain.ids.toArray()).toEqual(ids);
       for (const id of ids) {
-        expect(world.terrain.get(id)).toEqual(flatTiles("grass"));
+        expect(world.terrain.get(id)).toEqual(flatTiles(generatedTile));
       }
     });
 
     it("keeps regions that already exist", () => {
       const world = new World();
-      const existing = flatTiles("sand");
+      const existing = flatTiles(otherTile);
       world.terrain.add(regionPosToId(0, 0), existing);
 
       world.loadWorld(0, 0, flatGenerator);
@@ -133,7 +135,7 @@ describe("World", () => {
 
     it("only calls the generator for regions that do not exist yet", () => {
       const world = new World();
-      world.terrain.add(regionPosToId(0, 0), flatTiles("sand"));
+      world.terrain.add(regionPosToId(0, 0), flatTiles(otherTile));
       const generated: RegionId[] = [];
 
       world.loadWorld(0, 0, id => {

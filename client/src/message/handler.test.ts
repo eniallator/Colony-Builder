@@ -1,8 +1,10 @@
 import {
   createItem,
   createPlayer,
+  itemIds,
   REGION_SIDE_LENGTH,
   regionPosToId,
+  tiles,
   tileToId,
   unsafeEntityId,
   World,
@@ -27,7 +29,13 @@ const createState = (): State => ({
 const region = (tile: Tile): RegionTiles =>
   Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () => tileToId(tile));
 
-const loaded = (tiles: RegionTiles) => ({ tiles, structures: new Map() });
+const loaded = (regionTiles: RegionTiles) => ({
+  tiles: regionTiles,
+  structures: new Map(),
+});
+
+const [firstTile, secondTile, thirdTile] = tiles;
+const [itemId] = itemIds;
 
 describe("messageHandler", () => {
   it("stores the player id from an init message", () => {
@@ -41,7 +49,7 @@ describe("messageHandler", () => {
   it("applies the entities from an entities message", () => {
     const server = new World();
     const player = createPlayer(server, Vector.create(1, 2));
-    const item = createItem(server, "log", { count: 1 }, Vector.create(3, 4));
+    const item = createItem(server, itemId, { count: 1 }, Vector.create(3, 4));
     const state = createState();
 
     messageHandler(state, {
@@ -78,32 +86,32 @@ describe("messageHandler", () => {
 
   it("applies the regions from a terrain message", () => {
     const state = createState();
-    const grass = region("grass");
+    const first = region(firstTile);
 
     messageHandler(state, {
       type: "load",
-      snapshot: new Map([[regionPosToId(2, -3), loaded(grass)]]),
+      snapshot: new Map([[regionPosToId(2, -3), loaded(first)]]),
     });
 
-    expect(state.world.terrain.get(regionPosToId(2, -3))).toBe(grass);
+    expect(state.world.terrain.get(regionPosToId(2, -3))).toBe(first);
   });
 
   it("keeps regions that an earlier terrain message delivered", () => {
     const state = createState();
-    const grass = region("grass");
-    const water = region("water");
+    const first = region(firstTile);
+    const second = region(secondTile);
     messageHandler(state, {
       type: "load",
-      snapshot: new Map([[regionPosToId(0, 0), loaded(grass)]]),
+      snapshot: new Map([[regionPosToId(0, 0), loaded(first)]]),
     });
 
     messageHandler(state, {
       type: "load",
-      snapshot: new Map([[regionPosToId(1, 0), loaded(water)]]),
+      snapshot: new Map([[regionPosToId(1, 0), loaded(second)]]),
     });
 
-    expect(state.world.terrain.get(regionPosToId(0, 0))).toBe(grass);
-    expect(state.world.terrain.get(regionPosToId(1, 0))).toBe(water);
+    expect(state.world.terrain.get(regionPosToId(0, 0))).toBe(first);
+    expect(state.world.terrain.get(regionPosToId(1, 0))).toBe(second);
   });
 
   it("keeps entities and terrain separate", () => {
@@ -117,7 +125,7 @@ describe("messageHandler", () => {
     });
     messageHandler(state, {
       type: "load",
-      snapshot: new Map([[regionPosToId(0, 0), loaded(region("sand"))]]),
+      snapshot: new Map([[regionPosToId(0, 0), loaded(region(thirdTile))]]),
     });
 
     expect(state.world.entities.query("position")).toHaveLength(1);

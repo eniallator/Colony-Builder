@@ -153,6 +153,15 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - Directional machines are drawn once (facing up) and rotated by the generator.
 - Movement is shown by animating the _surface_ (belt chevrons), not by moving
   the whole sprite.
+- Belts are structures, drawn as repeating 16×16 tiles along their length, so
+  a tile must join the next on every edge. They are **raised**: two 4px beams
+  (dark edge, lit top, dark edge) with the bed between them, and they stand
+  `raise` px above the ground (see "Sprite metadata"). They lie on the ground
+  as one flat piece, so they have **no shadow**.
+- A belt is drawn once going up, and the generator rotates it for the other
+  facings. A corner is drawn once for a belt coming in from the left (it turns
+  anticlockwise) and mirrored for the clockwise turn. Its band is a quarter
+  ring around the tile's inner corner, and nothing is drawn outside it.
 
 ### Entities (robots, players)
 
@@ -210,13 +219,13 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 
 `pnpm atlas` cross-checks the game's registries against the atlas.
 
-| Game concept               | Sprite name(s)                        |
-| -------------------------- | ------------------------------------- |
-| Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`) |
-| `ItemId` `x`               | `item_x`                              |
-| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right` |
-| Structure id `x`           | `x` (e.g. `tree`, `cactus`)           |
-| Renderer helper            | `shadow`, `shadow_small`              |
+| Game concept               | Sprite name(s)                                                                                                                                                                          |
+| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`)                                                                                                                                                   |
+| `ItemId` `x`               | `item_x`                                                                                                                                                                                |
+| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right`                                                                                                                                                   |
+| Structure id `x`           | the sprites `structureSprites[x]` lists: `tree` and `cactus` one named after them, `conveyor` the `conveyor_<facing>` and `conveyor_<facing>_turning_<clockwise\|anticlockwise>` family |
+| Renderer helper            | `shadow`, `shadow_small`                                                                                                                                                                |
 
 `pnpm atlas:check` exits non-zero if anything in the game has no sprite.
 
@@ -236,22 +245,27 @@ can pass these as the last argument of `animated`, `directional` and `still`
 
 A sprite with more than one animation frame must give `frameSec` or `stepPx`;
 `pnpm atlas` fails otherwise. If a new animation depicts motion at a game speed,
-also add its tile to `TILE_SPEEDS` in `client/src/render/system/frame.ts`.
+pass that speed to `frameOf` where it is drawn (belts use `CONVEYOR_SPEED` in
+`paintConveyor`, `client/src/render/system/painter.ts`).
+
+`raise` is how many art pixels a surface things ride on (a belt) stands above
+the ground. Whatever rides it is drawn that much higher, and its shadow with it.
+Set it with the sprite (`sprites/conveyors.mjs`), never in `client/src`.
 
 ## Adding new art
 
 Each recipe touches **one file** (plus the palette if you need a new colour).
 
-| I want to add…   | Do this                                                                           |
-| ---------------- | --------------------------------------------------------------------------------- |
-| A colour         | Add it to `scripts/atlas/palette.mjs` (inside an existing ramp if possible).      |
-| A terrain tile   | In `sprites/terrain.mjs`: write `draw(rng, variant)`, add `variants("id", draw)`. |
-| An animated tile | Same file, `animated("id", frameCount, draw(rng, frame))`.                        |
-| An item          | In `sprites/items.mjs`: add `item("id", [16 ascii rows], { legend })`.            |
-| An item pile     | Same file: `still("item_id", compose([[chunk, x, y], …], legend, outline))`.      |
-| A conveyor tier  | In `sprites/conveyors.mjs`: `conveyorFamily("fast_conveyor", PALETTE.fastBelt)`.  |
-| A walking entity | In `sprites/entities.mjs`: write `draw(dir, frame)`, add `directional(...)`.      |
-| A new category   | New file in `sprites/` exporting a list; spread it into `sprites/index.mjs`.      |
+| I want to add…   | Do this                                                                                   |
+| ---------------- | ----------------------------------------------------------------------------------------- |
+| A colour         | Add it to `scripts/atlas/palette.mjs` (inside an existing ramp if possible).              |
+| A terrain tile   | In `sprites/terrain.mjs`: write `draw(rng, variant)`, add `variants("id", draw)`.         |
+| An animated tile | Same file, `animated("id", frameCount, draw(rng, frame))`.                                |
+| An item          | In `sprites/items.mjs`: add `item("id", [16 ascii rows], { legend })`.                    |
+| An item pile     | Same file: `still("item_id", compose([[chunk, x, y], …], legend, outline))`.              |
+| A conveyor tier  | In `sprites/conveyors.mjs`: recolour with `PALETTE.belt`, or draw another look beside it. |
+| A walking entity | In `sprites/entities.mjs`: write `draw(dir, frame)`, add `directional(...)`.              |
+| A new category   | New file in `sprites/` exporting a list; spread it into `sprites/index.mjs`.              |
 
 Then run `pnpm atlas`. Seeds derive from sprite names, so adding or reordering
 sprites never changes the look of existing ones.

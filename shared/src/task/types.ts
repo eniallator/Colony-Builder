@@ -11,8 +11,7 @@ import {
   encVec2,
   type EncodableWritableType,
 } from "../encoding/index.ts";
-import { encSubRegionId } from "../world/structure/types.ts";
-import { encRegionId } from "../world/terrain/types.ts";
+import { encRegionId, encSubRegionId } from "../world/region.ts";
 
 export const encGatherTile = encObjectOf({
   type: encExact("gatherTile"),

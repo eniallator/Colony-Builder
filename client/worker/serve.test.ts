@@ -4,6 +4,7 @@ import {
   encServerMessage,
   PLAYER_SPEED,
   REGION_SIDE_LENGTH,
+  tiles,
   tileToId,
   TPS,
   type WorldGenerator,
@@ -20,7 +21,7 @@ vi.mock("@colony-builder/server-core", async importOriginal => {
   const original = await importOriginal<typeof ServerCore>();
   const flatGenerator: WorldGenerator = () => ({
     tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
-      tileToId("grass")
+      tileToId(tiles[0])
     ),
     structures: new Map(),
   });

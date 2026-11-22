@@ -35,7 +35,7 @@ const BIOME_STRUCTURES: Partial<
 };
 
 /** The tiles each kind of structure can grow on. */
-const GROWS_ON: Record<StructureData["type"], Tile[]> = {
+const GROWS_ON: Partial<Record<StructureData["type"], Tile[]>> = {
   tree: ["grass", "swampland", "jungle"],
   cactus: ["sand"],
 };
@@ -79,7 +79,7 @@ const generateStructures = (
     const growth = BIOME_STRUCTURES[biome];
     if (growth == null || roll >= growth.chance) return;
     // Only on tiles it can grow on, so never on water, stone or ore.
-    if (!GROWS_ON[growth.structure.type].includes(tile)) return;
+    if (!GROWS_ON[growth.structure.type]?.includes(tile)) return;
 
     const [dx, dy] = idxToDeltaXY(idx);
     structures.set(

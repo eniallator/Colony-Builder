@@ -76,5 +76,6 @@ Lightweight profiling of methods and functions. Use it when asked about performa
 ## Tooling
 
 - Tests: vitest with jsdom. Put `*.test.ts` next to the code.
+- Tests hardcode a specific value (a tile, structure type, item id, constant, number) only when that value is what the test is about. Otherwise use the least-coupled value that makes the test work, e.g. `tiles[0]` or a key of a registry instead of `"grass"`, an exported constant instead of its number, so changing game content doesn't break unrelated tests. Prefer dummy data and structures built for the test over real game content.
 - Build: webpack + babel (`@babel/preset-typescript`), terser for minification, browser-sync for `pnpm watch`.
 - Node >= 25.4 (TypeScript 7, native type stripping for `node src/...ts`).

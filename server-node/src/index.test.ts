@@ -7,6 +7,7 @@ import {
   PLAYER_SPEED,
   REGION_SIDE_LENGTH,
   SOCKET_PORT,
+  tiles,
   tileToId,
   TPS,
   type WorldGenerator,
@@ -45,7 +46,7 @@ vi.mock("@colony-builder/server-core", async importOriginal => {
   const original = await importOriginal<typeof ServerCore>();
   const flatGenerator: WorldGenerator = () => ({
     tiles: Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
-      tileToId("grass")
+      tileToId(tiles[0])
     ),
     structures: new Map(),
   });
@@ -168,7 +169,7 @@ describe("ticking", () => {
     const socket = connect(await load());
     socket.emit("message", moveBytes([1000, 0]));
 
-    vi.setSystemTime(Date.now() + 10_000);
+    vi.setSystemTime(Date.now() + 10 * MAX_DT * 1000);
     tick();
 
     expect(playerX(socket)).toBeCloseTo(MAX_DT * PLAYER_SPEED);

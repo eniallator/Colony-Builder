@@ -12,12 +12,12 @@ const requiredSprites = async () => {
     { tiles },
     { itemDataRegistry },
     { allEntityTypes },
-    { structureRegistry },
+    { structureSprites },
   ] = await Promise.all([
     load("../../shared/src/world/terrain/types.ts"),
     load("../../shared/src/item/registry.ts"),
     load("../../shared/src/world/entity/types.ts"),
-    load("../../shared/src/world/structure/types.ts"),
+    load("../../shared/src/world/structure/sprites.ts"),
   ]);
   return [
     ...tiles.map(tile => ({ kind: "tile", id: tile, sprite: tile })),
@@ -30,11 +30,9 @@ const requiredSprites = async () => {
     ...allEntityTypes
       .filter(type => type !== "item")
       .map(type => ({ kind: "entity", id: type, sprite: `${type}_down` })),
-    ...Object.keys(structureRegistry).map(id => ({
-      kind: "structure",
-      id,
-      sprite: id,
-    })),
+    ...Object.entries(structureSprites).flatMap(([id, sprites]) =>
+      sprites.map(sprite => ({ kind: "structure", id, sprite }))
+    ),
   ];
 };
 

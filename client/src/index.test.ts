@@ -1,14 +1,16 @@
 import {
+  allEntityTypes,
   createPlayer,
   encClientMessage,
   encServerMessage,
+  MAX_DT,
   MAX_ZOOM,
   MIN_ZOOM,
   REGION_SIDE_LENGTH,
   regionPosToId,
   SOCKET_PORT,
+  tiles,
   tileToId,
-  TPS,
   UNLOADED_SIDE_LENGTH,
   unsafeEntityId,
   World,
@@ -105,8 +107,11 @@ const message = (data: unknown) => new MessageEvent("message", { data });
 const serverMessage = (serverMsg: ServerMessage) =>
   message(encServerMessage.encode(serverMsg).buffer);
 
-const grass: RegionTiles = Array.from({ length: REGION_SIDE_LENGTH ** 2 }, () =>
-  tileToId("grass")
+const [entityType] = allEntityTypes;
+
+const flatRegion: RegionTiles = Array.from(
+  { length: REGION_SIDE_LENGTH ** 2 },
+  () => tileToId(tiles[0])
 );
 
 beforeEach(() => {
@@ -204,7 +209,7 @@ describe("app.init", () => {
       const state = app.init(createAppContext());
       const id = unsafeEntityId(2);
       const entity: Components = {
-        type: "item",
+        type: entityType,
         position: Vector.create(3, 4),
         destination: undefined,
         speed: undefined,
@@ -230,12 +235,12 @@ describe("app.init", () => {
         serverMessage({
           type: "load",
           snapshot: new Map([
-            [regionPosToId(1, 2), { tiles: grass, structures: new Map() }],
+            [regionPosToId(1, 2), { tiles: flatRegion, structures: new Map() }],
           ]),
         })
       );
 
-      expect(state.world.terrain.get(regionPosToId(1, 2))).toEqual(grass);
+      expect(state.world.terrain.get(regionPosToId(1, 2))).toEqual(flatRegion);
     });
 
     it("ignores messages that are not binary", () => {
@@ -445,10 +450,10 @@ describe("app.animationFrame", () => {
     expect(firstCtx(systems[0]).dt).toBe(0.01);
   });
 
-  it("caps the step at two ticks", () => {
-    frame(createState(), { delta: 5 });
+  it("caps the step at the longest the game steps", () => {
+    frame(createState(), { delta: 10 * MAX_DT });
 
-    expect(firstCtx(systems[0]).dt).toBe(2 / TPS);
+    expect(firstCtx(systems[0]).dt).toBe(MAX_DT);
   });
 
   describe("when the player has no position yet", () => {
@@ -456,7 +461,7 @@ describe("app.animationFrame", () => {
 
     const stateWithout = (playerId?: EntityId): State => {
       const world = new World();
-      world.terrain.add(far, grass);
+      world.terrain.add(far, flatRegion);
 
       return {
         camera: { center: Vector.zero(2), zoom: 0 },
@@ -472,7 +477,7 @@ describe("app.animationFrame", () => {
 
       frame(state);
 
-      expect(state.world.terrain.optGet(far)).toBe(grass);
+      expect(state.world.terrain.optGet(far)).toBe(flatRegion);
       expect(state.send).not.toHaveBeenCalled();
     });
 
@@ -481,7 +486,7 @@ describe("app.animationFrame", () => {
 
       frame(state);
 
-      expect(state.world.terrain.optGet(far)).toBe(grass);
+      expect(state.world.terrain.optGet(far)).toBe(flatRegion);
       expect(state.send).not.toHaveBeenCalled();
     });
 
@@ -499,8 +504,8 @@ describe("app.animationFrame", () => {
     it("drops regions outside the unload square and tells the server", () => {
       const state = createState();
       const far = regionPosToId(half, 0);
-      state.world.terrain.add(regionPosToId(0, 0), grass);
-      state.world.terrain.add(far, grass);
+      state.world.terrain.add(regionPosToId(0, 0), flatRegion);
+      state.world.terrain.add(far, flatRegion);
 
       frame(state);
 
@@ -513,8 +518,8 @@ describe("app.animationFrame", () => {
 
     it("keeps regions on the inclusive lower and exclusive upper edge", () => {
       const state = createState();
-      state.world.terrain.add(regionPosToId(-half, 0), grass);
-      state.world.terrain.add(regionPosToId(half - 1, 0), grass);
+      state.world.terrain.add(regionPosToId(-half, 0), flatRegion);
+      state.world.terrain.add(regionPosToId(half - 1, 0), flatRegion);
 
       frame(state);
 
@@ -527,7 +532,7 @@ describe("app.animationFrame", () => {
 
     it("sends nothing when there is nothing to unload", () => {
       const state = createState();
-      state.world.terrain.add(regionPosToId(0, 0), grass);
+      state.world.terrain.add(regionPosToId(0, 0), flatRegion);
 
       frame(state);
 
@@ -537,8 +542,8 @@ describe("app.animationFrame", () => {
     it("is centred on the region the player is in", () => {
       const state = createState(Vector.create(5.5 * REGION_SIDE_LENGTH, 0));
       const behind = regionPosToId(5 - half - 1, 0);
-      state.world.terrain.add(regionPosToId(0, 0), grass);
-      state.world.terrain.add(behind, grass);
+      state.world.terrain.add(regionPosToId(0, 0), flatRegion);
+      state.world.terrain.add(behind, flatRegion);
 
       frame(state);
 
@@ -552,8 +557,8 @@ describe("app.animationFrame", () => {
     it("unloads in one message, in store order", () => {
       const state = createState();
       const [a, b] = [regionPosToId(half, 0), regionPosToId(0, -half - 1)];
-      state.world.terrain.add(a, grass);
-      state.world.terrain.add(b, grass);
+      state.world.terrain.add(a, flatRegion);
+      state.world.terrain.add(b, flatRegion);
 
       frame(state);
 
@@ -566,7 +571,7 @@ describe("app.animationFrame", () => {
     it("happens before the systems run", () => {
       const state = createState();
       const far = regionPosToId(half, 0);
-      state.world.terrain.add(far, grass);
+      state.world.terrain.add(far, flatRegion);
       const seenByFirstSystem: boolean[] = [];
       systems[0]?.mockImplementation(({ world }) => {
         seenByFirstSystem.push(world.terrain.optGet(far) != null);

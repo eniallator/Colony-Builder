@@ -6,6 +6,7 @@ import {
   regionPosToId,
   TASK_DURATION,
   TASK_RADIUS,
+  tiles,
   tileToId,
   World,
   worldPosToRegionIds,
@@ -141,7 +142,7 @@ describe("taskSystem", () => {
     });
 
     it("gathers nothing from a tile with no tile", () => {
-      const world = worldWithTile("conveyor_right");
+      const world = worldWithTile(tiles[0]);
       const id = createRobot(world, nearTarget(), [gather()]);
 
       taskSystem({ world, dt: TASK_DURATION * 2 });
@@ -162,8 +163,11 @@ describe("taskSystem", () => {
 
   describe("gatherStructure", () => {
     // A structure on a world position, plus the task that gathers it.
-    const structureOf = (world: World, type: StructureType) => {
-      world.structures.addStructure(30, 40, { type, data: true });
+    const structureOf = (
+      world: World,
+      type: Exclude<StructureType, "conveyor">
+    ) => {
+      world.structures.addStructureAt(30, 40, { type, data: true });
       const [regionId, subRegionId] = worldPosToRegionIds(30, 40);
       return {
         regionId,
