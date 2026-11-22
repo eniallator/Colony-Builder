@@ -27,14 +27,24 @@ export const conveyorMovementSystem: System = ({ world, dt }) => {
     const distFromCenter = Math.abs(toCenter.sum());
 
     if (distFromCenter <= CONVEYOR_CENTER_SNAP_DISTANCE) {
-      position.add(toCenter, direction.copy().multiply(dt, CONVEYOR_SPEED));
+      world.entities.add(
+        id,
+        "position",
+        position
+          .copy()
+          .add(toCenter, direction.copy().multiply(dt, CONVEYOR_SPEED))
+      );
     } else {
       const turn = Math.min(1, distFromCenter / TURN_RADIUS);
       const heading = direction
         .copy()
         .multiply(1 - turn)
         .add(toCenter.getNorm().multiply(Math.sqrt(1 - (1 - turn) ** 2)));
-      position.add(heading.multiply(dt, CONVEYOR_SPEED));
+      world.entities.add(
+        id,
+        "position",
+        position.copy().add(heading.multiply(dt, CONVEYOR_SPEED))
+      );
     }
   }
 };

@@ -33,7 +33,11 @@ const randomSeed = (): string => Math.random().toString(36).slice(2);
 export const createGame = (
   worldGenerator: WorldGenerator = createWorldGenerator(randomSeed())
 ): Game => {
-  const state: State = { world: new World(), players: new Map() };
+  const state: State = {
+    world: new World({ trackChanges: true }),
+    time: { start: 0, lastFrame: 0, now: 0, delta: 0 },
+    players: new Map(),
+  };
 
   return {
     connect: connection => {
@@ -42,8 +46,12 @@ export const createGame = (
         connection.send(encServerMessage.encode(message));
       };
 
-      state.players.set(playerId, { send, loadedRegions: new Set() });
-      send({ type: "init", id: playerId });
+      state.players.set(playerId, {
+        send,
+        loadedRegions: new Set(),
+        loadedEntities: new Set(),
+      });
+      send({ type: "init", id: playerId, time: state.time });
 
       return {
         receive: bytes => {
@@ -58,14 +66,25 @@ export const createGame = (
     },
 
     tick: dt => {
+      state.time.lastFrame = state.time.now;
+      state.time.now += dt;
+      state.time.delta = dt;
+
       const ctx: Parameters<ServerSystem>[0] = {
         world: state.world,
         dt,
+        time: state.time,
         state,
       };
       for (const system of serverSystems) system(ctx);
 
-      streamToPlayers(state, worldGenerator);
+      const dirtyRegions = new Set(state.world.flushAllDirtyRegions());
+      const dirtyEntities = new Set(state.world.entities.flushDirtyEntities());
+      state.players.forEach(state => {
+        state.loadedRegions = state.loadedRegions.difference(dirtyRegions);
+      });
+
+      streamToPlayers(state, worldGenerator, dirtyEntities);
     },
   };
 };

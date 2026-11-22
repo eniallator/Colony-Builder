@@ -40,7 +40,7 @@ export const app = appMethods<State>({
 
     const state: State = {
       camera: { center: Vector.zero(2), zoom: 2 },
-      world: new World(),
+      world: new World({ trackChanges: false }),
       clickDetails: createStateful<ClickDetails | null>(null),
       send: message => {
         transport.send(encClientMessage.encode(message));
@@ -89,6 +89,14 @@ export const app = appMethods<State>({
         UNLOADED_SIDE_LENGTH
       );
       if (ids.length > 0) send({ type: "unload", ids });
+
+      const entityIds = world.unloadEntitiesOutside(
+        ...worldToRegionPos(...playerPos.toArray()),
+        UNLOADED_SIDE_LENGTH
+      );
+      if (entityIds.length > 0) {
+        send({ type: "unloadEntities", ids: entityIds });
+      }
     }
 
     const systemCtx: Parameters<ClientSystem>[0] = {

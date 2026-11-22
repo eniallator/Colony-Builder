@@ -2,10 +2,12 @@ import {
   encArrayOf,
   encExact,
   encObjectOf,
+  encSetOf,
   encUnionOf,
   encVec2,
   type EncodableType,
 } from "../encoding/index.ts";
+import { encTime } from "../time.ts";
 import {
   encEntityId,
   encEntitySnapshot,
@@ -28,6 +30,14 @@ export const encUnloadMessage = encObjectOf({
   ids: encArrayOf(encRegionId, { runPrecision: "u16" }),
 });
 export type UnloadMessage = EncodableType<typeof encUnloadMessage>;
+
+export const encUnloadEntitiesMessage = encObjectOf({
+  type: encExact("unloadEntities"),
+  ids: encArrayOf(encEntityId),
+});
+export type UnloadEntitiesMessage = EncodableType<
+  typeof encUnloadEntitiesMessage
+>;
 
 export const encPlaceMessage = encObjectOf({
   type: encExact("place"),
@@ -54,6 +64,7 @@ export type GatherStructureMessage = EncodableType<
 export const encClientMessage = encUnionOf(
   encMoveMessage,
   encUnloadMessage,
+  encUnloadEntitiesMessage,
   encPlaceMessage,
   encGatherTileMessage,
   encGatherStructureMessage
@@ -65,12 +76,14 @@ export type ClientMessage = EncodableType<typeof encClientMessage>;
 export const encInitMessage = encObjectOf({
   type: encExact("init"),
   id: encEntityId,
+  time: encTime,
 });
 export type InitMessage = EncodableType<typeof encInitMessage>;
 
 export const encEntitiesMessage = encObjectOf({
   type: encExact("entities"),
   snapshot: encEntitySnapshot,
+  despawned: encSetOf(encEntityId, "u16"),
 });
 export type EntitiesMessage = EncodableType<typeof encEntitiesMessage>;
 

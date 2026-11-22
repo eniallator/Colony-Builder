@@ -7,10 +7,12 @@ export const messageHandler = (state: State, message: ServerMessage): void => {
   switch (message.type) {
     case "init":
       state.playerId = message.id;
+      state.serverTime = message.time;
       break;
 
     case "entities":
       state.world.entities.applySnapshot(message.snapshot);
+      for (const id of message.despawned) state.world.entities.despawn(id);
       break;
 
     case "load":

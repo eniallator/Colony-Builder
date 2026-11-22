@@ -7,8 +7,11 @@ import {
   REGION_SIDE_LENGTH,
 } from "../../constants.ts";
 import { facingDirOf, type Facing } from "../../facing.ts";
+import type { Time } from "../../time.ts";
 import { World } from "../index.ts";
 import { conveyorMovementSystem } from "./system.ts";
+
+const time: Time = { start: 0, lastFrame: 0, now: 0, delta: 0 };
 
 const FULL_REGION = REGION_SIDE_LENGTH ** 2;
 
@@ -39,7 +42,7 @@ describe("conveyorMovementSystem", () => {
     const world = worldWithBelt();
     const id = spawnConveyable(world);
 
-    conveyorMovementSystem({ world, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([
       1.5 + 0.5 * CONVEYOR_SPEED,
@@ -61,7 +64,7 @@ describe("conveyorMovementSystem", () => {
       addBelt(world, starts[facing], facing);
       const id = spawnConveyable(world, Vector.create(8.5, 8.5));
 
-      conveyorMovementSystem({ world, dt: 0.5 });
+      conveyorMovementSystem({ world, time, dt: 0.5 });
 
       expect(world.entities.get(id, "position").toArray()).toEqual([
         8.5 + dx * 0.5 * CONVEYOR_SPEED,
@@ -74,7 +77,7 @@ describe("conveyorMovementSystem", () => {
     const world = worldWithBelt();
     const id = spawnConveyable(world, Vector.create(1.5, 5.5));
 
-    conveyorMovementSystem({ world, dt: 1 });
+    conveyorMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([1.5, 5.5]);
   });
@@ -84,7 +87,7 @@ describe("conveyorMovementSystem", () => {
     addBelt(world, [0.5, 1.5], "right", 4 * REGION_SIDE_LENGTH);
     const id = spawnConveyable(world, Vector.create(4.5, 1.5));
 
-    conveyorMovementSystem({ world, dt: 1 });
+    conveyorMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([4.5, 1.5]);
   });
@@ -93,7 +96,7 @@ describe("conveyorMovementSystem", () => {
     const world = new World();
     const id = spawnConveyable(world);
 
-    conveyorMovementSystem({ world, dt: 1 });
+    conveyorMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([1.5, 1.5]);
   });
@@ -103,7 +106,7 @@ describe("conveyorMovementSystem", () => {
     addBelt(world, [0.5, 3.25], "right");
     const id = spawnConveyable(world, Vector.create(1.5, 3.25));
 
-    conveyorMovementSystem({ world, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([
       1.5 + 0.5 * CONVEYOR_SPEED,
@@ -117,8 +120,8 @@ describe("conveyorMovementSystem", () => {
     addBelt(world, [16.5, 1.5], "right", 2 * REGION_SIDE_LENGTH);
     const id = spawnConveyable(world, Vector.create(15.5, 1.5));
 
-    conveyorMovementSystem({ world, dt: 0.5 });
-    conveyorMovementSystem({ world, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
 
     expect(world.entities.get(id, "position").x()).toBe(
       15.5 + 2 * 0.5 * CONVEYOR_SPEED
@@ -132,7 +135,7 @@ describe("conveyorMovementSystem", () => {
       Vector.create(1.5, 1.5 + CONVEYOR_CENTER_SNAP_DISTANCE * 0.9)
     );
 
-    conveyorMovementSystem({ world, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
 
     const [x, y] = world.entities.get(id, "position").toArray();
     expect(y).toBeCloseTo(1.5, 10);
@@ -146,7 +149,7 @@ describe("conveyorMovementSystem", () => {
       Vector.create(1.5, 1.5 - CONVEYOR_CENTER_SNAP_DISTANCE * 0.9)
     );
 
-    conveyorMovementSystem({ world, dt: 0.5 });
+    conveyorMovementSystem({ world, time, dt: 0.5 });
 
     expect(world.entities.get(id, "position").y()).toBeCloseTo(1.5, 10);
   });
@@ -156,7 +159,7 @@ describe("conveyorMovementSystem", () => {
     const startY = 1.5 + CONVEYOR_CENTER_SNAP_DISTANCE * 3;
     const id = spawnConveyable(world, Vector.create(1.5, startY));
 
-    conveyorMovementSystem({ world, dt: 0.05 });
+    conveyorMovementSystem({ world, time, dt: 0.05 });
 
     const y = world.entities.get(id, "position").y();
     expect(y).toBeLessThan(startY);
@@ -170,9 +173,9 @@ describe("conveyorMovementSystem", () => {
 
     // Run until it has had time to settle, then measure one more tick.
     for (let tick = 0; tick < 100; tick++)
-      conveyorMovementSystem({ world, dt });
+      conveyorMovementSystem({ world, time, dt });
     const before = world.entities.get(id, "position").x();
-    conveyorMovementSystem({ world, dt });
+    conveyorMovementSystem({ world, time, dt });
 
     const speed = (world.entities.get(id, "position").x() - before) / dt;
     expect(speed).toBeCloseTo(CONVEYOR_SPEED, 10);
@@ -189,7 +192,7 @@ describe("conveyorMovementSystem", () => {
     const speeds: number[] = [];
     for (let tick = 0; tick < 20; tick++) {
       const before = world.entities.get(id, "position").copy();
-      conveyorMovementSystem({ world, dt });
+      conveyorMovementSystem({ world, time, dt });
       speeds.push(world.entities.get(id, "position").distTo(before) / dt);
     }
 
@@ -211,7 +214,7 @@ describe("conveyorMovementSystem", () => {
 
     let tracked = 0;
     for (let tick = 0; tick < 200; tick++) {
-      conveyorMovementSystem({ world, dt: 0.005 });
+      conveyorMovementSystem({ world, time, dt: 0.005 });
       const position = world.entities.get(id, "position");
       // Close enough to the line, it snaps on to it.
       if (Math.abs(position.x() - 5.5) <= CONVEYOR_CENTER_SNAP_DISTANCE) break;
@@ -227,7 +230,7 @@ describe("conveyorMovementSystem", () => {
     const world = worldWithBelt();
     const id = world.entities.spawn({ position: Vector.create(1.5, 1.5) });
 
-    conveyorMovementSystem({ world, dt: 1 });
+    conveyorMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([1.5, 1.5]);
   });

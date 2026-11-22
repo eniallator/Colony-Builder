@@ -16,14 +16,14 @@ import {
 const gatherTile: GatherTile = {
   type: "gatherTile",
   target: Vector.create(1.5, 2.5),
-  progress: 0.5,
+  endsAt: 0.5,
 };
 
 const gatherStructure: GatherStructure = {
   type: "gatherStructure",
   regionId: regionPosToId(-2, 3),
   subRegionId: subRegionPosToId(4, 5),
-  progress: 1,
+  endsAt: undefined,
 };
 
 const dropInventory: Task = {
@@ -43,11 +43,11 @@ describe("encTask", () => {
   });
 });
 
-// The union refuses to encode a value no variant accepts, so the progress
+// The union refuses to encode a value no variant accepts, so the end time
 // guard is checked on each variant's own encoding, which does decode it.
-describe("task progress", () => {
+describe("task end time", () => {
   it("is rejected when negative on a gatherTile task", () => {
-    const bytes = encGatherTile.encode({ ...gatherTile, progress: -1 });
+    const bytes = encGatherTile.encode({ ...gatherTile, endsAt: -1 });
 
     expect(encGatherTile.decode(bytes)).toBeUndefined();
   });
@@ -55,7 +55,7 @@ describe("task progress", () => {
   it("is rejected when negative on a gatherStructure task", () => {
     const bytes = encGatherStructure.encode({
       ...gatherStructure,
-      progress: -1,
+      endsAt: -1,
     });
 
     expect(encGatherStructure.decode(bytes)).toBeUndefined();

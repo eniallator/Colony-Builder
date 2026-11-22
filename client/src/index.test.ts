@@ -19,6 +19,7 @@ import {
   type EntityId,
   type RegionTiles,
   type ServerMessage,
+  type Time,
 } from "@colony-builder/shared";
 import { raise } from "niall-utils/core";
 import { toElement } from "niall-utils/ui";
@@ -109,6 +110,8 @@ const serverMessage = (serverMsg: ServerMessage) =>
 
 const [entityType] = allEntityTypes;
 
+const serverTime: Time = { start: 1, lastFrame: 2, now: 3, delta: 1 };
+
 const flatRegion: RegionTiles = Array.from(
   { length: REGION_SIDE_LENGTH ** 2 },
   () => tileToId(tiles[0])
@@ -170,12 +173,26 @@ describe("app.init", () => {
 
       lastWorker().dispatchEvent(
         message(
-          encServerMessage.encode({ type: "init", id: unsafeEntityId(4) })
+          encServerMessage.encode({
+            type: "init",
+            id: unsafeEntityId(4),
+            time: serverTime,
+          })
         )
       );
 
       expect(state.playerId).toBe(4);
     });
+  });
+
+  it("does not track changes to the world, since nothing streams them", () => {
+    const state = app.init(createAppContext());
+
+    state.world.entities.spawn();
+    state.world.terrain.add(regionPosToId(0, 0), flatRegion);
+
+    expect(state.world.entities.flushDirtyEntities()).toEqual([]);
+    expect(state.world.flushAllDirtyRegions()).toEqual([]);
   });
 
   describe("send", () => {
@@ -199,10 +216,11 @@ describe("app.init", () => {
       const state = app.init(createAppContext());
 
       lastSocket().dispatchEvent(
-        serverMessage({ type: "init", id: unsafeEntityId(4) })
+        serverMessage({ type: "init", id: unsafeEntityId(4), time: serverTime })
       );
 
       expect(state.playerId).toBe(4);
+      expect(state.serverTime).toEqual(serverTime);
     });
 
     it("applies entities messages to the world", () => {
@@ -220,7 +238,11 @@ describe("app.init", () => {
       };
 
       lastSocket().dispatchEvent(
-        serverMessage({ type: "entities", snapshot: new Map([[id, entity]]) })
+        serverMessage({
+          type: "entities",
+          snapshot: new Map([[id, entity]]),
+          despawned: new Set(),
+        })
       );
 
       expect(state.world.entities.get(id, "position").toArray()).toEqual([
@@ -495,6 +517,61 @@ describe("app.animationFrame", () => {
 
       expect(systems[0]).toHaveBeenCalledOnce();
       expect(systems[1]).toHaveBeenCalledOnce();
+    });
+  });
+
+  describe("unloading entities", () => {
+    const half = UNLOADED_SIDE_LENGTH / 2;
+    const atRegion = (x: number) =>
+      Vector.create((x + 0.5) * REGION_SIDE_LENGTH, 0);
+
+    it("drops entities outside the unload square and tells the server", () => {
+      const state = createState();
+      const far = state.world.entities.spawn({ position: atRegion(half) });
+      const near = state.world.entities.spawn({ position: atRegion(0) });
+
+      frame(state);
+
+      expect(state.world.entities.optGet(far, "position")).toBeUndefined();
+      expect(state.world.entities.optGet(near, "position")).toBeDefined();
+      expect(state.send).toHaveBeenCalledExactlyOnceWith({
+        type: "unloadEntities",
+        ids: [far],
+      });
+    });
+
+    it("keeps entities on the inclusive lower and exclusive upper edge", () => {
+      const state = createState();
+      const low = state.world.entities.spawn({ position: atRegion(-half) });
+      const high = state.world.entities.spawn({ position: atRegion(half - 1) });
+
+      frame(state);
+
+      expect(state.world.entities.optGet(low, "position")).toBeDefined();
+      expect(state.world.entities.optGet(high, "position")).toBeDefined();
+      expect(state.send).not.toHaveBeenCalled();
+    });
+
+    it("is centred on the region the player is in", () => {
+      const state = createState(Vector.create(5.5 * REGION_SIDE_LENGTH, 0));
+      const behind = state.world.entities.spawn({
+        position: atRegion(5 - half - 1),
+      });
+
+      frame(state);
+
+      expect(state.send).toHaveBeenCalledExactlyOnceWith({
+        type: "unloadEntities",
+        ids: [behind],
+      });
+    });
+
+    it("sends nothing when there is nothing to unload", () => {
+      const state = createState();
+
+      frame(state);
+
+      expect(state.send).not.toHaveBeenCalled();
     });
   });
 

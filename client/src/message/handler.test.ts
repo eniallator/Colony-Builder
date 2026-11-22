@@ -41,9 +41,12 @@ describe("messageHandler", () => {
   it("stores the player id from an init message", () => {
     const state = createState();
 
-    messageHandler(state, { type: "init", id: unsafeEntityId(3) });
+    const time = { start: 1, lastFrame: 2, now: 3, delta: 1 };
+
+    messageHandler(state, { type: "init", id: unsafeEntityId(3), time });
 
     expect(state.playerId).toBe(3);
+    expect(state.serverTime).toEqual(time);
   });
 
   it("applies the entities from an entities message", () => {
@@ -55,6 +58,7 @@ describe("messageHandler", () => {
     messageHandler(state, {
       type: "entities",
       snapshot: server.entities.takeSnapshot([player, item]),
+      despawned: new Set(),
     });
 
     expect(state.world.entities.get(player, "position").toArray()).toEqual([
@@ -66,19 +70,52 @@ describe("messageHandler", () => {
     expect(state.playerId).toBeUndefined();
   });
 
-  it("removes entities missing from a later entities message", () => {
+  it("removes the entities an entities message despawns", () => {
     const server = new World();
     const player = createPlayer(server);
     const state = createState();
     messageHandler(state, {
       type: "entities",
       snapshot: server.entities.takeSnapshot([player]),
+      despawned: new Set(),
     });
 
-    server.entities.despawn(player);
     messageHandler(state, {
       type: "entities",
-      snapshot: server.entities.takeSnapshot([]),
+      snapshot: new Map(),
+      despawned: new Set([player]),
+    });
+
+    expect(state.world.entities.query("position")).toEqual([]);
+  });
+
+  it("keeps entities that a later entities message does not mention", () => {
+    const server = new World();
+    const player = createPlayer(server);
+    const item = createItem(server, itemId, { count: 1 }, Vector.zero(2));
+    const state = createState();
+    messageHandler(state, {
+      type: "entities",
+      snapshot: server.entities.takeSnapshot([player, item]),
+      despawned: new Set(),
+    });
+
+    messageHandler(state, {
+      type: "entities",
+      snapshot: server.entities.takeSnapshot([item]),
+      despawned: new Set(),
+    });
+
+    expect(state.world.entities.query("position")).toEqual([player, item]);
+  });
+
+  it("ignores a despawned entity it does not have", () => {
+    const state = createState();
+
+    messageHandler(state, {
+      type: "entities",
+      snapshot: new Map(),
+      despawned: new Set([unsafeEntityId(5)]),
     });
 
     expect(state.world.entities.query("position")).toEqual([]);
@@ -122,6 +159,7 @@ describe("messageHandler", () => {
     messageHandler(state, {
       type: "entities",
       snapshot: server.entities.takeSnapshot([player]),
+      despawned: new Set(),
     });
     messageHandler(state, {
       type: "load",

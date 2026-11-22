@@ -3,10 +3,13 @@ import { describe, expect, it } from "vitest";
 
 import { predictionSystems } from "./system.ts";
 import type { System } from "./system/index.ts";
+import type { Time } from "./time.ts";
 import { World } from "./world/index.ts";
 
+const time: Time = { start: 0, lastFrame: 0, now: 0, delta: 0 };
+
 const runTick = (world: World, systems: System[], dt: number) => {
-  for (const system of systems) system({ world, dt });
+  for (const system of systems) system({ world, dt, time });
 };
 
 const speed = 1;

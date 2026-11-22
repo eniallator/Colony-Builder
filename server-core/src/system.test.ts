@@ -24,6 +24,7 @@ const runPickup = (world: World) => {
   const ctx: Parameters<typeof pickupSystem>[0] = {
     world,
     dt: 0.05,
+    time: { start: 0, lastFrame: 0, now: 0, delta: 0 },
     state: { players: new Map() } as unknown as State,
   };
   pickupSystem(ctx);
@@ -108,6 +109,33 @@ describe("pickupSystem", () => {
       count: heldCount,
     });
     expect(world.entities.optGet(other, "position")).toBeDefined();
+  });
+
+  it("marks the player dirty when it picks something up", () => {
+    const world = new World();
+    const player = createPlayer(world, here.copy());
+    createItem(world, itemId, { count: 1 }, here.copy());
+    world.entities.flushDirtyEntities();
+
+    runPickup(world);
+
+    expect(world.entities.flushDirtyEntities()).toContain(player);
+  });
+
+  it("leaves the player clean when nothing is in reach", () => {
+    const world = new World();
+    createPlayer(world, here.copy());
+    createItem(
+      world,
+      itemId,
+      { count: 1 },
+      here.copy().add(Vector.create(Math.sqrt(PICKUP_SQR_RADIUS) + 0.5, 0))
+    );
+    world.entities.flushDirtyEntities();
+
+    runPickup(world);
+
+    expect(world.entities.flushDirtyEntities()).toEqual([]);
   });
 
   it("keeps the pickup with what is left over when not everything fits", () => {

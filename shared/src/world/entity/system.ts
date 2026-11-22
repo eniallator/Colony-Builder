@@ -10,9 +10,13 @@ export const selfMovementSystem: System = ({ world: { entities }, dt }) => {
     const diff = des.copy().sub(pos);
 
     if (diff.getSquaredMagnitude() > targetMag ** 2) {
-      pos.add(diff.setMagnitude(targetMag));
+      entities.add(
+        id,
+        "position",
+        pos.copy().add(diff.setMagnitude(targetMag))
+      );
     } else {
-      pos.setHead(des);
+      entities.add(id, "position", des.copy());
       entities.delete(id, "destination");
     }
   }

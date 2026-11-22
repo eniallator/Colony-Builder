@@ -13,27 +13,38 @@ import {
   type EntityId,
   type GatherStructure,
   type GatherTile,
-  type RegionId,
   type StructureType,
   type Task,
   type Tile,
+  type Time,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
-import { describe, expect, it, vi } from "vitest";
+import { describe, expect, it } from "vitest";
 
-import type { State } from "../state.ts";
-import type { ServerSystem } from "../system.ts";
 import { taskSystem as serverTaskSystem } from "./system.ts";
 
+// Only ever moves forwards, and tasks are relative to it, so tests share it.
+const time: Time = { start: 0, lastFrame: 0, now: 0, delta: 0 };
+
 // The task system never reads the server state, so tests only supply the world.
-const taskSystem = ({
-  world,
-  dt,
-  players = new Map(),
-}: Omit<Parameters<ServerSystem>[0], "state"> & {
-  players?: State["players"];
-}) => {
-  serverTaskSystem({ world, dt, state: { world, players } });
+// Like the game, it moves the clock on by `dt` before running.
+const taskSystem = ({ world, dt }: { world: World; dt: number }) => {
+  time.lastFrame = time.now;
+  time.now += dt;
+  time.delta = dt;
+  serverTaskSystem({
+    world,
+    dt,
+    time,
+    state: { world, time, players: new Map() },
+  });
+};
+
+// A gather task starts its timer on the first tick in reach, then finishes
+// once the duration has elapsed.
+const runGather = (world: World) => {
+  taskSystem({ world, dt: 0 });
+  taskSystem({ world, dt: TASK_DURATION });
 };
 
 const target = Vector.create(5.5, 5.5);
@@ -54,10 +65,10 @@ const stopRepeating = (world: World, id: EntityId): void => {
   });
 };
 
-const gather = (progress = 0): GatherTile => ({
+const gather = (endsAt?: number): GatherTile => ({
   type: "gatherTile",
   target: target.copy(),
-  progress,
+  endsAt,
 });
 
 const drop: Task = { type: "dropInventory", target: target.copy() };
@@ -89,7 +100,7 @@ describe("taskSystem", () => {
       world.entities.delete(id, "destination");
       taskSystem({ world, dt: 1 });
 
-      expect(task.progress).toBe(1);
+      expect(task.endsAt).toBe(time.now + TASK_DURATION);
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
 
@@ -104,27 +115,49 @@ describe("taskSystem", () => {
       expect(world.entities.get(id, "destination")).toBe(pending);
     });
 
-    it("accumulates progress while in reach without gathering early", () => {
+    it("starts the timer in reach without gathering early", () => {
       const world = worldWithTile("iron_deposit");
       const task = gather();
       const id = createRobot(world, nearTarget(), [task]);
 
       taskSystem({ world, dt: 1 });
 
-      expect(task.progress).toBe(1);
+      expect(task.endsAt).toBe(time.now + TASK_DURATION);
       expect(world.entities.get(id, "inventory").size).toBe(0);
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
+    });
+
+    it("does not gather before the timer has run out", () => {
+      const world = worldWithTile("iron_deposit");
+      const id = createRobot(world, nearTarget(), [gather()]);
+
+      taskSystem({ world, dt: 0 });
+      taskSystem({ world, dt: TASK_DURATION / 2 });
+
+      expect(world.entities.get(id, "inventory").size).toBe(0);
     });
 
     it("gathers the tile once the duration has elapsed", () => {
       const world = worldWithTile("iron_deposit");
       const id = createRobot(world, nearTarget(), [gather()]);
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual(
         new Map([["iron_ore", { count: 5 }]])
       );
+    });
+
+    it("restarts the timer when the entity leaves reach", () => {
+      const world = worldWithTile("iron_deposit");
+      const task = gather();
+      const id = createRobot(world, nearTarget(), [task]);
+      taskSystem({ world, dt: 1 });
+
+      world.entities.add(id, "position", Vector.zero(2));
+      taskSystem({ world, dt: 1 });
+
+      expect(task.endsAt).toBeUndefined();
     });
 
     it("finishes the task after gathering without gathering twice", () => {
@@ -132,7 +165,7 @@ describe("taskSystem", () => {
       const id = createRobot(world, nearTarget(), [gather()]);
       stopRepeating(world, id);
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
       taskSystem({ world, dt: 1 });
 
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(0);
@@ -145,7 +178,7 @@ describe("taskSystem", () => {
       const world = worldWithTile(tiles[0]);
       const id = createRobot(world, nearTarget(), [gather()]);
 
-      taskSystem({ world, dt: TASK_DURATION * 2 });
+      runGather(world);
 
       expect(world.entities.get(id, "inventory").size).toBe(0);
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(1);
@@ -153,7 +186,7 @@ describe("taskSystem", () => {
 
     it("does not finish while the target terrain is unloaded", () => {
       const world = new World();
-      const id = createRobot(world, nearTarget(), [gather(TASK_DURATION)]);
+      const id = createRobot(world, nearTarget(), [gather(time.now)]);
 
       taskSystem({ world, dt: 1 });
 
@@ -173,11 +206,11 @@ describe("taskSystem", () => {
         regionId,
         subRegionId,
         position: Vector.create(...regionIdsToWorldPos(regionId, subRegionId)),
-        task: (progress = 0): GatherStructure => ({
+        task: (endsAt?: number): GatherStructure => ({
           type: "gatherStructure",
           regionId,
           subRegionId,
-          progress,
+          endsAt,
         }),
       };
     };
@@ -207,7 +240,7 @@ describe("taskSystem", () => {
       expect(world.entities.get(id, "destination")).toBe(pending);
     });
 
-    it("accumulates progress while in reach without gathering early", () => {
+    it("starts the timer in reach without gathering early", () => {
       const world = new World();
       const { position, task } = structureOf(world, "tree");
       const gathering = task();
@@ -215,7 +248,7 @@ describe("taskSystem", () => {
 
       taskSystem({ world, dt: 1 });
 
-      expect(gathering.progress).toBe(1);
+      expect(gathering.endsAt).toBe(time.now + TASK_DURATION);
       expect(world.entities.get(id, "inventory").size).toBe(0);
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
@@ -225,7 +258,7 @@ describe("taskSystem", () => {
       const { position, task } = structureOf(world, "tree");
       const id = createRobot(world, position.copy().add(0.5), [task()]);
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual(
         new Map([["log", { count: 5 }]])
@@ -237,7 +270,7 @@ describe("taskSystem", () => {
       const { position, task } = structureOf(world, "cactus");
       const id = createRobot(world, position.copy().add(0.5), [task()]);
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual(
         new Map([["cactus", { count: 5 }]])
@@ -252,7 +285,7 @@ describe("taskSystem", () => {
       );
       createRobot(world, position.copy().add(0.5), [task()]);
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
       expect(
         world.structures.optGetStructure(regionId, subRegionId)
@@ -267,6 +300,7 @@ describe("taskSystem", () => {
       );
       createRobot(world, position.copy().add(0.5), [task()]);
 
+      taskSystem({ world, dt: 0 });
       taskSystem({ world, dt: TASK_DURATION / 2 });
 
       expect(
@@ -274,54 +308,58 @@ describe("taskSystem", () => {
       ).toBeDefined();
     });
 
-    describe("loaded regions", () => {
-      const elsewhere = regionPosToId(9, 9);
-      const playerState = (...regions: RegionId[]) => ({
-        send: vi.fn(),
-        loadedRegions: new Set(regions),
-      });
-
-      it("makes every player reload the region it was in, and only that one", () => {
+    describe("changed regions", () => {
+      it("marks the region it was in dirty once gathered, and only that one", () => {
         const world = new World();
         const { position, task, regionId } = structureOf(world, "tree");
+        world.structures.addStructureAt(30 + REGION_SIDE_LENGTH, 40, {
+          type: "cactus",
+          data: true,
+        });
         createRobot(world, position.copy().add(0.5), [task()]);
-        const first = playerState(regionId, elsewhere);
-        const second = playerState(regionId);
-        const players: State["players"] = new Map([
-          [createPlayer(world), first],
-          [createPlayer(world), second],
-        ]);
+        world.flushAllDirtyRegions();
 
-        taskSystem({ world, dt: TASK_DURATION, players });
+        runGather(world);
 
-        expect([...first.loadedRegions]).toEqual([elsewhere]);
-        expect([...second.loadedRegions]).toEqual([]);
+        expect(world.flushAllDirtyRegions()).toEqual([regionId]);
       });
 
-      it("leaves them loaded until the structure has been gathered", () => {
+      it("leaves the region clean until the structure has been gathered", () => {
         const world = new World();
-        const { position, task, regionId } = structureOf(world, "tree");
+        const { position, task } = structureOf(world, "tree");
         createRobot(world, position.copy().add(0.5), [task()]);
-        const state = playerState(regionId);
-        const players: State["players"] = new Map([
-          [createPlayer(world), state],
-        ]);
+        world.flushAllDirtyRegions();
 
-        taskSystem({ world, dt: TASK_DURATION / 2, players });
+        taskSystem({ world, dt: TASK_DURATION / 2 });
 
-        expect([...state.loadedRegions]).toEqual([regionId]);
+        expect(world.flushAllDirtyRegions()).toEqual([]);
+      });
+
+      it("leaves a region clean when its structure is already gone", () => {
+        const world = new World();
+        const { position, task, regionId, subRegionId } = structureOf(
+          world,
+          "tree"
+        );
+        createRobot(world, position.copy().add(0.5), [task()]);
+        world.structures.deleteStructure(regionId, subRegionId);
+        world.flushAllDirtyRegions();
+
+        taskSystem({ world, dt: TASK_DURATION });
+
+        expect(world.flushAllDirtyRegions()).toEqual([]);
       });
     });
 
-    it("resets its progress when the finished task is repeated", () => {
+    it("clears its end time when the finished task is repeated", () => {
       const world = new World();
       const { position, task } = structureOf(world, "tree");
       const id = createRobot(world, position.copy().add(0.5), [task()]);
       const { tasks } = world.entities.get(id, "taskList");
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
-      expect(tasks).toEqual([task(0)]);
+      expect(tasks).toEqual([task()]);
     });
 
     it("drops the task for good when the structure no longer exists", () => {
@@ -427,14 +465,14 @@ describe("taskSystem", () => {
       ).toEqual(["dropInventory", "gatherTile"]);
     });
 
-    it("resets gather progress when a finished task is repeated", () => {
+    it("clears the gather end time when a finished task is repeated", () => {
       const world = worldWithTile("iron_deposit");
       const id = createRobot(world, nearTarget(), [gather()]);
       const { tasks } = world.entities.get(id, "taskList");
 
-      taskSystem({ world, dt: TASK_DURATION });
+      runGather(world);
 
-      expect(tasks).toEqual([gather(0)]);
+      expect(tasks).toEqual([gather()]);
     });
 
     it("gathers again on every lap of a repeating list", () => {
@@ -443,7 +481,7 @@ describe("taskSystem", () => {
       const inventory = world.entities.get(id, "inventory");
 
       for (let lap = 0; lap < 2; lap++) {
-        taskSystem({ world, dt: TASK_DURATION }); // gather
+        runGather(world); // gather
         taskSystem({ world, dt: 1 }); // drop
       }
 
@@ -487,6 +525,64 @@ describe("taskSystem", () => {
       expect(() => {
         taskSystem({ world, dt: 1 });
       }).toThrow(TypeError);
+    });
+
+    describe("changed entities", () => {
+      const robotInReach = () => {
+        const world = worldWithTile("iron_deposit");
+        const id = createRobot(world, nearTarget(), [gather()]);
+        world.entities.flushDirtyEntities();
+        return { world, id };
+      };
+
+      it("marks the entity dirty when its timer starts", () => {
+        const { world, id } = robotInReach();
+
+        taskSystem({ world, dt: 1 });
+
+        expect(world.entities.flushDirtyEntities()).toEqual([id]);
+      });
+
+      it("leaves the entity clean while its timer runs", () => {
+        const { world } = robotInReach();
+        taskSystem({ world, dt: 0 });
+        world.entities.flushDirtyEntities();
+
+        taskSystem({ world, dt: TASK_DURATION / 2 });
+
+        expect(world.entities.flushDirtyEntities()).toEqual([]);
+      });
+
+      it("marks the entity dirty when the task finishes", () => {
+        const { world, id } = robotInReach();
+        taskSystem({ world, dt: 0 });
+        world.entities.flushDirtyEntities();
+
+        taskSystem({ world, dt: TASK_DURATION });
+
+        expect(world.entities.flushDirtyEntities()).toEqual([id]);
+      });
+
+      it("marks the entity dirty when its timer is dropped", () => {
+        const { world, id } = robotInReach();
+        taskSystem({ world, dt: 0 });
+        world.entities.add(id, "position", Vector.zero(2));
+        world.entities.flushDirtyEntities();
+
+        taskSystem({ world, dt: 1 });
+
+        expect(world.entities.flushDirtyEntities()).toContain(id);
+      });
+
+      it("leaves an entity with no tasks clean", () => {
+        const world = new World();
+        createRobot(world);
+        world.entities.flushDirtyEntities();
+
+        taskSystem({ world, dt: 1 });
+
+        expect(world.entities.flushDirtyEntities()).toEqual([]);
+      });
     });
 
     it("ignores entities without a task list", () => {

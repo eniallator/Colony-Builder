@@ -1,9 +1,4 @@
-import {
-  regionPosToId,
-  worldToRegionPos,
-  type ClientMessage,
-  type EntityId,
-} from "@colony-builder/shared";
+import { type ClientMessage, type EntityId } from "@colony-builder/shared";
 import { checkExhausted, raise } from "niall-utils/core";
 
 import type { State } from "../state.ts";
@@ -30,38 +25,55 @@ export const messageHandler = (
       break;
     }
 
+    case "unloadEntities": {
+      const playerState =
+        state.players.get(playerId) ??
+        raise(new Error(`Player ${playerId} not found`));
+
+      playerState.loadedEntities = playerState.loadedEntities.difference(
+        new Set(message.ids)
+      );
+      break;
+    }
+
     case "place": {
       state.world.terrain.addTile(
         message.position.x(),
         message.position.y(),
         message.tile
       );
-      const regionId = regionPosToId(
-        ...worldToRegionPos(message.position.x(), message.position.y())
-      );
-      for (const playerState of state.players.values()) {
-        playerState.loadedRegions.delete(regionId);
-      }
       break;
     }
 
     case "gatherTile": {
       const taskList = state.world.entities.get(playerId, "taskList");
-      taskList.tasks.push({
-        type: "gatherTile",
-        target: message.position,
-        progress: 0,
+      state.world.entities.add(playerId, "taskList", {
+        ...taskList,
+        tasks: [
+          ...taskList.tasks,
+          {
+            type: "gatherTile",
+            target: message.position,
+            endsAt: undefined,
+          },
+        ],
       });
       break;
     }
 
     case "gatherStructure": {
       const taskList = state.world.entities.get(playerId, "taskList");
-      taskList.tasks.push({
-        type: "gatherStructure",
-        regionId: message.regionId,
-        subRegionId: message.subRegionId,
-        progress: 0,
+      state.world.entities.add(playerId, "taskList", {
+        ...taskList,
+        tasks: [
+          ...taskList.tasks,
+          {
+            type: "gatherStructure",
+            regionId: message.regionId,
+            subRegionId: message.subRegionId,
+            endsAt: undefined,
+          },
+        ],
       });
       break;
     }

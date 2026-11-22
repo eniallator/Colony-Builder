@@ -3,6 +3,7 @@ import { mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
+import { DirtyTracker } from "../dirty.ts";
 import {
   regionIdsToWorldPos,
   regionIdToPos,
@@ -26,13 +27,19 @@ type LocatedStructure = Structure & { regionId: RegionId; id: SubRegionId };
 
 export class StructureStore {
   private readonly regions: Map<RegionId, RegionStructures> = new Map();
+  private readonly dirtyRegions: DirtyTracker<RegionId>;
+
+  constructor(trackChanges: boolean = true) {
+    this.dirtyRegions = new DirtyTracker(trackChanges);
+  }
 
   get ids(): MapIterator<RegionId> {
     return this.regions.keys();
   }
 
-  add(id: RegionId, structures: RegionStructures) {
+  add(id: RegionId, structures: RegionStructures, addToDirty: boolean = true) {
     this.regions.set(id, structures);
+    if (addToDirty) this.dirtyRegions.mark(id);
   }
 
   addStructure(reg: RegionId, sub: SubRegionId, data: StructureData): void {
@@ -40,6 +47,7 @@ export class StructureStore {
       this.regions.get(reg) ?? new Map<SubRegionId, StructureData>();
     structures.set(sub, data);
     this.regions.set(reg, structures);
+    this.dirtyRegions.mark(reg);
   }
 
   addStructureAt(worldX: number, worldY: number, data: StructureData): void {
@@ -114,10 +122,18 @@ export class StructureStore {
   }
 
   delete(id: RegionId): boolean {
-    return this.regions.delete(id);
+    const deleted = this.regions.delete(id);
+    if (deleted) this.dirtyRegions.mark(id);
+    return deleted;
   }
 
   deleteStructure(reg: RegionId, sub: SubRegionId): boolean {
-    return this.regions.get(reg)?.delete(sub) ?? false;
+    const deleted = this.regions.get(reg)?.delete(sub) ?? false;
+    if (deleted) this.dirtyRegions.mark(reg);
+    return deleted;
+  }
+
+  flushDirtyRegions(): RegionId[] {
+    return this.dirtyRegions.flush();
   }
 }

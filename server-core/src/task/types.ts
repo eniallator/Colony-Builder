@@ -1,8 +1,12 @@
-import type { EntityId, Inventory, Task, World } from "@colony-builder/shared";
+import type {
+  EntityId,
+  Inventory,
+  Task,
+  Time,
+  World,
+} from "@colony-builder/shared";
 import type { UnionToTuple } from "niall-utils/core";
 import type { Vector } from "vectyped";
-
-import type { PlayerState } from "../state.ts";
 
 export interface EntityParams {
   id: EntityId;
@@ -10,15 +14,15 @@ export interface EntityParams {
   inventory: Inventory;
 }
 
+// `changed`: the runner mutated its task, so the task list has to be re-added
 type TaskRunResult<S extends Task> =
-  { done: false } | { done: true; cleanTask: S | null };
+  { done: false; changed: boolean } | { done: true; cleanTask: S | null };
 
 export interface TaskRunnerCtx<T extends Task> {
   entity: EntityParams;
   task: T;
   world: World;
-  players: Map<EntityId, PlayerState>;
-  dt: number;
+  time: Time;
 }
 
 export type TaskRunner<T extends Task> = (

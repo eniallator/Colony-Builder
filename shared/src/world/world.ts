@@ -18,11 +18,18 @@ import { TerrainStore } from "./terrain/store.ts";
 import type { WorldGenerator, WorldSnapshot } from "./types.ts";
 
 export class World {
-  private readonly entityStore: EntityStore = new EntityStore();
-  private readonly terrainStore: TerrainStore = new TerrainStore();
-  private readonly structureStore: StructureStore = new StructureStore();
+  private readonly entityStore: EntityStore;
+  private readonly terrainStore: TerrainStore;
+  private readonly structureStore: StructureStore;
 
   private entityRegions: Map<RegionId, EntityId[]> = new Map();
+
+  /** `trackChanges`: remember what changed, for `flush*Dirty*`. Only the server needs this. */
+  constructor({ trackChanges = true }: { trackChanges?: boolean } = {}) {
+    this.entityStore = new EntityStore(trackChanges);
+    this.terrainStore = new TerrainStore(trackChanges);
+    this.structureStore = new StructureStore(trackChanges);
+  }
 
   get entities() {
     return this.entityStore;
@@ -72,8 +79,8 @@ export class World {
 
   applySnapshot(snapshot: WorldSnapshot): void {
     for (const [id, { tiles, structures }] of snapshot) {
-      this.terrainStore.add(id, tiles);
-      this.structureStore.add(id, structures);
+      this.terrainStore.add(id, tiles, false);
+      this.structureStore.add(id, structures, false);
     }
   }
 
@@ -83,22 +90,39 @@ export class World {
       if (this.terrainStore.optGet(id) != null) continue;
 
       const { tiles, structures } = generator(id);
-      this.terrainStore.add(id, tiles);
-      this.structureStore.add(id, structures);
+      this.terrainStore.add(id, tiles, false);
+      this.structureStore.add(id, structures, false);
     }
     return ids;
   }
 
-  unloadOutside(x: number, y: number, sideLength: number): RegionId[] {
+  /** The `ids` whose region lies outside the square of regions centred on `x`, `y`. */
+  private idsOutside<Id>(
+    ids: MapIterator<Id>,
+    regionPosOf: (id: Id) => [number, number],
+    x: number,
+    y: number,
+    sideLength: number
+  ): Id[] {
     const half = sideLength / 2;
-    const unloaded = this.terrainStore.ids
+    return ids
       .filter(id => {
-        const [rx, ry] = regionIdToPos(id);
+        const [rx, ry] = regionPosOf(id);
         return (
           rx < x - half || rx >= x + half || ry < y - half || ry >= y + half
         );
       })
       .toArray();
+  }
+
+  unloadOutside(x: number, y: number, sideLength: number): RegionId[] {
+    const unloaded = this.idsOutside(
+      this.terrainStore.ids,
+      regionIdToPos,
+      x,
+      y,
+      sideLength
+    );
 
     for (const id of unloaded) {
       this.terrainStore.delete(id);
@@ -106,5 +130,25 @@ export class World {
     }
 
     return unloaded;
+  }
+
+  unloadEntitiesOutside(x: number, y: number, sideLength: number): EntityId[] {
+    const unloaded = this.idsOutside(
+      this.entityStore.ids,
+      id => worldToRegionPos(...this.entityStore.get(id, "position").toArray()),
+      x,
+      y,
+      sideLength
+    );
+
+    for (const id of unloaded) this.entityStore.despawn(id);
+
+    return unloaded;
+  }
+
+  flushAllDirtyRegions(): RegionId[] {
+    return this.terrainStore
+      .flushDirtyRegions()
+      .concat(this.structureStore.flushDirtyRegions());
   }
 }

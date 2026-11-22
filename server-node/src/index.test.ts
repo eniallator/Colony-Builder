@@ -123,7 +123,11 @@ describe("connections", () => {
     const socket = connect(await load());
 
     expect(received(socket)).toEqual([
-      { type: "init", id: playerIdOf(socket) },
+      {
+        type: "init",
+        id: playerIdOf(socket),
+        time: { start: 0, lastFrame: 0, now: 0, delta: 0 },
+      },
     ]);
   });
 

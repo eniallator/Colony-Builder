@@ -166,4 +166,139 @@ describe("World", () => {
       );
     });
   });
+
+  describe("flushAllDirtyRegions", () => {
+    const dirtyAfter = (world: World) => new Set(world.flushAllDirtyRegions());
+
+    it("starts with nothing dirty", () => {
+      expect(new World().flushAllDirtyRegions()).toEqual([]);
+    });
+
+    it("leaves the regions it generates clean", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+
+      expect(world.flushAllDirtyRegions()).toEqual([]);
+    });
+
+    it("keeps a region dirty when loading around it", () => {
+      const world = new World();
+      const id = regionPosToId(0, 0);
+      world.terrain.add(id, flatTiles(otherTile));
+      world.loadWorld(0, 0, flatGenerator);
+
+      expect(dirtyAfter(world)).toEqual(new Set([id]));
+    });
+
+    it("includes a region whose terrain changed", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.terrain.addTile(1, 1, tileToId(otherTile));
+
+      expect(dirtyAfter(world)).toEqual(new Set([regionPosToId(0, 0)]));
+    });
+
+    it("includes a region whose structures changed", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.structures.addStructureAt(1.5, 1.5, { type: "tree", data: true });
+
+      expect(dirtyAfter(world)).toEqual(new Set([regionPosToId(0, 0)]));
+    });
+
+    it("includes the regions of both stores when they differ", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.terrain.addTile(1, 1, tileToId(otherTile));
+      world.structures.addStructureAt(REGION_SIDE_LENGTH + 1.5, 1.5, {
+        type: "tree",
+        data: true,
+      });
+
+      expect(dirtyAfter(world)).toEqual(
+        new Set([regionPosToId(0, 0), regionPosToId(1, 0)])
+      );
+    });
+
+    it("clears both stores", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.terrain.addTile(1, 1, tileToId(otherTile));
+      world.structures.addStructureAt(1.5, 1.5, { type: "tree", data: true });
+      world.flushAllDirtyRegions();
+
+      expect(world.flushAllDirtyRegions()).toEqual([]);
+    });
+
+    it("leaves the regions of an applied snapshot clean", () => {
+      const source = new World();
+      const ids = source.loadWorld(0, 0, flatGenerator);
+      const target = new World();
+
+      target.applySnapshot(source.takeSnapshot(ids));
+
+      expect(target.flushAllDirtyRegions()).toEqual([]);
+      expect(target.terrain.ids.toArray()).toEqual(ids);
+    });
+
+    it("includes the regions that were unloaded and not the ones kept", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.flushAllDirtyRegions();
+
+      const unloaded = world.unloadOutside(0, 0, 2);
+
+      expect(unloaded.length).toBeGreaterThan(0);
+      expect(dirtyAfter(world)).toEqual(new Set(unloaded));
+      expect(world.terrain.ids.toArray().length).toBeGreaterThan(0);
+    });
+
+    it("keeps an unloaded region dirty when it is generated again", () => {
+      const world = new World();
+      world.loadWorld(0, 0, flatGenerator);
+      world.flushAllDirtyRegions();
+      const unloaded = world.unloadOutside(0, 0, 2);
+
+      world.loadWorld(0, 0, flatGenerator);
+
+      expect(dirtyAfter(world)).toEqual(new Set(unloaded));
+    });
+  });
+
+  describe("trackChanges", () => {
+    const changeEverything = (world: World) => {
+      world.entities.spawn({ position: Vector.zero(2) });
+      world.loadWorld(0, 0, flatGenerator);
+      world.terrain.addTile(0, 0, tileToId(otherTile));
+      world.structures.addStructureAt(1, 1, { type: "tree", data: true });
+    };
+
+    it("tracks changes to every store by default", () => {
+      const world = new World();
+
+      changeEverything(world);
+
+      expect(world.entities.flushDirtyEntities()).toHaveLength(1);
+      expect(world.terrain.flushDirtyRegions()).toHaveLength(1);
+      expect(world.structures.flushDirtyRegions()).toHaveLength(1);
+    });
+
+    it("tracks changes to every store when turned on", () => {
+      const world = new World({ trackChanges: true });
+
+      changeEverything(world);
+
+      expect(world.entities.flushDirtyEntities()).toHaveLength(1);
+      expect(world.flushAllDirtyRegions().length).toBeGreaterThan(0);
+    });
+
+    it("tracks nothing in any store when turned off", () => {
+      const world = new World({ trackChanges: false });
+
+      changeEverything(world);
+
+      expect(world.entities.flushDirtyEntities()).toEqual([]);
+      expect(world.flushAllDirtyRegions()).toEqual([]);
+    });
+  });
 });

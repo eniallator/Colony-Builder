@@ -11,7 +11,7 @@ import { taskSystem } from "./task/index.ts";
 export type ServerSystem = System<{ state: State }>;
 
 export const pickupSystem: ServerSystem = ({ world }) => {
-  for (const id of world.entities.query("type", "position", "inventory")) {
+  for (const id of world.entities.query("inventory", "type", "position")) {
     if (world.entities.optGet(id, "type") !== "player") continue;
 
     const pos = world.entities.get(id, "position");
@@ -28,8 +28,8 @@ export const pickupSystem: ServerSystem = ({ world }) => {
 
       if (pos.sqrDistTo(pickupPos) <= PICKUP_SQR_RADIUS) {
         const remainingInventory = mergeInventories(pickupInventory, inventory);
+        world.entities.add(id, "inventory", inventory);
 
-        // Is despawning right for all things you can pickup?
         if (remainingInventory == null) world.entities.despawn(pickupId);
         else world.entities.add(pickupId, "inventory", remainingInventory);
       }

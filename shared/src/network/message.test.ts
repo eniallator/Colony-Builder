@@ -3,6 +3,7 @@ import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import { itemIds } from "../item/registry.ts";
+import { encTime, type Time } from "../time.ts";
 import {
   encComponents,
   encEntitySnapshot,
@@ -55,7 +56,7 @@ const robot: Components = {
   inventory: new Map(),
   taskList: {
     tasks: [
-      { type: "gatherTile", target: Vector.create(3, 4), progress: 0.5 },
+      { type: "gatherTile", target: Vector.create(3, 4), endsAt: 0.5 },
       { type: "dropInventory", target: Vector.create(-1, 2) },
     ],
     repeat: true,
@@ -220,6 +221,17 @@ describe("encClientMessage", () => {
     ).toEqual({ type: "unload", ids: [] });
   });
 
+  it("round-trips an unload entities message", () => {
+    const unloadEntities: ClientMessage = {
+      type: "unloadEntities",
+      ids: [unsafeEntityId(3), unsafeEntityId(8)],
+    };
+
+    expect(
+      encClientMessage.decode(encClientMessage.encode(unloadEntities))
+    ).toEqual(unloadEntities);
+  });
+
   it("distinguishes message kinds by their tag", () => {
     expect(encClientMessage.encode(move)[0]).toBe(0);
     expect(encClientMessage.encode(unload)[0]).toBe(1);
@@ -270,10 +282,12 @@ describe("encClientMessage", () => {
 });
 
 describe("encServerMessage", () => {
-  const init: ServerMessage = { type: "init", id: unsafeEntityId(7) };
+  const time: Time = { start: 1, lastFrame: 2, now: 3.5, delta: 1.5 };
+  const init: ServerMessage = { type: "init", id: unsafeEntityId(7), time };
   const entitiesMessage: ServerMessage = {
     type: "entities",
     snapshot: entities,
+    despawned: new Set([unsafeEntityId(9)]),
   };
   const terrainMessage: ServerMessage = { type: "load", snapshot: terrain };
 
@@ -301,9 +315,23 @@ describe("encServerMessage", () => {
     expect(encServerMessage.encode(terrainMessage)[0]).toBe(2);
   });
 
-  it("encodes an init message as a tag and a u32 id", () => {
-    expect(encServerMessage.encode(init)).toEqual(Uint8Array.of(0, 7, 0, 0, 0));
+  it("encodes an init message as a tag, a u32 id and the time", () => {
+    expect(encServerMessage.encode(init)).toEqual(
+      Uint8Array.of(0, 7, 0, 0, 0, ...encTime.encode(time))
+    );
     expect(encInitMessage.guard(init)).toBe(true);
+  });
+
+  it("round-trips an entities message that despawns nothing", () => {
+    const nothingDespawned: ServerMessage = {
+      type: "entities",
+      snapshot: entities,
+      despawned: new Set(),
+    };
+
+    expect(
+      encServerMessage.decode(encServerMessage.encode(nothingDespawned))
+    ).toEqual(nothingDespawned);
   });
 
   it("has a guard per message kind", () => {

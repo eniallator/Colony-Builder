@@ -151,4 +151,183 @@ describe("TerrainStore", () => {
       }).toThrow("No region exists for world pos -2,7");
     });
   });
+
+  describe("dirty regions", () => {
+    const cleanStoreWith = (
+      ...entries: [x: number, y: number, region: RegionTiles][]
+    ) => {
+      const store = storeWith(...entries);
+      store.flushDirtyRegions();
+      return store;
+    };
+
+    it("starts with nothing dirty", () => {
+      expect(new TerrainStore().flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty when it is added", () => {
+      const store = new TerrainStore();
+      store.add(origin, baseRegion);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks a region dirty when it replaces an existing one", () => {
+      const store = cleanStoreWith([0, 0, baseRegion]);
+      store.add(origin, altRegion);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("leaves a region clean when it is added as not dirty", () => {
+      const store = new TerrainStore();
+      store.add(origin, baseRegion, false);
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+      expect(store.get(origin)).toBe(baseRegion);
+    });
+
+    it("keeps a region dirty that is added as not dirty over a dirty one", () => {
+      const store = new TerrainStore();
+      store.add(origin, baseRegion);
+      store.add(origin, altRegion, false);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks only the region a tile is in", () => {
+      const store = cleanStoreWith([0, 0, region()], [-1, -1, region()]);
+      store.addTile(-1, -1, tileToId(markerTile));
+
+      expect(store.flushDirtyRegions()).toEqual([regionPosToId(-1, -1)]);
+    });
+
+    it("marks a tile in the last row and column of its region", () => {
+      const store = cleanStoreWith([0, 0, region()], [1, 1, region()]);
+      store.addTile(
+        REGION_SIDE_LENGTH - 0.5,
+        REGION_SIDE_LENGTH - 0.5,
+        tileToId(markerTile)
+      );
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks a tile in the first row and column of the next region", () => {
+      const store = cleanStoreWith([0, 0, region()], [1, 1, region()]);
+      store.addTile(
+        REGION_SIDE_LENGTH,
+        REGION_SIDE_LENGTH,
+        tileToId(markerTile)
+      );
+
+      expect(store.flushDirtyRegions()).toEqual([regionPosToId(1, 1)]);
+    });
+
+    it("leaves a region clean when the tile is already that tile", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.addTile(3, 5, tileToId(baseTile));
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty when a tile is changed back", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.addTile(3, 5, tileToId(markerTile));
+      store.flushDirtyRegions();
+      store.addTile(3, 5, tileToId(baseTile));
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("leaves a region clean when the same tile is placed again", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.addTile(3, 5, tileToId(markerTile));
+      store.flushDirtyRegions();
+      store.addTile(3, 5, tileToId(markerTile));
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks nothing when a tile has no region to go in", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+
+      expect(() => {
+        store.addTile(-2, 7, tileToId(markerTile));
+      }).toThrow();
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty when it is deleted", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.delete(origin);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks nothing dirty when deleting a region that does not exist", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+
+      expect(store.delete(other)).toBe(false);
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("keeps a deleted region dirty when it is added again as not dirty", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.delete(origin);
+      store.add(origin, altRegion, false);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("does not mark anything dirty when reading", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+
+      store.optGet(origin);
+      store.get(origin);
+      store.optTileAt(1, 1);
+      store.tileAt(1, 1);
+      store.optTileAt(-1, -1);
+      store.ids.toArray();
+      store.positions.toArray();
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("lists a region once however many times it changed", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.addTile(1, 1, tileToId(markerTile));
+      store.addTile(2, 2, tileToId(markerTile));
+      store.add(origin, altRegion);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("lists every region that changed", () => {
+      const store = new TerrainStore();
+      store.add(origin, baseRegion);
+      store.add(other, altRegion);
+
+      expect(new Set(store.flushDirtyRegions())).toEqual(
+        new Set([origin, other])
+      );
+    });
+
+    it("clears the dirty regions when they are flushed", () => {
+      const store = new TerrainStore();
+      store.add(origin, baseRegion);
+      store.flushDirtyRegions();
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty again when it changes after a flush", () => {
+      const store = cleanStoreWith([0, 0, region()]);
+      store.addTile(1, 1, tileToId(markerTile));
+      store.flushDirtyRegions();
+      store.addTile(2, 2, tileToId(markerTile));
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+  });
 });

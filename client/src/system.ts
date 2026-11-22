@@ -16,11 +16,10 @@ import type { ClickDetails } from "./ui/clickable.ts";
 import { renderInventoryDialog } from "./ui/inventory.ts";
 import type { Keyboard } from "./ui/keyboard.ts";
 import type { Mouse } from "./ui/mouse.ts";
-import type { Stateful, Time } from "./ui/types.ts";
+import type { Stateful } from "./ui/types.ts";
 
 export type ClientSystem = System<{
   playerId?: EntityId;
-  time: Time;
   ctx: CanvasRenderingContext2D;
   canvas: HTMLCanvasElement;
   camera: Camera;

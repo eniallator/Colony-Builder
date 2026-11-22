@@ -6,4 +6,5 @@ export * from "./network/index.ts";
 export * from "./system.ts";
 export * from "./system/index.ts";
 export * from "./task/index.ts";
+export * from "./time.ts";
 export * from "./world/index.ts";

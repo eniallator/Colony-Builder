@@ -1,8 +1,11 @@
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
+import type { Time } from "../../time.ts";
 import { World } from "../index.ts";
 import { selfMovementSystem } from "./system.ts";
+
+const time: Time = { start: 0, lastFrame: 0, now: 0, delta: 0 };
 
 const spawnMover = (
   world: World,
@@ -21,7 +24,7 @@ describe("selfMovementSystem", () => {
     const world = new World();
     const id = spawnMover(world, [0, 0], [10, 0], 2);
 
-    selfMovementSystem({ world, dt: 1.5 });
+    selfMovementSystem({ world, time, dt: 1.5 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([3, 0]);
     expect(world.entities.optGet(id, "destination")).toBeDefined();
@@ -31,7 +34,7 @@ describe("selfMovementSystem", () => {
     const world = new World();
     const id = spawnMover(world, [0, 0], [30, 40], 5);
 
-    selfMovementSystem({ world, dt: 1 });
+    selfMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([3, 4]);
   });
@@ -40,7 +43,7 @@ describe("selfMovementSystem", () => {
     const world = new World();
     const id = spawnMover(world, [0, 0], [1, 0], 2);
 
-    selfMovementSystem({ world, dt: 1 });
+    selfMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([1, 0]);
     expect(world.entities.optGet(id, "destination")).toBeUndefined();
@@ -50,7 +53,7 @@ describe("selfMovementSystem", () => {
     const world = new World();
     const id = spawnMover(world, [0, 0], [2, 0], 2);
 
-    selfMovementSystem({ world, dt: 1 });
+    selfMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([2, 0]);
     expect(world.entities.optGet(id, "destination")).toBeUndefined();
@@ -60,8 +63,8 @@ describe("selfMovementSystem", () => {
     const world = new World();
     const id = spawnMover(world, [0, 0], [10, 0], 2);
 
-    selfMovementSystem({ world, dt: 10 });
-    selfMovementSystem({ world, dt: 10 });
+    selfMovementSystem({ world, time, dt: 10 });
+    selfMovementSystem({ world, time, dt: 10 });
 
     expect(world.entities.get(id, "position").toArray()).toEqual([10, 0]);
   });
@@ -77,7 +80,7 @@ describe("selfMovementSystem", () => {
       destination: Vector.create(9, 9),
     });
 
-    selfMovementSystem({ world, dt: 1 });
+    selfMovementSystem({ world, time, dt: 1 });
 
     expect(world.entities.get(noDestination, "position").toArray()).toEqual([
       1, 1,

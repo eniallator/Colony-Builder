@@ -289,6 +289,123 @@ describe("EntityStore", () => {
     });
   });
 
+  describe("dirty entities", () => {
+    const stored = () => {
+      const store = new EntityStore();
+      const id = store.spawn(component());
+      store.flushDirtyEntities();
+      return { store, id };
+    };
+
+    it("is empty for a new store", () => {
+      expect(new EntityStore().flushDirtyEntities()).toEqual([]);
+    });
+
+    it("includes a spawned entity", () => {
+      const store = new EntityStore();
+
+      const id = store.spawn(component());
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("includes an entity a component was added to", () => {
+      const { store, id } = stored();
+
+      store.add(id, "speed", speed);
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("includes an entity a component was replaced on", () => {
+      const { store, id } = stored();
+      store.add(id, "speed", speed);
+      store.flushDirtyEntities();
+
+      store.add(id, "speed", speed + 1);
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("includes an entity a component was deleted from", () => {
+      const { store, id } = stored();
+      store.add(id, "speed", speed);
+      store.flushDirtyEntities();
+
+      store.delete(id, "speed");
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("leaves out an entity when the component to delete was not there", () => {
+      const { store, id } = stored();
+
+      store.delete(id, "speed");
+
+      expect(store.flushDirtyEntities()).toEqual([]);
+    });
+
+    it("includes a despawned entity", () => {
+      const { store, id } = stored();
+
+      store.despawn(id);
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("leaves out an entity that was only read", () => {
+      const { store, id } = stored();
+
+      store.get(id, "position");
+      store.query("position");
+      store.takeSnapshot([id]);
+
+      expect(store.flushDirtyEntities()).toEqual([]);
+    });
+
+    it("lists an entity once however many times it changed", () => {
+      const { store, id } = stored();
+
+      store.add(id, "speed", speed);
+      store.add(id, "speed", speed + 1);
+      store.delete(id, "speed");
+
+      expect(store.flushDirtyEntities()).toEqual([id]);
+    });
+
+    it("lists every entity that changed", () => {
+      const { store, id } = stored();
+      const other = store.spawn(component());
+      store.flushDirtyEntities();
+
+      store.add(other, "speed", speed);
+      store.add(id, "speed", speed);
+
+      expect(store.flushDirtyEntities()).toEqual([other, id]);
+    });
+
+    it("is empty once flushed", () => {
+      const { store, id } = stored();
+      store.add(id, "speed", speed);
+      store.flushDirtyEntities();
+
+      expect(store.flushDirtyEntities()).toEqual([]);
+    });
+
+    describe("when not tracking changes", () => {
+      it("never lists an entity", () => {
+        const store = new EntityStore(false);
+
+        const id = store.spawn(component());
+        store.add(id, "speed", speed);
+        store.delete(id, "speed");
+        store.despawn(id);
+
+        expect(store.flushDirtyEntities()).toEqual([]);
+      });
+    });
+  });
+
   describe("applySnapshot", () => {
     it("creates the described entities", () => {
       const store = new EntityStore();
@@ -335,17 +452,18 @@ describe("EntityStore", () => {
       expect(store.get(a, "position").toArray()).toEqual([9, 9]);
     });
 
-    it("removes entities missing from the snapshot", () => {
+    // A snapshot only holds the entities that changed, so it never removes any.
+    it("keeps entities missing from the snapshot", () => {
       const store = new EntityStore();
       store.applySnapshot(snapshotOf([a, component()], [b, component()]));
 
       store.applySnapshot(snapshotOf([a, component()]));
 
-      expect(store.query("position")).toEqual([a]);
-      expect(store.optGet(b, "type")).toBeUndefined();
+      expect(store.query("position")).toEqual([a, b]);
+      expect(store.get(b, "type")).toBe(typeA);
     });
 
-    it("removes every component of an entity missing from the snapshot", () => {
+    it("keeps every component of an entity missing from the snapshot", () => {
       const store = new EntityStore();
       store.applySnapshot(
         snapshotOf(
@@ -363,18 +481,26 @@ describe("EntityStore", () => {
 
       store.applySnapshot(snapshotOf([a, component()]));
 
-      expect(
-        componentNames.flatMap(name => store.query(name)).includes(b)
-      ).toBe(false);
+      expect(store.get(b, "destination").toArray()).toEqual([7, 8]);
+      expect(store.get(b, "speed")).toBe(speed);
+      expect(store.get(b, "conveyable")).toBe(true);
     });
 
-    it("removes everything for an empty snapshot", () => {
+    it("keeps everything for an empty snapshot", () => {
       const store = new EntityStore();
       store.applySnapshot(snapshotOf([a, component()], [b, component()]));
 
       store.applySnapshot(new Map());
 
-      expect(store.query("position")).toEqual([]);
+      expect(store.query("position")).toEqual([a, b]);
+    });
+
+    it("does not mark the entities it applies as dirty", () => {
+      const store = new EntityStore();
+
+      store.applySnapshot(snapshotOf([a, component()]));
+
+      expect(store.flushDirtyEntities()).toEqual([]);
     });
 
     describe("components missing from the snapshot", () => {

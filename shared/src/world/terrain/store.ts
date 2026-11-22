@@ -2,6 +2,7 @@ import { raise } from "niall-utils/core";
 import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
+import { DirtyTracker } from "../dirty.ts";
 import {
   regionIdToPos,
   regionPosToId,
@@ -16,6 +17,11 @@ const flatRegionIdx = (x: number, y: number): number =>
 
 export class TerrainStore {
   private readonly regions: Map<RegionId, RegionTiles> = new Map();
+  private readonly dirtyRegions: DirtyTracker<RegionId>;
+
+  constructor(trackChanges: boolean = true) {
+    this.dirtyRegions = new DirtyTracker(trackChanges);
+  }
 
   get ids(): MapIterator<RegionId> {
     return this.regions.keys();
@@ -25,15 +31,21 @@ export class TerrainStore {
     return this.regions.keys().map(regionIdToPos);
   }
 
-  add(id: RegionId, region: RegionTiles) {
+  add(id: RegionId, region: RegionTiles, addToDirty: boolean = true) {
     this.regions.set(id, region);
+    if (addToDirty) this.dirtyRegions.mark(id);
   }
 
   addTile(x: number, y: number, tile: TileId): void {
+    const id = regionPosToId(...worldToRegionPos(x, y));
     const tiles =
-      this.regions.get(regionPosToId(...worldToRegionPos(x, y))) ??
+      this.regions.get(id) ??
       raise(new Error(`No region exists for world pos ${x},${y}`));
-    tiles[flatRegionIdx(x, y)] = tile;
+    const idx = flatRegionIdx(x, y);
+    if (tiles[idx] !== tile) {
+      tiles[idx] = tile;
+      this.dirtyRegions.mark(id);
+    }
   }
 
   optGet(id: RegionId): RegionTiles | undefined {
@@ -48,7 +60,9 @@ export class TerrainStore {
   }
 
   delete(id: RegionId): boolean {
-    return this.regions.delete(id);
+    const deleted = this.regions.delete(id);
+    if (deleted) this.dirtyRegions.mark(id);
+    return deleted;
   }
 
   optTileAt(x: number, y: number): Tile | undefined {
@@ -63,5 +77,9 @@ export class TerrainStore {
       this.optTileAt(x, y) ??
       raise(new Error(`No region exists for position ${x}, ${y}`))
     );
+  }
+
+  flushDirtyRegions(): RegionId[] {
+    return this.dirtyRegions.flush();
   }
 }

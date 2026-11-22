@@ -1,12 +1,7 @@
+import type { Time } from "@colony-builder/shared";
+
 import type { Keyboard } from "./keyboard.ts";
 import type { Mouse } from "./mouse.ts";
-
-export interface Time {
-  lastFrame: number;
-  delta: number;
-  start: number;
-  now: number;
-}
 
 /** A mutable value that systems share: `value` always reflects the latest `setValue`. */
 export interface Stateful<T> {

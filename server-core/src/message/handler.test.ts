@@ -4,10 +4,12 @@ import {
   regionPosToId,
   tiles,
   tileToId,
+  unsafeEntityId,
   World,
   worldPosToRegionIds,
   type EntityId,
   type RegionId,
+  type Time,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
 import { describe, expect, it, vi } from "vitest";
@@ -24,10 +26,15 @@ const stateWith = (
   ...players: [EntityId, RegionId[]][]
 ): State => ({
   world,
+  time: { start: 0, lastFrame: 0, now: 0, delta: 0 } satisfies Time,
   players: new Map(
     players.map(([id, regions]) => [
       id,
-      { send: vi.fn(), loadedRegions: new Set(regions) },
+      {
+        send: vi.fn(),
+        loadedRegions: new Set(regions),
+        loadedEntities: new Set(),
+      },
     ])
   ),
 });
@@ -123,6 +130,83 @@ describe("messageHandler", () => {
     });
   });
 
+  describe("unloadEntities", () => {
+    const first = unsafeEntityId(1);
+    const second = unsafeEntityId(2);
+    const third = unsafeEntityId(3);
+
+    // A connected player that the server has already sent `entities` to.
+    const stateWithLoaded = (
+      world: World,
+      ...players: [EntityId, EntityId[]][]
+    ): State => {
+      const state = stateWith(world);
+      for (const [id, entities] of players) {
+        state.players.set(id, {
+          send: vi.fn(),
+          loadedRegions: new Set(),
+          loadedEntities: new Set(entities),
+        });
+      }
+      return state;
+    };
+
+    const loadedEntitiesOf = (state: State, id: EntityId) => [
+      ...(state.players.get(id)?.loadedEntities ?? []),
+    ];
+
+    it("forgets the unloaded entities of the player", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const state = stateWithLoaded(world, [player, [first, second, third]]);
+
+      messageHandler(state, player, {
+        type: "unloadEntities",
+        ids: [first, third],
+      });
+
+      expect(loadedEntitiesOf(state, player)).toEqual([second]);
+    });
+
+    it("ignores ids the player has not loaded", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const state = stateWithLoaded(world, [player, [first]]);
+
+      messageHandler(state, player, { type: "unloadEntities", ids: [second] });
+
+      expect(loadedEntitiesOf(state, player)).toEqual([first]);
+    });
+
+    it("only affects the given player", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      const other = createPlayer(world);
+      const state = stateWithLoaded(
+        world,
+        [player, [first, second]],
+        [other, [first, second]]
+      );
+
+      messageHandler(state, player, { type: "unloadEntities", ids: [first] });
+
+      expect(loadedEntitiesOf(state, player)).toEqual([second]);
+      expect(loadedEntitiesOf(state, other)).toEqual([first, second]);
+    });
+
+    it("throws for a player that is not connected", () => {
+      const world = new World();
+      const player = createPlayer(world);
+
+      expect(() => {
+        messageHandler(stateWith(world), player, {
+          type: "unloadEntities",
+          ids: [],
+        });
+      }).toThrow(`Player ${player} not found`);
+    });
+  });
+
   describe("place", () => {
     const [existing, placed] = tiles;
 
@@ -151,15 +235,39 @@ describe("messageHandler", () => {
       expect(world.terrain.optTileAt(4, 4)).toBe(existing);
     });
 
-    it("makes every player reload the changed region only", () => {
+    it("marks only the changed region dirty", () => {
+      const world = worldWithOrigin();
+      world.terrain.add(east, world.terrain.get(origin).slice());
+      world.flushAllDirtyRegions();
+      const player = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "place",
+        position: Vector.create(3, 4),
+        tile: tileToId(placed),
+      });
+
+      expect(world.flushAllDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks nothing dirty when the tile is already there", () => {
+      const world = worldWithOrigin();
+      world.flushAllDirtyRegions();
+      const player = createPlayer(world);
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "place",
+        position: Vector.create(3, 4),
+        tile: tileToId(existing),
+      });
+
+      expect(world.flushAllDirtyRegions()).toEqual([]);
+    });
+
+    it("leaves what players have loaded to the dirty regions", () => {
       const world = worldWithOrigin();
       const player = createPlayer(world);
-      const other = createPlayer(world);
-      const state = stateWith(
-        world,
-        [player, [origin, east]],
-        [other, [origin, north]]
-      );
+      const state = stateWith(world, [player, [origin, east, north]]);
 
       messageHandler(state, player, {
         type: "place",
@@ -168,9 +276,8 @@ describe("messageHandler", () => {
       });
 
       expect([...(state.players.get(player)?.loadedRegions ?? [])]).toEqual([
+        origin,
         east,
-      ]);
-      expect([...(state.players.get(other)?.loadedRegions ?? [])]).toEqual([
         north,
       ]);
     });
@@ -200,8 +307,21 @@ describe("messageHandler", () => {
       });
 
       expect(world.entities.get(player, "taskList").tasks).toEqual([
-        { type: "gatherTile", target: Vector.create(3, 4), progress: 0 },
+        { type: "gatherTile", target: Vector.create(3, 4), endsAt: undefined },
       ]);
+    });
+
+    it("marks the player dirty, so the new task is sent", () => {
+      const world = new World();
+      const player = createPlayer(world);
+      world.entities.flushDirtyEntities();
+
+      messageHandler(stateWith(world, [player, []]), player, {
+        type: "gatherTile",
+        position: Vector.create(3, 4),
+      });
+
+      expect(world.entities.flushDirtyEntities()).toEqual([player]);
     });
 
     it("queues it after the tasks already there", () => {
@@ -251,7 +371,7 @@ describe("messageHandler", () => {
       });
 
       expect(world.entities.get(player, "taskList").tasks).toEqual([
-        { type: "gatherStructure", regionId, subRegionId, progress: 0 },
+        { type: "gatherStructure", regionId, subRegionId, endsAt: undefined },
       ]);
     });
 

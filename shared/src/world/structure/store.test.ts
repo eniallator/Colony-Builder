@@ -298,4 +298,170 @@ describe("StructureStore", () => {
       ).toBe(false);
     });
   });
+
+  describe("dirty regions", () => {
+    const sub = subRegionPosToId(1, 2);
+
+    const cleanStoreWith = (
+      ...entries: [reg: typeof origin, structures: RegionStructures][]
+    ) => {
+      const store = new StructureStore();
+      for (const [reg, structures] of entries) store.add(reg, structures);
+      store.flushDirtyRegions();
+      return store;
+    };
+
+    it("starts with nothing dirty", () => {
+      expect(new StructureStore().flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty when it is added", () => {
+      const store = new StructureStore();
+      store.add(origin, regionWith([1, 2, structure]));
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks a region dirty when it replaces an existing one", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+      store.add(origin, regionWith([3, 4, otherStructure]));
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("leaves a region clean when it is added as not dirty", () => {
+      const store = new StructureStore();
+      const structures = regionWith([1, 2, structure]);
+      store.add(origin, structures, false);
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+      expect(store.get(origin)).toBe(structures);
+    });
+
+    it("keeps a region dirty that is added as not dirty over a dirty one", () => {
+      const store = new StructureStore();
+      store.add(origin, regionWith([1, 2, structure]));
+      store.add(origin, regionWith([3, 4, otherStructure]), false);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks only the region a structure is added to", () => {
+      const store = cleanStoreWith([origin, new Map()], [other, new Map()]);
+      store.addStructure(other, sub, structure);
+
+      expect(store.flushDirtyRegions()).toEqual([other]);
+    });
+
+    it("marks a region that did not exist when a structure is added to it", () => {
+      const store = new StructureStore();
+      store.addStructure(other, sub, structure);
+
+      expect(store.flushDirtyRegions()).toEqual([other]);
+    });
+
+    it("marks the region a structure is added to by world position", () => {
+      const store = cleanStoreWith([origin, new Map()], [other, new Map()]);
+      store.addStructureAt(-0.5, 2 * REGION_SIDE_LENGTH + 0.5, structure);
+
+      expect(store.flushDirtyRegions()).toEqual([other]);
+    });
+
+    it("marks the next region for a position just over a region's edge", () => {
+      const store = cleanStoreWith([origin, new Map()]);
+      store.addStructureAt(REGION_SIDE_LENGTH, 0, structure);
+
+      expect(store.flushDirtyRegions()).toEqual([regionPosToId(1, 0)]);
+    });
+
+    it("marks a region dirty when one of its structures is deleted", () => {
+      const store = cleanStoreWith(
+        [origin, regionWith([1, 2, structure])],
+        [other, regionWith([1, 2, structure])]
+      );
+      store.deleteStructure(origin, sub);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks a region dirty when it is deleted", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+      store.delete(origin);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("marks nothing dirty when deleting a region that does not exist", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+
+      expect(store.delete(other)).toBe(false);
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks nothing dirty when deleting a structure that is not there", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+
+      expect(store.deleteStructure(origin, subRegionPosToId(9, 9))).toBe(false);
+      expect(store.deleteStructure(other, sub)).toBe(false);
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("keeps a deleted region dirty when it is added again as not dirty", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+      store.delete(origin);
+      store.add(origin, new Map(), false);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("does not mark anything dirty when reading", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+
+      store.optGet(origin);
+      store.get(origin);
+      store.optGetStructure(origin, sub);
+      store.structuresAround(0, 0, REGION_SIDE_LENGTH);
+      store.structureAt("conveyor", 1.5, 1.5);
+      store.ids.toArray();
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("lists a region once however many times it changed", () => {
+      const store = cleanStoreWith([origin, new Map()]);
+      store.addStructureAt(1.5, 1.5, structure);
+      store.addStructure(origin, sub, otherStructure);
+      store.deleteStructure(origin, sub);
+      store.add(origin, new Map());
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+
+    it("lists every region that changed", () => {
+      const store = new StructureStore();
+      store.add(origin, regionWith([1, 2, structure]));
+      store.addStructure(other, sub, structure);
+
+      expect(new Set(store.flushDirtyRegions())).toEqual(
+        new Set([origin, other])
+      );
+    });
+
+    it("clears the dirty regions when they are flushed", () => {
+      const store = new StructureStore();
+      store.add(origin, regionWith([1, 2, structure]));
+      store.flushDirtyRegions();
+
+      expect(store.flushDirtyRegions()).toEqual([]);
+    });
+
+    it("marks a region dirty again when it changes after a flush", () => {
+      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
+      store.deleteStructure(origin, sub);
+      store.flushDirtyRegions();
+      store.addStructure(origin, sub, structure);
+
+      expect(store.flushDirtyRegions()).toEqual([origin]);
+    });
+  });
 });

@@ -29,33 +29,49 @@ const structureDrops: Partial<
   cactus: { id: "cactus", item: { count: 5 } },
 };
 
-const gatherTileTask: TaskRunner<GatherTile> = ctx => {
-  const { entity, task, world, dt } = ctx;
-  if (!isInRange(entity, task.target)) {
-    if (world.entities.optGet(entity.id, "destination") == null) {
-      world.entities.add(
-        entity.id,
-        "destination",
-        destinationFor(entity, task.target)
-      );
-    }
-
-    return { done: false };
+const tickTimer = (
+  task: { endsAt: number | undefined },
+  inRange: boolean,
+  now: number
+): { done: boolean; changed: boolean } => {
+  if (!inRange) {
+    const changed = task.endsAt != null;
+    task.endsAt = undefined;
+    return { done: false, changed };
   }
 
-  task.progress += dt;
+  if (task.endsAt == null) {
+    task.endsAt = now + TASK_DURATION;
+    return { done: false, changed: true };
+  }
+
+  return { done: now >= task.endsAt, changed: false };
+};
+
+const gatherTileTask: TaskRunner<GatherTile> = ctx => {
+  const { entity, task, world, time } = ctx;
+  const inRange = isInRange(entity, task.target);
+  if (!inRange && world.entities.optGet(entity.id, "destination") == null) {
+    world.entities.add(
+      entity.id,
+      "destination",
+      destinationFor(entity, task.target)
+    );
+  }
+
+  const { done, changed } = tickTimer(task, inRange, time.now);
 
   const targetTile = world.terrain.optTileAt(task.target.x(), task.target.y());
   const gatheredItem = targetTile != null ? tileDrops[targetTile] : null;
 
-  if (task.progress >= TASK_DURATION && gatheredItem != null) {
+  if (done && gatheredItem != null) {
     addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
-    return { done: true, cleanTask: { ...task, progress: 0 } };
-  } else return { done: false };
+    return { done: true, cleanTask: { ...task, endsAt: undefined } };
+  } else return { done: false, changed };
 };
 
 const gatherStructureTask: TaskRunner<GatherStructure> = ctx => {
-  const { entity, task, world, dt, players } = ctx;
+  const { entity, task, world, time } = ctx;
   const structure = world.structures.optGetStructure(
     task.regionId,
     task.subRegionId
@@ -65,26 +81,23 @@ const gatherStructureTask: TaskRunner<GatherStructure> = ctx => {
   const worldPos = Vector.create(
     ...regionIdsToWorldPos(task.regionId, task.subRegionId)
   );
-  if (!isInRange(entity, worldPos)) {
-    if (world.entities.optGet(entity.id, "destination") == null) {
-      world.entities.add(
-        entity.id,
-        "destination",
-        destinationFor(entity, worldPos)
-      );
-    }
-
-    return { done: false };
+  const inRange = isInRange(entity, worldPos);
+  if (!inRange && world.entities.optGet(entity.id, "destination") == null) {
+    world.entities.add(
+      entity.id,
+      "destination",
+      destinationFor(entity, worldPos)
+    );
   }
 
-  task.progress += dt;
+  const { done, changed } = tickTimer(task, inRange, time.now);
+
   const gatheredItem = structureDrops[structure.type];
-  if (task.progress >= TASK_DURATION && gatheredItem != null) {
+  if (done && gatheredItem != null) {
     addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
     world.structures.deleteStructure(task.regionId, task.subRegionId);
-    players.forEach(state => state.loadedRegions.delete(task.regionId));
-    return { done: true, cleanTask: { ...task, progress: 0 } };
-  } else return { done: false };
+    return { done: true, cleanTask: { ...task, endsAt: undefined } };
+  } else return { done: false, changed };
 };
 
 const dropInventoryTask: TaskRunner<DropInventory> = ctx => {
@@ -98,7 +111,7 @@ const dropInventoryTask: TaskRunner<DropInventory> = ctx => {
       );
     }
 
-    return { done: false };
+    return { done: false, changed: false };
   }
 
   if (entity.inventory.size > 0) {
@@ -113,7 +126,7 @@ const taskRunners: TaskRunners = {
   dropInventory: dropInventoryTask,
 };
 
-export const taskSystem: ServerSystem = ({ world, state, dt }) => {
+export const taskSystem: ServerSystem = ({ world, time }) => {
   for (const id of world.entities.query("taskList", "inventory", "position")) {
     const taskList = world.entities.get(id, "taskList");
     const entity: EntityParams = {
@@ -128,15 +141,19 @@ export const taskSystem: ServerSystem = ({ world, state, dt }) => {
       entity,
       task: first as never,
       world,
-      dt,
-      players: state.players,
+      time,
     });
 
+    // Components are only tracked as changed when re-added
     if (result.done) {
       taskList.tasks.shift();
       if (taskList.repeat && result.cleanTask) {
         taskList.tasks.push(result.cleanTask);
       }
+      world.entities.add(id, "taskList", taskList);
+      world.entities.add(id, "inventory", entity.inventory);
+    } else if (result.changed) {
+      world.entities.add(id, "taskList", taskList);
     }
   }
 };

@@ -1,6 +1,7 @@
 import { raise, type ReadonlyNonEmptyArray } from "niall-utils/core";
 import { typedFromEntries, typedToEntries } from "niall-utils/data";
 
+import { DirtyTracker } from "../dirty.ts";
 import {
   componentNames,
   unsafeEntityId,
@@ -17,6 +18,11 @@ export class EntityStore {
   private readonly stores: {
     [C in ComponentName]: Map<EntityId, StoreComponents[C]>;
   } = typedFromEntries(componentNames.map(name => [name, new Map()]));
+  private readonly dirtyEntities: DirtyTracker<EntityId>;
+
+  constructor(trackChanges: boolean = true) {
+    this.dirtyEntities = new DirtyTracker(trackChanges);
+  }
 
   get ids(): MapIterator<EntityId> {
     return this.stores[
@@ -30,6 +36,7 @@ export class EntityStore {
     component: StoreComponents[C]
   ): void {
     this.stores[name].set(entity, component);
+    this.dirtyEntities.mark(entity);
   }
 
   optGet<C extends ComponentName>(
@@ -47,7 +54,9 @@ export class EntityStore {
   }
 
   delete(id: EntityId, name: ComponentName): boolean {
-    return this.stores[name].delete(id);
+    const deleted = this.stores[name].delete(id);
+    if (deleted) this.dirtyEntities.mark(id);
+    return deleted;
   }
 
   queryWithIds<
@@ -65,11 +74,13 @@ export class EntityStore {
     for (const [name, value] of typedToEntries(components)) {
       if (value !== undefined) this.stores[name].set(id, value as never);
     }
+    this.dirtyEntities.mark(id);
     return id;
   }
 
   despawn(id: EntityId): void {
     for (const name of componentNames) this.stores[name].delete(id);
+    this.dirtyEntities.mark(id);
   }
 
   takeSnapshot(ids: EntityId[]): EntitySnapshot {
@@ -84,20 +95,16 @@ export class EntityStore {
   }
 
   applySnapshot(snapshot: EntitySnapshot): void {
-    const seen = new Set<EntityId>();
-
     for (const [id, components] of snapshot) {
-      seen.add(id);
-
       for (const name of componentNames) {
         const value = components[name];
         if (value !== undefined) this.stores[name].set(id, value as never);
         else this.stores[name].delete(id);
       }
     }
+  }
 
-    for (const id of this.ids) {
-      if (!seen.has(id)) this.despawn(id);
-    }
+  flushDirtyEntities(): EntityId[] {
+    return this.dirtyEntities.flush();
   }
 }
