@@ -1,7 +1,6 @@
 import {
   createPlayer,
   itemIds,
-  itemRegistry,
   unsafeEntityId,
   World,
   type EntityId,
@@ -17,6 +16,7 @@ import type { State } from "../state.ts";
 import type { ClickDetails } from "./clickable.ts";
 import {
   createInventoryRow,
+  itemLabels,
   renderInventoryDialog,
   renderInventoryList,
   setupInventoryDialog,
@@ -28,8 +28,8 @@ import { createStateful } from "./types.ts";
 vi.mock("../render/atlas.ts", () => ({ getAtlas: vi.fn() }));
 
 const [itemA, itemB] = itemIds;
-const labelA = itemRegistry[itemA].label;
-const labelB = itemRegistry[itemB].label;
+const labelA = itemLabels[itemA];
+const labelB = itemLabels[itemB];
 
 // A count big enough to need a thousands separator, so localising shows.
 const bigCount = 1234;

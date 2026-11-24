@@ -14,17 +14,14 @@ import {
 } from "../encoding/index.ts";
 
 export const itemRegistry = {
-  iron_ore: { label: "Iron Ore", encData: encExact(false) },
-  copper_ore: { label: "Copper Ore", encData: encExact(false) },
-  log: { label: "Log", encData: encExact(false) },
-  cactus: { label: "Cactus", encData: encExact(false) },
-} as const satisfies Record<
-  string,
-  { label: string; encData: BinaryEncodable }
->;
+  iron_ore: encExact(false),
+  copper_ore: encExact(false),
+  log: encExact(false),
+  cactus: encExact(false),
+} as const satisfies Record<string, BinaryEncodable>;
 type ItemRegistry = typeof itemRegistry;
 export type ItemData<Id extends keyof ItemRegistry> = EncodableType<
-  ItemRegistry[Id]["encData"]
+  ItemRegistry[Id]
 >;
 
 type RegistryItemId = keyof typeof itemRegistry;
@@ -47,11 +44,7 @@ export const encItem = encUnionOf<
   { [Id in ItemId]: { id: Id; count: number; data: ItemData<Id> } }[ItemId][]
 >(
   ...itemIds.map(id =>
-    encObjectOf({
-      id: encExact(id),
-      count: encCount,
-      data: itemRegistry[id].encData,
-    })
+    encObjectOf({ id: encExact(id), count: encCount, data: itemRegistry[id] })
   )
 );
 export type Item = EncodableType<typeof encItem>;
@@ -60,7 +53,7 @@ export type Inventory = {
   [Id in ItemId]?: Omit<Extract<Item, { id: Id }>, "id">;
 };
 export const encInventory = encObjectOf<Inventory>(
-  mapObject(itemRegistry, ([key, { encData }]) => [
+  mapObject(itemRegistry, ([key, encData]) => [
     key,
     encOptional(encObjectOf({ count: encCount, data: encData })),
   ])

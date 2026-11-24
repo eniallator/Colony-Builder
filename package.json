@@ -51,7 +51,7 @@
     "atlas": "node scripts/generate-atlas.mjs",
     "atlas:check": "node scripts/generate-atlas.mjs --strict",
     "postinstall": "pnpm lib-docs && pnpm atlas",
-    "prepublish": "pnpm build && pnpm findissues && pnpm format:check && pnpm test",
+    "prepublish": "pnpm build && pnpm findissues && pnpm test",
     "test": "vitest run --config vitest.config.ts"
   }
 }

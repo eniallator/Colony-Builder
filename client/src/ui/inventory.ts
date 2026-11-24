@@ -1,5 +1,4 @@
 import {
-  itemRegistry,
   TEXTURE_BASE_URL,
   type Inventory,
   type ItemId,
@@ -13,11 +12,18 @@ import { getAtlas } from "../render/atlas.ts";
 import type { State } from "../state.ts";
 import type { ClientSystem } from "../system.ts";
 
+export const itemLabels: Record<ItemId, string> = {
+  iron_ore: "Iron Ore",
+  copper_ore: "Copper Ore",
+  log: "Log",
+  cactus: "Cactus",
+};
+
 export const createInventoryRow = (id: ItemId, count: number) =>
   toElement(
     `<li class="item" data-item="${id}">
       <span class="icon"></span>
-      <span class="label">${itemRegistry[id].label}</span>
+      <span class="label">${itemLabels[id]}</span>
       <span class="count">${count.toLocaleString()}</span>
     </li>`
   );
@@ -63,7 +69,7 @@ export const renderInventoryList = (
   const inventoryKeys = typedKeys(inventory);
   const matches = mapFilter(inventoryKeys, id => {
     const value = inventory[id];
-    return value != null && itemRegistry[id].label.toLowerCase().includes(query)
+    return value != null && itemLabels[id].toLowerCase().includes(query)
       ? tuple(id, value)
       : null;
   });
