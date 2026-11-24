@@ -6,8 +6,10 @@ import {
   REGION_SIDE_LENGTH,
   type EntityId,
   type Facing,
+  type Task,
 } from "@colony-builder/shared";
 import { checkExhausted } from "niall-utils/core";
+import { typedKeys } from "niall-utils/data";
 import { Vector } from "vectyped";
 
 import type { ClientSystem } from "../../system.ts";
@@ -29,6 +31,11 @@ interface AboveGround {
   depth: number;
   paint: () => void;
 }
+
+/** Whether `task` is a gather that has started: it has an end time. */
+const isGathering = (task: Task | undefined): boolean =>
+  (task?.type === "gatherTile" || task?.type === "gatherStructure") &&
+  task.endsAt != null;
 
 /** Last direction each entity faced, so it keeps facing that way when it stops. */
 const facings = new Map<EntityId, Facing>();
@@ -143,9 +150,16 @@ export const renderAboveGround: ClientSystem = ({
         const facing = heading ?? facings.get(id) ?? "down";
         facings.set(id, facing);
 
+        const swinging = isGathering(
+          world.entities.optGet(id, "taskList")?.tasks[0]
+        );
+        const spriteName = swinging
+          ? `${entityType}_gather_${facing}`
+          : `${entityType}_${facing}`;
+
         considerTarget(
           { domain: "entity", type: entityType, id },
-          clickDist(`${entityType}_${facing}`, pos, pxPerTile)
+          clickDist(spriteName, pos, pxPerTile)
         );
 
         aboveGround.push({
@@ -154,11 +168,11 @@ export const renderAboveGround: ClientSystem = ({
             paintWithShadow(
               painter,
               "shadow",
-              `${entityType}_${facing}`,
+              spriteName,
               footOf(pos),
               pxPerTile,
-              // Walk only while it has somewhere to go; otherwise stand still.
-              destination != null
+              // Animate while walking or swinging; otherwise stand still.
+              destination != null || swinging
             );
           },
         });
@@ -166,10 +180,8 @@ export const renderAboveGround: ClientSystem = ({
       }
 
       case "item": {
-        const itemId = world.entities
-          .optGet(id, "inventory")
-          ?.keys()
-          .next().value;
+        const itemInv = world.entities.optGet(id, "inventory");
+        const itemId = itemInv != null ? typedKeys(itemInv)[0] : null;
 
         if (itemId != null) {
           // Resting on a belt, it is held above the ground.
@@ -210,10 +222,7 @@ export const renderAboveGround: ClientSystem = ({
   if (hasClicked) {
     // Where the click landed in the world: the inverse of `footOf`.
     const clickPos = mouse.pos.copy().sub(origin).divide(pxPerTile);
-    clickDetails.setValue({
-      // oxlint-disable-next-line typescript/no-unnecessary-condition
-      target: clicked?.[1] ?? null,
-      worldPos: clickPos,
-    });
+    // oxlint-disable-next-line typescript/no-unnecessary-condition
+    clickDetails.setValue({ target: clicked?.[1] ?? null, worldPos: clickPos });
   }
 };

@@ -1,7 +1,8 @@
 import { tuple } from "niall-utils/core";
 import { Vector } from "vectyped";
 
-const mouseButtons = tuple("left", "middle", "right");
+// https://developer.mozilla.org/en-US/docs/Web/API/MouseEvent/button#value
+const mouseButtons = tuple("left", "middle", "right", "back", "forward");
 export type MouseButton = (typeof mouseButtons)[number];
 
 type MouseCallback = (this: Mouse, evt: MouseEvent | TouchEvent) => void;
@@ -28,6 +29,8 @@ export class Mouse {
     left: false,
     middle: false,
     right: false,
+    back: false,
+    forward: false,
   };
   private _down: boolean = false;
 

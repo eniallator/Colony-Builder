@@ -113,15 +113,9 @@ export const encNumber: {
     tpe === "uChoose" ? chooseUIntCod(value as number) : codNumber(tpe)
   );
 
-const isVec =
-  <const N extends number>(size: N): Guard<Vector<N>> =>
-  (value): value is Vector<N> =>
-    value instanceof Vector &&
-    value.isSize(size) &&
-    value.every(Number.isFinite);
-
 export const encVec2 = binaryEncodable<Vector<2>>(
-  isVec(2),
+  (value): value is Vector<2> =>
+    value instanceof Vector && value.isSize(2) && value.every(Number.isFinite),
   codMap(
     codTupleOf(codF32, codF32),
     vec => vec.toArray(),
@@ -198,9 +192,7 @@ export const encRecordOf = <
 
 export const encObjectOf = <
   const T extends { [K in keyof T]: CodecValue },
->(shape: {
-  [K in keyof T]-?: BinaryEncodable<T[K]>;
-}): BinaryEncodable<T> =>
+>(shape: { [K in keyof T]-?: BinaryEncodable<T[K]> }): BinaryEncodable<T> =>
   binaryEncodable(
     isExactObjectOf(
       mapObject<typeof shape, Record<string, Guard<unknown>>>(
@@ -232,7 +224,7 @@ export const encMapOf = <
     codMapOf(encKey.codec, encVal.codec)
   );
 
-export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
+export const encUnionOf = <const T extends readonly CodecValue[]>(
   ...encs: { [K in keyof T]: BinaryEncodable<T[K]> }
 ): BinaryEncodable<T[number]> => {
   const cod = chooseUIntCod(encs.length - 1);
@@ -263,8 +255,8 @@ export const encUnionOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
 
 type RegistryValues<
   Reg extends Record<string, BinaryEncodable>,
-  Tpes = UnionToTuple<keyof Reg>,
-> = Tpes extends [infer Tpe extends keyof Reg, ...infer Rest]
+  Types = UnionToTuple<keyof Reg>,
+> = Types extends [infer Tpe extends keyof Reg, ...infer Rest]
   ? { type: Tpe; data: EncodableType<Reg[Tpe]> } | RegistryValues<Reg, Rest>
   : never;
 

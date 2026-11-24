@@ -7,7 +7,6 @@ import {
   type GatherStructure,
   type GatherTile,
   type Item,
-  type ItemId,
   type StructureType,
   type Tile,
 } from "@colony-builder/shared";
@@ -17,16 +16,14 @@ import type { ServerSystem } from "../system.ts";
 import { destinationFor, isInRange } from "./helpers.ts";
 import type { EntityParams, TaskRunner, TaskRunners } from "./types.ts";
 
-const tileDrops: Partial<Record<Tile, { id: ItemId; item: Item }>> = {
-  iron_deposit: { id: "iron_ore", item: { count: 5 } },
-  copper_deposit: { id: "copper_ore", item: { count: 5 } },
+const tileDrops: Partial<Record<Tile, Item>> = {
+  iron_deposit: { id: "iron_ore", count: 5, data: false },
+  copper_deposit: { id: "copper_ore", count: 5, data: false },
 };
 
-const structureDrops: Partial<
-  Record<StructureType, { id: ItemId; item: Item }>
-> = {
-  tree: { id: "log", item: { count: 5 } },
-  cactus: { id: "cactus", item: { count: 5 } },
+const structureDrops: Partial<Record<StructureType, Item>> = {
+  tree: { id: "log", count: 5, data: false },
+  cactus: { id: "cactus", count: 5, data: false },
 };
 
 const tickTimer = (
@@ -60,12 +57,11 @@ const gatherTileTask: TaskRunner<GatherTile> = ctx => {
   }
 
   const { done, changed } = tickTimer(task, inRange, time.now);
-
   const targetTile = world.terrain.optTileAt(task.target.x(), task.target.y());
   const gatheredItem = targetTile != null ? tileDrops[targetTile] : null;
 
   if (done && gatheredItem != null) {
-    addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
+    addItemToInventory(entity.inventory, gatheredItem);
     return { done: true, cleanTask: { ...task, endsAt: undefined } };
   } else return { done: false, changed };
 };
@@ -91,10 +87,10 @@ const gatherStructureTask: TaskRunner<GatherStructure> = ctx => {
   }
 
   const { done, changed } = tickTimer(task, inRange, time.now);
-
   const gatheredItem = structureDrops[structure.type];
+
   if (done && gatheredItem != null) {
-    addItemToInventory(entity.inventory, gatheredItem.id, gatheredItem.item);
+    addItemToInventory(entity.inventory, gatheredItem);
     world.structures.deleteStructure(task.regionId, task.subRegionId);
     return { done: true, cleanTask: { ...task, endsAt: undefined } };
   } else return { done: false, changed };
@@ -114,7 +110,7 @@ const dropInventoryTask: TaskRunner<DropInventory> = ctx => {
     return { done: false, changed: false };
   }
 
-  if (entity.inventory.size > 0) {
+  if (Object.keys(entity.inventory).length > 0) {
     dropInventory(entity.inventory, task.target, world);
   }
   return { done: true, cleanTask: task };

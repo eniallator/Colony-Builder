@@ -13,7 +13,6 @@ export interface State {
   camera: Camera;
   world: World;
   playerId?: EntityId;
-  /** The server's clock when this client connected. */
   serverTime?: Time;
   inventoryId?: EntityId;
   clickDetails: Stateful<ClickDetails | null>;

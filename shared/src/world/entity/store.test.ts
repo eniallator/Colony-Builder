@@ -3,7 +3,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../../constants.ts";
-import { itemIds } from "../../item/registry.ts";
+import { itemIds, type Inventory, type Item } from "../../item/types.ts";
 import { World } from "../index.ts";
 import {
   createItem,
@@ -40,7 +40,8 @@ const component = (overrides: Partial<Components> = {}): Components => ({
   ...overrides,
 });
 
-const sampleItem = { count: 1 };
+const sampleItem: Item = { id: itemId, count: 1, data: false };
+const { id: _id, ...sampleContents } = sampleItem;
 
 const snapshotOf = (...entities: [EntityId, Components][]): EntitySnapshot =>
   new Map(entities);
@@ -178,7 +179,7 @@ describe("EntityStore", () => {
     it("captures players and items by id", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, itemId, sampleItem, Vector.create(3, 4));
+      const item = createItem(world, sampleItem, Vector.create(3, 4));
 
       expect(world.entities.takeSnapshot([player, item])).toEqual(
         new Map([
@@ -205,7 +206,7 @@ describe("EntityStore", () => {
               speed: undefined,
               canPickup: true,
               conveyable: true,
-              inventory: new Map([[itemId, sampleItem]]),
+              inventory: { [itemId]: sampleContents },
               taskList: undefined,
             },
           ],
@@ -215,20 +216,23 @@ describe("EntityStore", () => {
 
     it("captures the contents of an inventory", () => {
       const world = new World();
-      const contents = { data: undefined, count: 3 };
-      const item = createItem(world, itemId, contents, Vector.zero(2));
-
-      expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual(
-        new Map([[itemId, contents]])
+      const contents = { data: sampleItem.data, count: 3 };
+      const item = createItem(
+        world,
+        { id: itemId, ...contents },
+        Vector.zero(2)
       );
+
+      expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual({
+        [itemId]: contents,
+      });
     });
 
     it("round-trips an inventory with items in it", () => {
       const world = new World();
       const item = createItem(
         world,
-        itemId,
-        { data: undefined, count: 3 },
+        { ...sampleItem, count: 3 },
         Vector.zero(2)
       );
       const snapshot = world.entities.takeSnapshot([item]);
@@ -251,7 +255,7 @@ describe("EntityStore", () => {
     it("only captures the requested ids", () => {
       const world = new World();
       createPlayer(world);
-      const item = createItem(world, itemId, sampleItem, Vector.zero(2));
+      const item = createItem(world, sampleItem, Vector.zero(2));
 
       expect([...world.entities.takeSnapshot([item]).keys()]).toEqual([item]);
     });
@@ -266,7 +270,7 @@ describe("EntityStore", () => {
     it("survives an encode / decode round trip", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1.5, 2.5));
-      const item = createItem(world, itemId, sampleItem, Vector.zero(2));
+      const item = createItem(world, sampleItem, Vector.zero(2));
 
       const snapshot = world.entities.takeSnapshot([player, item]);
 
@@ -278,7 +282,7 @@ describe("EntityStore", () => {
     it("can be applied to another EntityStore", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
-      const item = createItem(world, itemId, sampleItem, Vector.create(3, 4));
+      const item = createItem(world, sampleItem, Vector.create(3, 4));
       const store = new EntityStore();
 
       store.applySnapshot(world.entities.takeSnapshot([player, item]));
@@ -551,7 +555,9 @@ describe("EntityStore", () => {
 
       it("stores and then clears an inventory", () => {
         const store = populated();
-        const inventory = new Map([[itemId, { data: undefined, count: 2 }]]);
+        const inventory: Inventory = {
+          [itemId]: { ...sampleContents, count: 2 },
+        };
 
         store.applySnapshot(
           snapshotOf([b, component({ type: typeB, inventory })])

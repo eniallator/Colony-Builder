@@ -1,36 +1,48 @@
 import { describe, expect, it } from "vitest";
 
-import { itemIds } from "./registry.ts";
-import { encInventory, encItem } from "./types.ts";
+import {
+  encInventory,
+  encItem,
+  itemIds,
+  type Inventory,
+  type Item,
+} from "./types.ts";
 
-const [itemA, itemB] = itemIds;
+const [idA, idB] = itemIds;
+const data = false;
 
 describe("encItem", () => {
   const count = 1;
 
-  it("round-trips a count without data", () => {
-    expect(encItem.decode(encItem.encode({ count }))).toEqual({ count });
+  it("round-trips an item", () => {
+    const item: Item = { id: idA, count, data };
+
+    expect(encItem.decode(encItem.encode(item))).toEqual(item);
   });
 
-  it("drops any data when round-tripping", () => {
-    const encoded = encItem.encode({ count, data: { any: "thing" } });
+  it("rejects data that does not match the item's data encoding", () => {
+    expect(encItem.guard({ id: idA, count, data: { any: "thing" } })).toBe(
+      false
+    );
+  });
 
-    expect(encItem.decode(encoded)).toEqual({ count });
+  it("rejects an unknown item id", () => {
+    expect(encItem.guard({ id: "not an item id", count, data })).toBe(false);
   });
 
   it("only accepts non-negative integer counts", () => {
-    expect(encItem.guard({ count: 0 })).toBe(true);
-    expect(encItem.guard({ count: -1 })).toBe(false);
-    expect(encItem.guard({ count: 1.5 })).toBe(false);
+    expect(encItem.guard({ id: idA, count: 0, data })).toBe(true);
+    expect(encItem.guard({ id: idA, count: -1, data })).toBe(false);
+    expect(encItem.guard({ id: idA, count: 1.5, data })).toBe(false);
   });
 });
 
 describe("encInventory", () => {
   it("round-trips", () => {
-    const inventory = new Map([
-      [itemA, { count: 1 }],
-      [itemB, { count: 2 }],
-    ]);
+    const inventory: Inventory = {
+      [idA]: { count: 1, data },
+      [idB]: { count: 2, data },
+    };
 
     expect(encInventory.decode(encInventory.encode(inventory))).toEqual(
       inventory

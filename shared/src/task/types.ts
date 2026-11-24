@@ -18,7 +18,8 @@ import { encRegionId, encSubRegionId } from "../world/region.ts";
 // An end time, not a counter, so a task being worked on isn't resent each tick.
 const encEndsAt = encOptional(
   binaryEncodable(
-    (value): value is number => isNumber(value) && value >= 0,
+    (value): value is number =>
+      isNumber(value) && Number.isFinite(value) && value >= 0,
     codF32
   )
 );

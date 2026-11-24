@@ -6,6 +6,8 @@ import {
   PICKUP_SQR_RADIUS,
   selfMovementSystem,
   World,
+  type Inventory,
+  type Item,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
 import { describe, expect, it, vi } from "vitest";
@@ -47,17 +49,22 @@ describe("serverSystems", () => {
 describe("pickupSystem", () => {
   const [itemId] = itemIds;
   const here = Vector.create(5, 5);
+  const itemOf = (count: number): Item => ({ id: itemId, count, data: false });
+  const contentsOf = (count: number): { count: number; data: false } => ({
+    count,
+    data: false,
+  });
 
   it("moves nearby items into the player's inventory and despawns them", () => {
     const world = new World();
     const player = createPlayer(world, here.copy());
-    const dropped = { count: 1 };
-    const item = createItem(world, itemId, dropped, here.copy());
+    const dropped = itemOf(1);
+    const item = createItem(world, dropped, here.copy());
 
     runPickup(world);
 
-    expect(world.entities.get(player, "inventory").get(itemId)).toEqual(
-      dropped
+    expect(world.entities.get(player, "inventory")[itemId]).toEqual(
+      contentsOf(dropped.count)
     );
     expect(world.entities.optGet(item, "position")).toBeUndefined();
   });
@@ -66,14 +73,14 @@ describe("pickupSystem", () => {
     const [held, dropped] = [1, 2];
     const world = new World();
     const player = createPlayer(world, here.copy());
-    world.entities.get(player, "inventory").set(itemId, { count: held });
-    createItem(world, itemId, { count: dropped }, here.copy());
+    world.entities.get(player, "inventory")[itemId] = contentsOf(held);
+    createItem(world, itemOf(dropped), here.copy());
 
     runPickup(world);
 
-    expect(world.entities.get(player, "inventory").get(itemId)).toEqual({
-      count: held + dropped,
-    });
+    expect(world.entities.get(player, "inventory")[itemId]).toEqual(
+      contentsOf(held + dropped)
+    );
   });
 
   it("leaves items outside the pickup radius", () => {
@@ -81,40 +88,34 @@ describe("pickupSystem", () => {
     const player = createPlayer(world, here.copy());
     const item = createItem(
       world,
-      itemId,
-      { count: 1 },
+      itemOf(1),
       here.copy().add(Vector.create(Math.sqrt(PICKUP_SQR_RADIUS) + 0.5, 0))
     );
 
     runPickup(world);
 
-    expect(world.entities.get(player, "inventory").size).toBe(0);
+    expect(world.entities.get(player, "inventory")).toEqual({});
     expect(world.entities.optGet(item, "position")).toBeDefined();
   });
 
   it("ignores non-player entities with an inventory", () => {
     const world = new World();
     const heldCount = 1;
-    const holder = createItem(
-      world,
-      itemId,
-      { count: heldCount },
-      Vector.zero(2)
-    );
-    const other = createItem(world, itemId, { count: 2 }, Vector.zero(2));
+    const holder = createItem(world, itemOf(heldCount), Vector.zero(2));
+    const other = createItem(world, itemOf(2), Vector.zero(2));
 
     runPickup(world);
 
-    expect(world.entities.get(holder, "inventory").get(itemId)).toEqual({
-      count: heldCount,
-    });
+    expect(world.entities.get(holder, "inventory")[itemId]).toEqual(
+      contentsOf(heldCount)
+    );
     expect(world.entities.optGet(other, "position")).toBeDefined();
   });
 
   it("marks the player dirty when it picks something up", () => {
     const world = new World();
     const player = createPlayer(world, here.copy());
-    createItem(world, itemId, { count: 1 }, here.copy());
+    createItem(world, itemOf(1), here.copy());
     world.entities.flushDirtyEntities();
 
     runPickup(world);
@@ -127,8 +128,7 @@ describe("pickupSystem", () => {
     createPlayer(world, here.copy());
     createItem(
       world,
-      itemId,
-      { count: 1 },
+      itemOf(1),
       here.copy().add(Vector.create(Math.sqrt(PICKUP_SQR_RADIUS) + 0.5, 0))
     );
     world.entities.flushDirtyEntities();
@@ -141,8 +141,8 @@ describe("pickupSystem", () => {
   it("keeps the pickup with what is left over when not everything fits", () => {
     const world = new World();
     createPlayer(world, Vector.zero(2));
-    const item = createItem(world, itemId, { count: 2 }, Vector.zero(2));
-    const leftover = new Map([[itemId, { count: 1 }]]);
+    const item = createItem(world, itemOf(2), Vector.zero(2));
+    const leftover: Inventory = { [itemId]: contentsOf(1) };
     vi.mocked(mergeInventories).mockReturnValueOnce(leftover);
 
     runPickup(world);

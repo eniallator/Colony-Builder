@@ -1,26 +1,24 @@
+import { typedToEntries } from "niall-utils";
 import { Vector } from "vectyped";
 
 import { createItem, type World } from "../world/index.ts";
-import type { ItemId } from "./registry.ts";
 import type { Inventory, Item } from "./types.ts";
 
-export const addItemToInventory = (
-  inventory: Inventory,
-  id: ItemId,
-  item: Item
-) => {
-  const existing = inventory.get(id);
+export const addItemToInventory = (inventory: Inventory, item: Item) => {
+  const { id, ...value } = item;
+  const existing = inventory[id];
 
   if (existing != null) existing.count += item.count;
-  // Copy so the inventory never shares an item object with its source
-  else inventory.set(id, { ...item });
+  else inventory[id] = value;
 };
 
 export const mergeInventories = (
   from: Inventory,
   to: Inventory
 ): Inventory | null => {
-  for (const [id, item] of from) addItemToInventory(to, id, item);
+  for (const [id, value] of typedToEntries(from)) {
+    addItemToInventory(to, { id, ...value } as Item);
+  }
 
   return null;
 };
@@ -31,15 +29,11 @@ export const dropInventory = (
   world: World,
   jitterRadius: number = 0.4
 ): void => {
-  for (const [itemId, item] of inventory) {
-    createItem(
-      world,
-      itemId,
-      item,
-      Vector.create(Math.random(), Math.random())
-        .multiply(jitterRadius)
-        .add(position)
-    );
-    inventory.delete(itemId);
+  for (const [id, value] of typedToEntries(inventory)) {
+    const dropPos = Vector.create(Math.random(), Math.random())
+      .multiply(jitterRadius)
+      .add(position);
+    createItem(world, { id, ...value } as Item, dropPos);
+    inventory[id] = undefined;
   }
 };

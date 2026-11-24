@@ -52,7 +52,11 @@ describe("messageHandler", () => {
   it("applies the entities from an entities message", () => {
     const server = new World();
     const player = createPlayer(server, Vector.create(1, 2));
-    const item = createItem(server, itemId, { count: 1 }, Vector.create(3, 4));
+    const item = createItem(
+      server,
+      { id: itemId, count: 1, data: false },
+      Vector.create(3, 4)
+    );
     const state = createState();
 
     messageHandler(state, {
@@ -92,7 +96,11 @@ describe("messageHandler", () => {
   it("keeps entities that a later entities message does not mention", () => {
     const server = new World();
     const player = createPlayer(server);
-    const item = createItem(server, itemId, { count: 1 }, Vector.zero(2));
+    const item = createItem(
+      server,
+      { id: itemId, count: 1, data: false },
+      Vector.zero(2)
+    );
     const state = createState();
     messageHandler(state, {
       type: "entities",

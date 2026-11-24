@@ -10,18 +10,18 @@ const load = async relative => import(new URL(relative, import.meta.url).href);
 const requiredSprites = async () => {
   const [
     { tiles },
-    { itemDataRegistry },
+    { itemRegistry },
     { allEntityTypes },
     { structureSprites },
   ] = await Promise.all([
     load("../../shared/src/world/terrain/types.ts"),
-    load("../../shared/src/item/registry.ts"),
+    load("../../shared/src/item/types.ts"),
     load("../../shared/src/world/entity/types.ts"),
     load("../../shared/src/world/structure/sprites.ts"),
   ]);
   return [
     ...tiles.map(tile => ({ kind: "tile", id: tile, sprite: tile })),
-    ...Object.keys(itemDataRegistry).map(id => ({
+    ...Object.keys(itemRegistry).map(id => ({
       kind: "item",
       id,
       sprite: `item_${id}`,

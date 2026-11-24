@@ -141,7 +141,9 @@ export class World {
       sideLength
     );
 
-    for (const id of unloaded) this.entityStore.despawn(id);
+    for (const id of unloaded) {
+      this.entityStore.despawn(id);
+    }
 
     return unloaded;
   }

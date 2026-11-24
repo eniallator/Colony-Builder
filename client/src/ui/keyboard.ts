@@ -208,7 +208,7 @@ export class Keyboard {
       .reduce((total, dir) => total.add(dir), Vector.zero(first.size()))
       .clamp(-1, 1);
 
-    return sum.getMagnitude() > 1 ? sum.normalise() : sum;
+    return sum.getSquaredMagnitude() > 1 ? sum.normalise() : sum;
   }
 
   get held(): ReadonlySet<string> {

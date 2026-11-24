@@ -14,6 +14,6 @@ export const createRobot = (
     type: "robot",
     position,
     speed: ROBOT_SPEED,
-    inventory: new Map(),
+    inventory: {},
     taskList: { tasks, repeat: true },
   });

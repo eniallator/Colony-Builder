@@ -200,7 +200,7 @@ canvas {
   --px-button-hover: #4a9552;
   --px-button-lo: #173f27;
   --px-text: #f4ecd8;
-  --px-font: "Pixelify Sans", monospace;
+  --px-font: "DotGothic16", monospace;
   /* CSS size of one art pixel. Set from the display scale by
      ui/ui-textures.ts so it is a whole number of device pixels. */
   --art-px: 2px;

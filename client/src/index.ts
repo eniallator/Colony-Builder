@@ -83,20 +83,19 @@ export const app = appMethods<State>({
       playerId != null
         ? world.entities.optGet(playerId, "position")
         : undefined;
-    if (playerPos != null) {
-      const ids = world.unloadOutside(
-        ...worldToRegionPos(...playerPos.toArray()),
-        UNLOADED_SIDE_LENGTH
-      );
-      if (ids.length > 0) send({ type: "unload", ids });
 
-      const entityIds = world.unloadEntitiesOutside(
+    if (playerPos != null) {
+      const regIds = world.unloadOutside(
         ...worldToRegionPos(...playerPos.toArray()),
         UNLOADED_SIDE_LENGTH
       );
-      if (entityIds.length > 0) {
-        send({ type: "unloadEntities", ids: entityIds });
-      }
+      if (regIds.length > 0) send({ type: "unload", ids: regIds });
+
+      const entIds = world.unloadEntitiesOutside(
+        ...worldToRegionPos(...playerPos.toArray()),
+        UNLOADED_SIDE_LENGTH
+      );
+      if (entIds.length > 0) send({ type: "unloadEntities", ids: entIds });
     }
 
     const systemCtx: Parameters<ClientSystem>[0] = {

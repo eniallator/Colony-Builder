@@ -169,6 +169,16 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - Occupy roughly the central 10×12 px so there is breathing room on the tile.
 - **Face = direction.** Down shows the face/visor, up shows the back, sides
   show a profile with the visor on the leading edge.
+- **Gathering** is a 4-frame tool swing in every facing
+  (`<entityType>_gather_up|down|left|right`), from the same body drawing plus
+  an outlined pick held just outside the body's right edge (the left edge when
+  facing left or away). Side-on, the handle turns a step per frame, raised to
+  striking. Facing the viewer it shortens as it comes down, then reaches out
+  below the hand; facing away it dips behind the top edge. The body sits up
+  1px while the tool is raised. The tool never reaches below the body's lowest
+  pixel, so the `ground` line and the shadow match the walking sprites. The
+  client shows it while the entity's front task is a gather that has an end
+  time.
 
 ### Structures
 
@@ -210,8 +220,10 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - The client cuts them out of the atlas (`client/src/ui/ui-textures.ts`) and
   CSS draws them with `border-image` at 2× with `image-rendering: pixelated`,
   so a UI pixel is two screen pixels. Don't use radius, blur or gradients on UI.
-- Text is set in the pixel font **Pixelify Sans** (loaded from Google Fonts in
-  `index.html`) at a whole-pixel size, in `ui.text`. CSS can't read the
+- Text is set in the pixel font **DotGothic16** (loaded from Google Fonts in
+  `index.html`) at a whole-pixel size, in `ui.text`. It is drawn on a 16px
+  grid, so use multiples of 16px, and it has one weight. It replaced Pixelify
+  Sans, whose `5` looked like an `S`. CSS can't read the
   palette, so the matching hex values in `styles.css` carry a comment saying
   where they come from.
 
@@ -223,7 +235,7 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 | -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
 | Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`)                                                                                                                                                   |
 | `ItemId` `x`               | `item_x`                                                                                                                                                                                |
-| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right`                                                                                                                                                   |
+| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right`; gatherers (robot, player) also `x_gather_up`, `x_gather_down`, `x_gather_left`, `x_gather_right`                                                 |
 | Structure id `x`           | the sprites `structureSprites[x]` lists: `tree` and `cactus` one named after them, `conveyor` the `conveyor_<facing>` and `conveyor_<facing>_turning_<clockwise\|anticlockwise>` family |
 | Renderer helper            | `shadow`, `shadow_small`                                                                                                                                                                |
 

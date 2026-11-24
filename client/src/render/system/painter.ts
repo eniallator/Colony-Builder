@@ -83,7 +83,7 @@ const paintSprite = (
   name: string,
   foot: Vector<2>,
   size: number,
-  animate = false
+  animate: boolean = false
 ) => {
   const { ctx, atlas, textured, now } = painter;
   const sprite = atlas.sprites.get(name);

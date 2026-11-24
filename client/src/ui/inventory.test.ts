@@ -1,7 +1,7 @@
 import {
   createPlayer,
-  itemDataRegistry,
   itemIds,
+  itemRegistry,
   unsafeEntityId,
   World,
   type EntityId,
@@ -28,17 +28,22 @@ import { createStateful } from "./types.ts";
 vi.mock("../render/atlas.ts", () => ({ getAtlas: vi.fn() }));
 
 const [itemA, itemB] = itemIds;
-const labelA = itemDataRegistry[itemA].label;
-const labelB = itemDataRegistry[itemB].label;
+const labelA = itemRegistry[itemA].label;
+const labelB = itemRegistry[itemB].label;
 
 // A count big enough to need a thousands separator, so localising shows.
 const bigCount = 1234;
 const smallCount = 2;
 
-const inventory: Inventory = new Map([
-  [itemA, { count: bigCount }],
-  [itemB, { count: smallCount }],
-]);
+const stackOf = (count: number): { count: number; data: false } => ({
+  count,
+  data: false,
+});
+
+const inventory: Inventory = {
+  [itemA]: stackOf(bigCount),
+  [itemB]: stackOf(smallCount),
+};
 
 // What a full list reads as, row by row.
 const fullList = [
@@ -67,7 +72,7 @@ const texts = (list: HTMLUListElement) =>
 
 describe("createInventoryRow", () => {
   it("shows the icon, label and localised count", () => {
-    const row = createInventoryRow(itemA, { count: bigCount });
+    const row = createInventoryRow(itemA, bigCount);
 
     expect(row.classList.contains("item")).toBe(true);
     expect(row.querySelector(".icon")).not.toBeNull();
@@ -79,7 +84,7 @@ describe("createInventoryRow", () => {
 });
 
 describe("renderInventoryList icons", () => {
-  const held: Inventory = new Map([[itemA, { count: smallCount }]]);
+  const held: Inventory = { [itemA]: stackOf(smallCount) };
   const icon = (list: HTMLUListElement) => getElement(".icon", list);
 
   beforeEach(() => {
@@ -160,7 +165,7 @@ describe("renderInventoryList", () => {
   });
 
   it("says when the inventory is empty", () => {
-    renderInventoryList(list, "", new Map());
+    renderInventoryList(list, "", {});
 
     expect(texts(list)).toEqual(["Empty"]);
   });
@@ -179,21 +184,17 @@ describe("renderInventoryList", () => {
   });
 
   it("updates existing rows in place", () => {
-    renderInventoryList(list, "", new Map([[itemB, { count: smallCount }]]));
+    renderInventoryList(list, "", { [itemB]: stackOf(smallCount) });
     const row = list.children[0];
 
-    renderInventoryList(
-      list,
-      "",
-      new Map([[itemB, { count: smallCount + 1 }]])
-    );
+    renderInventoryList(list, "", { [itemB]: stackOf(smallCount + 1) });
 
     expect(list.children[0]).toBe(row);
     expect(texts(list)).toEqual([`${labelB} ${smallCount + 1}`]);
   });
 
   it("adds rows for new items without touching existing ones", () => {
-    renderInventoryList(list, "", new Map([[itemB, { count: smallCount }]]));
+    renderInventoryList(list, "", { [itemB]: stackOf(smallCount) });
     const row = list.children[0];
 
     renderInventoryList(list, "", inventory);
@@ -203,11 +204,11 @@ describe("renderInventoryList", () => {
   });
 
   it("replaces the placeholder once items arrive", () => {
-    renderInventoryList(list, "", new Map());
+    renderInventoryList(list, "", {});
     renderInventoryList(list, "", inventory);
 
     expect(list.querySelector(".empty")).toBeNull();
-    expect(list.children).toHaveLength(inventory.size);
+    expect(list.children).toHaveLength(Object.keys(inventory).length);
   });
 });
 
@@ -253,7 +254,7 @@ describe("renderInventoryDialog", () => {
     dialog.open = true;
 
     run(id, world);
-    world.entities.optGet(id, "inventory")?.set(itemA, { count: smallCount });
+    world.entities.get(id, "inventory")[itemA] = stackOf(smallCount);
     run(id, world);
 
     expect(texts(getElement("ul", dialog))).toEqual([

@@ -159,7 +159,7 @@ describe("Mouse", () => {
       const onDown = vi.fn();
       const mouse = new Mouse(element, { onDown });
 
-      element.onmousedown?.(new MouseEvent("mousedown", { button: 3 }));
+      element.onmousedown?.(new MouseEvent("mousedown", { button: 99 }));
 
       expect(onDown).toHaveBeenCalledOnce();
       expect(onDown.mock.calls[0]?.[1]).toBeUndefined();

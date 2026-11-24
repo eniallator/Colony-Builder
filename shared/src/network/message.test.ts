@@ -2,7 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { itemIds } from "../item/registry.ts";
+import { itemIds } from "../item/types.ts";
 import { encTime, type Time } from "../time.ts";
 import {
   encComponents,
@@ -34,6 +34,7 @@ const playerId = unsafeEntityId(1);
 const itemEntityId = unsafeEntityId(2);
 
 const [heldItem] = itemIds;
+const itemData = false;
 
 const player: Components = {
   type: "player",
@@ -42,7 +43,7 @@ const player: Components = {
   speed: 3,
   canPickup: undefined,
   conveyable: undefined,
-  inventory: new Map([[heldItem, { data: undefined, count: 5 }]]),
+  inventory: { [heldItem]: { data: itemData, count: 5 } },
   taskList: undefined,
 };
 
@@ -53,7 +54,7 @@ const robot: Components = {
   speed: 2,
   canPickup: undefined,
   conveyable: undefined,
-  inventory: new Map(),
+  inventory: {},
   taskList: {
     tasks: [
       { type: "gatherTile", target: Vector.create(3, 4), endsAt: 0.5 },
@@ -120,7 +121,7 @@ describe("encComponents", () => {
   });
 
   it("round-trips an empty inventory", () => {
-    const empty = { ...item, inventory: new Map() };
+    const empty = { ...item, inventory: {} };
 
     expect(encComponents.decode(encComponents.encode(empty))).toEqual(empty);
   });
@@ -128,7 +129,7 @@ describe("encComponents", () => {
   it("rejects an unknown item id or a negative item count", () => {
     const withItem = (id: string, count: number) => ({
       ...item,
-      inventory: new Map([[id, { data: undefined, count }]]),
+      inventory: { [id]: { data: itemData, count } },
     });
 
     expect(encComponents.guard(withItem("not an item id", 1))).toBe(false);

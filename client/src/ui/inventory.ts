@@ -1,26 +1,26 @@
 import {
-  itemDataRegistry,
+  itemRegistry,
   TEXTURE_BASE_URL,
   type Inventory,
-  type Item,
   type ItemId,
 } from "@colony-builder/shared";
+import { tuple } from "niall-utils/core";
+import { typedKeys } from "niall-utils/data";
+import { mapFilter } from "niall-utils/functional";
 import { addListener, getElement, toElement } from "niall-utils/ui";
 
 import { getAtlas } from "../render/atlas.ts";
 import type { State } from "../state.ts";
 import type { ClientSystem } from "../system.ts";
 
-export const createInventoryRow = (id: ItemId, { count }: Item) => {
-  const { label } = itemDataRegistry[id];
-  return toElement(
+export const createInventoryRow = (id: ItemId, count: number) =>
+  toElement(
     `<li class="item" data-item="${id}">
       <span class="icon"></span>
-      <span class="label">${label}</span>
+      <span class="label">${itemRegistry[id].label}</span>
       <span class="count">${count.toLocaleString()}</span>
     </li>`
   );
-};
 
 /**
  * Shows the item's atlas sprite by offsetting the sheet (the icon's CSS
@@ -46,7 +46,7 @@ const paintInventoryIcon = (row: HTMLElement, id: ItemId) => {
   row.style.setProperty("--item-color", sprite.colour);
 };
 
-const updateInventoryRow = (row: HTMLElement, id: ItemId, { count }: Item) => {
+const updateInventoryRow = (row: HTMLElement, id: ItemId, count: number) => {
   paintInventoryIcon(row, id);
   const countEl = getElement(".count", row);
   const text = count.toLocaleString();
@@ -57,12 +57,16 @@ const updateInventoryRow = (row: HTMLElement, id: ItemId, { count }: Item) => {
 export const renderInventoryList = (
   list: HTMLUListElement,
   search: string,
-  inventory: Inventory = new Map()
+  inventory: Inventory = {}
 ) => {
   const query = search.trim().toLowerCase();
-  const matches = [...inventory].filter(([id]) =>
-    itemDataRegistry[id].label.toLowerCase().includes(query)
-  );
+  const inventoryKeys = typedKeys(inventory);
+  const matches = mapFilter(inventoryKeys, id => {
+    const value = inventory[id];
+    return value != null && itemRegistry[id].label.toLowerCase().includes(query)
+      ? tuple(id, value)
+      : null;
+  });
   const seen = new Set<string>(matches.map(([id]) => id));
 
   for (const row of list.querySelectorAll<HTMLElement>("li.item")) {
@@ -74,9 +78,9 @@ export const renderInventoryList = (
   for (const [i, [id, item]] of matches.entries()) {
     const row =
       list.querySelector<HTMLElement>(`li.item[data-item="${id}"]`) ??
-      createInventoryRow(id, item);
+      createInventoryRow(id, item.count);
 
-    updateInventoryRow(row, id, item);
+    updateInventoryRow(row, id, item.count);
     if (list.children[i] !== row) {
       list.insertBefore(row, list.children[i] ?? null);
     }
@@ -86,7 +90,7 @@ export const renderInventoryList = (
   if (matches.length > 0) {
     empty?.remove();
   } else {
-    const text = inventory.size > 0 ? "No matching items" : "Empty";
+    const text = inventoryKeys.length > 0 ? "No matching items" : "Empty";
     if (empty == null) list.append(toElement(`<li class="empty">${text}</li>`));
     else if (empty.textContent !== text) empty.textContent = text;
   }

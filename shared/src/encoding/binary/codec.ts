@@ -320,7 +320,7 @@ export const codSetOf = <const T extends CodecValue>(
   };
 };
 
-const codArrayMode = codOneOf(["dynamic", "rle", "fixed", "fixedrle"]);
+const codArrayMode = codOneOf(["dynamic", "rle", "fixed", "fixedRle"]);
 
 export interface ArrayOptions {
   fixedLength?: number;
@@ -339,7 +339,7 @@ export const codArrayOf = <const T extends CodecValue>(
   const isFixed = fixedLength != null;
 
   const modeOf = (rle: boolean): CodecType<typeof codArrayMode> =>
-    isFixed ? (rle ? "fixedrle" : "fixed") : rle ? "rle" : "dynamic";
+    isFixed ? (rle ? "fixedRle" : "fixed") : rle ? "rle" : "dynamic";
 
   const layout = (values: T[], rle: boolean) => {
     const units: [T, number][] = rle
@@ -385,7 +385,7 @@ export const codArrayOf = <const T extends CodecValue>(
     },
     read: cursor => {
       const mode = codArrayMode.read(cursor);
-      const rle = mode === "rle" || mode === "fixedrle";
+      const rle = mode === "rle" || mode === "fixedRle";
       if (mode !== modeOf(rle)) {
         throw new RangeError(`Array mode ${mode} is not allowed here`);
       }

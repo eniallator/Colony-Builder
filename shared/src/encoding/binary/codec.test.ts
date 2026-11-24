@@ -604,7 +604,7 @@ describe("codArrayOf", () => {
         "Array mode fixed is not allowed"
       );
       expect(() => read(arr, [3, 1, 1])).toThrow(
-        "Array mode fixedrle is not allowed"
+        "Array mode fixedRle is not allowed"
       );
     });
 

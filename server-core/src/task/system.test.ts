@@ -123,7 +123,7 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 1 });
 
       expect(task.endsAt).toBe(time.now + TASK_DURATION);
-      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.get(id, "inventory")).toEqual({});
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
 
@@ -134,7 +134,7 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 0 });
       taskSystem({ world, dt: TASK_DURATION / 2 });
 
-      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.get(id, "inventory")).toEqual({});
     });
 
     it("gathers the tile once the duration has elapsed", () => {
@@ -143,9 +143,9 @@ describe("taskSystem", () => {
 
       runGather(world);
 
-      expect(world.entities.get(id, "inventory")).toEqual(
-        new Map([["iron_ore", { count: 5 }]])
-      );
+      expect(world.entities.get(id, "inventory")).toEqual({
+        iron_ore: { count: 5, data: false },
+      });
     });
 
     it("restarts the timer when the entity leaves reach", () => {
@@ -169,9 +169,7 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 1 });
 
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(0);
-      expect(world.entities.get(id, "inventory").get("iron_ore")?.count).toBe(
-        5
-      );
+      expect(world.entities.get(id, "inventory").iron_ore?.count).toBe(5);
     });
 
     it("gathers nothing from a tile with no tile", () => {
@@ -180,7 +178,7 @@ describe("taskSystem", () => {
 
       runGather(world);
 
-      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.get(id, "inventory")).toEqual({});
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(1);
     });
 
@@ -249,7 +247,7 @@ describe("taskSystem", () => {
       taskSystem({ world, dt: 1 });
 
       expect(gathering.endsAt).toBe(time.now + TASK_DURATION);
-      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.get(id, "inventory")).toEqual({});
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
 
@@ -260,9 +258,9 @@ describe("taskSystem", () => {
 
       runGather(world);
 
-      expect(world.entities.get(id, "inventory")).toEqual(
-        new Map([["log", { count: 5 }]])
-      );
+      expect(world.entities.get(id, "inventory")).toEqual({
+        log: { count: 5, data: false },
+      });
     });
 
     it("gathers cactus from a cactus once the duration has elapsed", () => {
@@ -272,9 +270,9 @@ describe("taskSystem", () => {
 
       runGather(world);
 
-      expect(world.entities.get(id, "inventory")).toEqual(
-        new Map([["cactus", { count: 5 }]])
-      );
+      expect(world.entities.get(id, "inventory")).toEqual({
+        cactus: { count: 5, data: false },
+      });
     });
 
     it("removes the structure once it has been gathered", () => {
@@ -377,7 +375,7 @@ describe("taskSystem", () => {
   describe("dropInventory", () => {
     const robotHolding = (world: World, position: Vector<2>) => {
       const id = createRobot(world, position, [drop]);
-      world.entities.get(id, "inventory").set("log", { count: 2 });
+      world.entities.get(id, "inventory").log = { count: 2, data: false };
       return id;
     };
 
@@ -390,7 +388,7 @@ describe("taskSystem", () => {
       expect(
         world.entities.get(id, "destination").distTo(centre())
       ).toBeLessThan(TASK_RADIUS);
-      expect(world.entities.get(id, "inventory").size).toBe(1);
+      expect(Object.keys(world.entities.get(id, "inventory"))).toHaveLength(1);
     });
 
     it("does not set a new destination while one is pending", () => {
@@ -410,13 +408,13 @@ describe("taskSystem", () => {
 
       taskSystem({ world, dt: 1 });
 
-      expect(world.entities.get(id, "inventory").size).toBe(0);
+      expect(world.entities.get(id, "inventory")).toEqual({});
       const dropped = world.entities.query("canPickup");
       expect(dropped).toHaveLength(1);
       const [item] = dropped;
-      expect(world.entities.get(item ?? id, "inventory")).toEqual(
-        new Map([["log", { count: 2 }]])
-      );
+      expect(world.entities.get(item ?? id, "inventory")).toEqual({
+        log: { count: 2, data: false },
+      });
     });
 
     it("is finished once it has dropped everything", () => {
@@ -485,11 +483,14 @@ describe("taskSystem", () => {
         taskSystem({ world, dt: 1 }); // drop
       }
 
-      expect(inventory.size).toBe(0);
+      expect(inventory).toEqual({});
       const dropped = world.entities
         .query("canPickup", "inventory")
-        .map(item => world.entities.get(item, "inventory").get("iron_ore"));
-      expect(dropped).toEqual([{ count: 5 }, { count: 5 }]);
+        .map(item => world.entities.get(item, "inventory").iron_ore);
+      expect(dropped).toEqual([
+        { count: 5, data: false },
+        { count: 5, data: false },
+      ]);
     });
 
     it("discards a finished task when not repeating", () => {

@@ -38,6 +38,13 @@ const SCENE_ENTITIES = [
   [12, 4, "item_iron_ore"],
   [6, 2, "item_log"],
   [9, 5, "item_iron_ore"],
+  // The gather swing, one frame per tile: a robot and a player for each facing.
+  ...["up", "down", "left", "right"].flatMap((dir, row) =>
+    [0, 1, 2, 3].flatMap(frame => [
+      [6 + frame, 8 + row, `robot_gather_${dir}`, frame],
+      [11 + frame, 8 + row, `player_gather_${dir}`, frame],
+    ])
+  ),
 ];
 const SCENE_STRUCTURES = [
   [6, 8, "tree"],
@@ -98,9 +105,9 @@ export const writePreview = (path, sprites) => {
     draw("shadow_small", 0, tx, ty);
     draw(name, 0, tx, ty + 1 - tall);
   }
-  for (const [tx, ty, name] of SCENE_ENTITIES) {
+  for (const [tx, ty, name, frame = 0] of SCENE_ENTITIES) {
     draw("shadow", 0, tx, ty);
-    draw(name, 0, tx, ty);
+    draw(name, frame, tx, ty);
   }
   writeFileSync(path, encodePng(width, height, pixels));
 };

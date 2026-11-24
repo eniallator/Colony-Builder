@@ -28,6 +28,14 @@ export const regionPosToId = (x: number, y: number): RegionId =>
   ((BigInt.asUintN(I32_BITS, BigInt(x)) << BigInt(I32_BITS)) |
     BigInt.asUintN(I32_BITS, BigInt(y))) as RegionId;
 
+export const encRegionId = binaryEncodable<RegionId>(
+  (value): value is RegionId =>
+    typeof value === "bigint" && value >= 0n && value < U64_LIMIT,
+  codMap(codTupleOf(codI32, codI32), regionIdToPos, ([x, y]) =>
+    regionPosToId(x, y)
+  )
+);
+
 export const worldToRegionPos = (
   worldX: number,
   worldY: number
@@ -55,14 +63,6 @@ export const regionsAround = (
       Math.floor(centerY - sideLength / 2 + (i % sideLength))
     )
   );
-
-export const encRegionId = binaryEncodable<RegionId>(
-  (value): value is RegionId =>
-    typeof value === "bigint" && value >= 0n && value < U64_LIMIT,
-  codMap(codTupleOf(codI32, codI32), regionIdToPos, ([x, y]) =>
-    regionPosToId(x, y)
-  )
-);
 
 export type SubRegionId = Tagged<number, "RegionPos">;
 export const encSubRegionId = binaryEncodable(
