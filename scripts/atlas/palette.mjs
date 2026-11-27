@@ -14,10 +14,20 @@ export const PALETTE = {
   grass: ["#35693a", "#4a8340", "#629c48", "#86b95c"],
   sand: ["#b39656", "#cdb374", "#e0cc92", "#efe1b0"],
   stone: ["#4f5560", "#6b727c", "#868d96", "#a6adb4"],
-  swamp: ["#2b4531", "#3b5a3a", "#51714a", "#7e9a5e"],
+  swamp: ["#44391f", "#63532d", "#7b6a3e", "#a0905c"],
   puddle: ["#2d4338", "#3d5a4b", "#6f8f7c"],
-  jungle: ["#173f27", "#22583a", "#2e7344", "#4a9552"],
+  jungle: ["#08241b", "#103a2c", "#1b543d", "#317a54"],
   water: ["#2a4f8a", "#3a68a8", "#4d82bf", "#9cc8e6"],
+  // Broad patches that break up a terrain's base: [darker, lighter], each only
+  // a hair from the base so they read as ground rather than detail.
+  patch: {
+    grass: ["#457c3e", "#508a42"],
+    sand: ["#c6ac6e", "#d3ba7b"],
+    water: ["#3662a1", "#3f6fb0"],
+    stone: ["#656c76", "#727984"],
+    swamp: ["#5d4e2a", "#695931"],
+    jungle: ["#0e3427", "#134031"],
+  },
 
   // --- Resources ---
   ore: ["#6c7f93", "#9fb4c8", "#cbd9e5"],
@@ -37,24 +47,36 @@ export const PALETTE = {
   },
 
   // --- Structures (grown on the terrain) ---
-  // Foliage is a touch darker and yellower than grass so trees stand out on it.
-  leaf: ["#244f2c", "#33703a", "#4f9444", "#8cc45a"],
+  // Foliage is much deeper and bluer than grass, so trees stand out on it, even
+  // as the single flat colour they draw as when zoomed far out.
+  leaf: ["#10332b", "#1b4d38", "#286640", "#448a4c"],
+  // Bright, fresh fronds, so ferns show up against the dark jungle floor.
+  fern: ["#173f1a", "#3d8030", "#68ae42", "#a9da66"],
   // Cooler and bluer than grass, so cacti read as desert plants on sand.
   cactus: ["#2f5f45", "#437c52", "#5f9c62", "#8fc281"],
+  // Rose caps on pale stalks: warm against the cool swamp and lighter than its
+  // ground, and clear of the robot orange and the red LED.
+  mushroom: {
+    cap: ["#9a4a66", "#d4728a", "#f2a0a8", "#ffd0c8"],
+    stalk: ["#9c8672", "#c9b497", "#ebdcc0"],
+  },
 
   // --- Machines ---
+  // Dark steel, much darker than stone so belts show up when zoomed out, with
+  // amber arrows.
   belt: {
-    rail: "#23252b",
-    railHi: "#5c606b",
-    base: "#43464f",
-    arrow: "#e0a83a",
-    arrowHi: "#f4cf6a",
+    rail: "#202228",
+    railHi: "#666b78",
+    base: "#363a44",
+    arrow: "#d9b45c",
+    arrowHi: "#eed38a",
   },
   robot: {
     dark: "#8a4e22",
     base: "#d98a3a",
     light: "#f0b866",
     visor: "#24303d",
+    code: "#a9da66", // program text on the back panel; never the eyes' glow
     glow: "#7fe3ff",
     led: "#e0505a",
   },

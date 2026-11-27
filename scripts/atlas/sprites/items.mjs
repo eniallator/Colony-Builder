@@ -138,4 +138,105 @@ export const items = [
       p: PALETTE.sand[3],
     }
   ),
+  // A picked toadstool, the same rose cap and pale stalk as the plant it came
+  // from: a domed cap lit from the top left with a few cream spots, a dark
+  // underside, and a short stalk.
+  item(
+    "mushroom",
+    [
+      "................",
+      "................",
+      "................",
+      ".....OOOOOO.....",
+      "...OllsaaaabO...",
+      "..OllasaaaaabO..",
+      "..OlaaaaasabbO..",
+      "..OaasaaaabbbO..",
+      "..OddddddddddO..",
+      ".....OsTTuO.....",
+      ".....OsTTuO.....",
+      ".....OsTTuO.....",
+      ".....OOOOOO.....",
+      "................",
+      "................",
+      "................",
+    ],
+    {
+      // cap: light / body / shade / underside
+      l: PALETTE.mushroom.cap[3],
+      a: PALETTE.mushroom.cap[2],
+      b: PALETTE.mushroom.cap[1],
+      d: PALETTE.mushroom.cap[0],
+      // stalk, and the spots on the cap: lit / body / shade
+      s: PALETTE.mushroom.stalk[2],
+      T: PALETTE.mushroom.stalk[1],
+      u: PALETTE.mushroom.stalk[0],
+    }
+  ),
+  // A bundle of fibres stripped from a fern: strands fanning out above and
+  // below a bark tie, lit from the left.
+  item(
+    "fibre",
+    [
+      "................",
+      "..OO..OOO..OO...",
+      "..OlOOlllOOaO...",
+      "...OlOlaaOaO....",
+      "...OllaaaaaO....",
+      "....OllaaaO.....",
+      "....OllaaaO.....",
+      "...OHHhhhhbO....",
+      "...OhhbbbbbO....",
+      "....OllaaaO.....",
+      "...OllaaaaaO....",
+      "..OllOaaaOaaO...",
+      "..OlO.OaO.OaO...",
+      "...O...O...O....",
+      "................",
+      "................",
+    ],
+    {
+      // strands: lit / body
+      l: PALETTE.fern[3],
+      a: PALETTE.fern[2],
+      // tie: lit / body / shade
+      H: PALETTE.log.skin,
+      h: PALETTE.log.barkLight,
+      b: PALETTE.log.bark,
+    }
+  ),
+  // A packed-up robot: the walking one's orange box, visor and treads, with a
+  // carry handle on top. It is switched off, so its eyes are grey and unlit.
+  item(
+    "robot",
+    [
+      "................",
+      "................",
+      "....OOOOOOOO....",
+      "....OqqqqqqO....",
+      "....OqO..OsO....",
+      "...OOqOOOOsOO...",
+      "..OllllllllllO..",
+      "..OlaaaaaaaabO..",
+      "..OlavvvvvvabO..",
+      "..OlavevvevabO..",
+      "..OlaaaaaaaabO..",
+      "..ObbbbbbbbbbO..",
+      "...OOOOOOOOOO...",
+      "...OO......OO...",
+      "................",
+      "................",
+    ],
+    {
+      // body: light / body / shade, then the visor and its unlit eyes
+      l: PALETTE.robot.light,
+      a: PALETTE.robot.base,
+      b: PALETTE.robot.dark,
+      v: PALETTE.robot.visor,
+      e: PALETTE.stone[2],
+      // handle: lit / shaded metal
+      q: PALETTE.stone[3],
+      s: PALETTE.stone[2],
+    }
+  ),
 ];

@@ -1,9 +1,22 @@
-import { tuple } from "niall-utils/core";
-
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
-import { facingDirOf, FACINGS, type Facing } from "../../facing.ts";
-import type { Footprint } from "./footprint.ts";
-import type { ConveyorData } from "./types.ts";
+import { facingDirOf, type Facing } from "../../facing.ts";
+import type {
+  ConveyorData,
+  StructureDataByType,
+  StructureType,
+} from "./types.ts";
+
+export interface Footprint {
+  from: [x: number, y: number];
+  size: [width: number, height: number];
+}
+
+export const conveyorFootprint = (data: ConveyorData): Footprint =>
+  conveyorSpan(data.facing, 0, conveyorLengthToTiles(data.length));
+
+export const structureFootprints: {
+  [T in StructureType]?: (data: StructureDataByType[T]) => Footprint;
+} = { conveyor: conveyorFootprint };
 
 export const conveyorLengthToTiles = (length: number): number =>
   length / REGION_SIDE_LENGTH;
@@ -22,9 +35,6 @@ export const conveyorSpan = (
   const [fromY, height] = axisOf(stepY);
   return { from: [fromX, fromY], size: [width, height] };
 };
-
-export const conveyorFootprint = (data: ConveyorData): Footprint =>
-  conveyorSpan(data.facing, 0, conveyorLengthToTiles(data.length));
 
 export const splitConveyor = (
   anchor: [x: number, y: number],
@@ -61,17 +71,3 @@ export const splitConveyor = (
     };
   });
 };
-
-export const conveyorBends = tuple("clockwise", "anticlockwise");
-export type ConveyorBend = (typeof conveyorBends)[number];
-
-export const conveyorSpriteName = (
-  facing: Facing,
-  bend: ConveyorBend | null = null
-): string =>
-  bend == null ? `conveyor_${facing}` : `conveyor_${facing}_turning_${bend}`;
-
-export const conveyorSpriteNames = FACINGS.flatMap(facing => [
-  conveyorSpriteName(facing),
-  ...conveyorBends.map(bend => conveyorSpriteName(facing, bend)),
-]);

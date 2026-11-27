@@ -17,6 +17,9 @@ export const itemLabels: Record<ItemId, string> = {
   copper_ore: "Copper Ore",
   log: "Log",
   cactus: "Cactus",
+  mushroom: "Mushroom",
+  fibre: "Fibre",
+  robot: "Robot",
 };
 
 export const createInventoryRow = (id: ItemId, count: number) =>

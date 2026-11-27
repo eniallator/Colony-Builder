@@ -4,10 +4,16 @@
 
 import { blank, put, rect, roundBox, TILE } from "../core.mjs";
 import { PALETTE } from "../palette.mjs";
+import { stamp } from "./compose.mjs";
 import { directional, DIRS } from "./define.mjs";
 
+// The panel on a robot's back, where it is programmed: a metal plate (s) with a
+// screen (v) of code (c) beside two buttons (r, k).
+const PROGRAMMING_PANEL = ["vvvvvs", "vccvvr", "vvvvvs", "vcccvk"];
+
 const robot = (dir, frame) => {
-  const { dark, base, light, visor, glow, led } = PALETTE.robot;
+  const { dark, base, light, visor, code, glow, led } = PALETTE.robot;
+  const [, metal, , key] = PALETTE.stone;
   const s = blank();
   const dy = frame === 1 ? -1 : 0;
   // Treads peek out below the body, which bobs up on the second frame.
@@ -24,19 +30,20 @@ const robot = (dir, frame) => {
     put(s, 6, 9 + dy, glow);
     put(s, 9, 9 + dy, glow);
   } else if (dir === "up") {
-    rect(s, 5, 5 + dy, 6, 4, dark);
-    put(s, 7, 6 + dy, led);
-    put(s, 8, 6 + dy, base);
+    // The panel sits inside the body's lit and shaded edges.
+    const legend = { s: metal, v: visor, c: code, r: led, k: key };
+    stamp(s, PROGRAMMING_PANEL, legend, [5, 5 + dy]);
   } else if (dir === "left") {
-    rect(s, 4, 6 + dy, 2, 4, visor);
-    put(s, 4, 7 + dy, glow);
-    put(s, 4, 8 + dy, glow);
-    rect(s, 9, 5 + dy, 2, 5, dark);
+    rect(s, 4, 8 + dy, 2, 2, visor);
+    put(s, 4, 9 + dy, glow);
+    // Side-on, the panel stands a pixel out from the rear side.
+    rect(s, 12, 5 + dy, 1, 4, metal);
+    rect(s, 13, 5 + dy, 1, 4, PALETTE.outline);
   } else {
-    rect(s, 10, 6 + dy, 2, 4, visor);
-    put(s, 11, 7 + dy, glow);
-    put(s, 11, 8 + dy, glow);
-    rect(s, 5, 5 + dy, 2, 5, dark);
+    rect(s, 10, 8 + dy, 2, 2, visor);
+    put(s, 11, 9 + dy, glow);
+    rect(s, 2, 5 + dy, 1, 4, PALETTE.outline);
+    rect(s, 3, 5 + dy, 1, 4, metal);
   }
   return s;
 };

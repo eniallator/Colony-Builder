@@ -4,7 +4,9 @@
 // Imports the game's own registries (Node strips the TypeScript types), so
 // there is no second list to keep in sync.
 
-const load = async relative => import(new URL(relative, import.meta.url).href);
+/** Imports a game module, by its path from this folder. */
+export const load = async relative =>
+  import(new URL(relative, import.meta.url).href);
 
 /** Returns the sprite names the game needs, or throws if the registries can't load. */
 const requiredSprites = async () => {
@@ -17,7 +19,7 @@ const requiredSprites = async () => {
     load("../../shared/src/world/terrain/types.ts"),
     load("../../shared/src/item/types.ts"),
     load("../../shared/src/world/entity/types.ts"),
-    load("../../shared/src/world/structure/sprites.ts"),
+    load("../../client/src/render/structure-sprites.ts"),
   ]);
   return [
     ...tiles.map(tile => ({ kind: "tile", id: tile, sprite: tile })),

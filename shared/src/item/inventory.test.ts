@@ -1,10 +1,10 @@
 import { describe, expect, it } from "vitest";
 
 import { addItemToInventory, mergeInventories } from "./inventory.ts";
-import { itemIds, type Inventory, type Item } from "./types.ts";
+import { itemIds, type Inventory, type Item, type ItemData } from "./types.ts";
 
 const [idA, idB] = itemIds;
-const data = false;
+const data: ItemData<typeof idA> = true;
 
 const itemOf = (id: Item["id"], count: number): Item => ({ id, count, data });
 

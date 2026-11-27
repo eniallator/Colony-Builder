@@ -3,33 +3,32 @@ import {
   isBoolean,
   isExact,
   isExactObjectOf,
+  isInteger,
   isNumber,
   isOneOf,
   isOptional,
   isRecordOf,
   isTupleOf,
-  isUnionOf,
   type Guard,
 } from "deep-guards";
 import {
   attempt,
-  raise,
   type NonEmptyArray,
   type ReadonlyNonEmptyArray,
+  type Tagged,
   type UnionToTuple,
+  type Untag,
 } from "niall-utils/core";
 import { mapObject, typedToEntries } from "niall-utils/data";
-import { mapFind } from "niall-utils/functional";
 import { Vector } from "vectyped";
 
 import type { Encodable } from "../format.ts";
 import {
   chooseUIntCod,
+  codAdapt,
   codArrayOf,
   codBoolean,
   codExact,
-  codF32,
-  codMap,
   codMapOf,
   codNumber,
   codObjectOf,
@@ -38,6 +37,7 @@ import {
   codRecordOf,
   codSetOf,
   codTupleOf,
+  codUnionOf,
   type ArrayOptions,
   type BinaryCodec,
   type BinaryFormat,
@@ -104,24 +104,53 @@ export const binaryEncodable = <const T extends CodecValue>(
 
 export const encBoolean = binaryEncodable(isBoolean, codBoolean);
 
+export const isIntegerIn =
+  (min: number, max: number): Guard<number> =>
+  (value): value is number =>
+    isInteger(value) && value >= min && value <= max;
+export const isSignedInt = (bits: number) =>
+  isIntegerIn(-(2 ** (bits - 1)), 2 ** (bits - 1) - 1);
+export const isUnsignedInt = (bits: number) => isIntegerIn(0, 2 ** bits - 1);
+export const isFiniteNumber: Guard<number> = (value): value is number =>
+  isNumber(value) && Number.isFinite(value);
+
+const numberGuards: Record<NumberCodec, Guard<number>> = {
+  i8: isSignedInt(8),
+  i16: isSignedInt(16),
+  i32: isSignedInt(32),
+  u8: isUnsignedInt(8),
+  u16: isUnsignedInt(16),
+  u32: isUnsignedInt(32),
+  f16: isFiniteNumber,
+  f32: isFiniteNumber,
+  f64: isFiniteNumber,
+};
+
 export const encNumber: {
   (tpe: NumberCodec): BinaryEncodable<number>;
   (tpe: "uChoose", value: number): BinaryEncodable<number>;
 } = (tpe: NumberCodec | "uChoose", value?: number): BinaryEncodable<number> =>
-  binaryEncodable(
-    isNumber,
-    tpe === "uChoose" ? chooseUIntCod(value as number) : codNumber(tpe)
-  );
+  tpe === "uChoose"
+    ? binaryEncodable(
+        isIntegerIn(0, value as number),
+        chooseUIntCod(value as number)
+      )
+    : binaryEncodable(numberGuards[tpe], codNumber(tpe));
 
-export const encVec2 = binaryEncodable<Vector<2>>(
-  (value): value is Vector<2> =>
-    value instanceof Vector && value.isSize(2) && value.every(Number.isFinite),
-  codMap(
-    codTupleOf(codF32, codF32),
-    vec => vec.toArray(),
-    ([x, y]) => Vector.create(x, y)
-  )
-);
+export const encAdapt = <
+  const B extends CodecValue,
+  const A extends CodecValue,
+>(
+  enc: BinaryEncodable<B>,
+  guard: Guard<A>,
+  decode: (stored: B) => A,
+  encode: (value: A) => B
+): BinaryEncodable<A> =>
+  binaryEncodable(guard, codAdapt(enc.codec, decode, encode));
+
+export const encTagged = <T extends Tagged<CodecValue, string>>(
+  enc: BinaryEncodable<Untag<T>>
+): BinaryEncodable<T> => enc as unknown as BinaryEncodable<T>;
 
 export const encExact = <const T extends string | number | boolean>(
   value: T
@@ -153,6 +182,14 @@ export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
       })
     )
   );
+
+export const encVec2 = encAdapt(
+  encTupleOf(encNumber("f32"), encNumber("f32")),
+  (value): value is Vector<2> =>
+    value instanceof Vector && value.isSize(2) && value.every(Number.isFinite),
+  ([x, y]) => Vector.create(x, y),
+  vec => vec.toArray()
+);
 
 export const encSetOf = <const T extends CodecValue>(
   inner: BinaryEncodable<T>,
@@ -226,32 +263,14 @@ export const encMapOf = <
 
 export const encUnionOf = <const T extends readonly CodecValue[]>(
   ...encs: { [K in keyof T]: BinaryEncodable<T[K]> }
-): BinaryEncodable<T[number]> => {
-  const cod = chooseUIntCod(encs.length - 1);
-  const matchEncodable = (value: T[number]) =>
-    mapFind(encs, (encodable, index) =>
-      encodable.guard(value) ? { index, encodable } : null
-    ) ?? raise(new TypeError("Value matches no union variant"));
-
-  return binaryEncodable(
-    isUnionOf(
-      ...(encs.map(enc => enc.guard) as NonEmptyArray<Guard<unknown>>)
-    ) as Guard<T[number]>,
-    {
-      size: value =>
-        cod.size(encs.length) +
-        matchEncodable(value).encodable.codec.size(value),
-      write: (cursor, value) => {
-        const { index, encodable } = matchEncodable(value);
-        cod.write(cursor, index);
-        encodable.codec.write(cursor, value);
-      },
-      read: cursor =>
-        encs[cod.read(cursor)]?.codec.read(cursor) ??
-        raise(new RangeError("Unknown union tag")),
-    }
+): BinaryEncodable<T[number]> =>
+  binaryEncodable(
+    (value): value is T[number] => encs.some(({ guard }) => guard(value)),
+    codUnionOf(
+      encs.map(({ codec }) => codec),
+      value => encs.findIndex(({ guard }) => guard(value))
+    )
   );
-};
 
 type RegistryValues<
   Reg extends Record<string, BinaryEncodable>,

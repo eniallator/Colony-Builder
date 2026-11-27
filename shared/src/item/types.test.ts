@@ -6,10 +6,11 @@ import {
   itemIds,
   type Inventory,
   type Item,
+  type ItemData,
 } from "./types.ts";
 
 const [idA, idB] = itemIds;
-const data = false;
+const data: ItemData<typeof idA> = true;
 
 describe("encItem", () => {
   const count = 1;

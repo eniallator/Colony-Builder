@@ -19,7 +19,7 @@ export const TEXTURE_BASE_URL = "textures/";
 
 export const REGION_SIDE_LENGTH = 16;
 
-export const MIN_ZOOM = 1;
+export const MIN_ZOOM = 2;
 export const MAX_ZOOM = 6;
 
 export const LOADED_SIDE_LENGTH = 16;

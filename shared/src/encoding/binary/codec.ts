@@ -37,10 +37,13 @@ export interface BinaryCodec<T extends CodecValue> extends Codec<BinaryFormat> {
 export type CodecType<C extends BinaryCodec<any>> =
   C extends BinaryCodec<infer T> ? T : never;
 
-export const codMap = <const A extends CodecValue, const B extends CodecValue>(
+export const codAdapt = <
+  const B extends CodecValue,
+  const A extends CodecValue,
+>(
   codec: BinaryCodec<B>,
-  encode: (value: A) => B,
-  decode: (value: B) => A
+  decode: (value: B) => A,
+  encode: (value: A) => B
 ): BinaryCodec<A> => ({
   size: value => codec.size(encode(value)),
   write: (cursor, value) => {
@@ -164,7 +167,7 @@ export const U16_MAX = 2 ** 16;
 export const chooseUIntCod = (value: number): BinaryCodec<number> =>
   value < U8_MAX ? codU8 : value < U16_MAX ? codU16 : codU32;
 
-export const codBoolean = codMap<boolean, number>(codU8, Number, v => !!v);
+export const codBoolean = codAdapt(codU8, v => !!v, Number);
 
 const PRECISIONS = tuple("u8", "u16", "u32");
 export const isPrecision = isOneOf(...PRECISIONS);
@@ -296,6 +299,36 @@ export const codTupleOf = <const T extends readonly CodecValue[]>(
   },
   read: cursor => codecs.map(codec => codec.read(cursor)) as unknown as T,
 });
+
+/**
+ * One of `codecs`, written as its index followed by the value. `variantOf`
+ * gives the index of the codec that writes a value.
+ */
+export const codUnionOf = <const T extends CodecValue>(
+  codecs: readonly BinaryCodec<T>[],
+  variantOf: (value: T) => number
+): BinaryCodec<T> => {
+  const tag = chooseUIntCod(codecs.length - 1);
+  const variant = (value: T) => {
+    const index = variantOf(value);
+    const codec =
+      codecs[index] ?? raise(new TypeError("Value matches no union variant"));
+    return { index, codec };
+  };
+
+  return {
+    size: value => tag.size(codecs.length) + variant(value).codec.size(value),
+    write: (cursor, value) => {
+      const { index, codec } = variant(value);
+      tag.write(cursor, index);
+      codec.write(cursor, value);
+    },
+    read: cursor =>
+      (
+        codecs[tag.read(cursor)] ?? raise(new RangeError("Unknown union tag"))
+      ).read(cursor),
+  };
+};
 
 export const codSetOf = <const T extends CodecValue>(
   codec: BinaryCodec<T>,

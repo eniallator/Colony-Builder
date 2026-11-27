@@ -1,253 +1,350 @@
-// Terrain tiles. Each must tile seamlessly, so details wrap around the edges
-// (`putWrap`). To add a tile: write a `draw(rng, variant)` and add one line to
-// the `terrain` list at the bottom. Sprite name must equal the Tile id.
+// Terrain tiles: shapes drawn by hand and laid out on a base colour, with no
+// per-pixel noise. Each must tile seamlessly, so shapes stay inside the tile
+// (any variant can sit beside any other) unless every variant shares them, as
+// with the water. To add a tile: draw its shapes, lay them out and add one line
+// to the `terrain` list at the bottom. Sprite name must equal the Tile id.
 
-import { fill, put, putWrap, randInt, speckle, TILE } from "../core.mjs";
+import { fill, putWrap } from "../core.mjs";
 import { PALETTE } from "../palette.mjs";
+import { stamp } from "./compose.mjs";
 import { animated, variants } from "./define.mjs";
 
-const grass = (rng, variant) => {
-  const [d, m, l, h] = PALETTE.grass;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.14],
-    [l, 0.12],
-    [h, 0.025],
-  ]);
-  for (let i = 0; i < 3; i++) {
-    const x = randInt(rng, TILE);
-    const y = randInt(rng, TILE);
-    putWrap(s, x, y, d);
-    putWrap(s, x, y - 1, h);
-    putWrap(s, x + 1, y, l);
-  }
-  // Every 4th variant gets a rare flower.
-  if (variant === 3)
-    putWrap(s, randInt(rng, TILE), randInt(rng, TILE), PALETTE.flower);
+/** A `base` tile with shapes on it. `layout` is [[rows, x, y], ...]. */
+const scatter = (base, legend, layout) => {
+  const s = fill(base);
+  for (const [rows, x, y] of layout)
+    stamp(s, rows, legend, [x, y], { plot: putWrap });
   return s;
 };
 
-const sand = rng => {
-  const [d, m, l, h] = PALETTE.sand;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.09],
-    [l, 0.1],
-  ]);
-  for (let i = 0; i < 2; i++) {
-    const x = randInt(rng, TILE);
-    const y = randInt(rng, TILE);
-    for (let k = 0; k < 4; k++) {
-      putWrap(s, x + k, y, d);
-      putWrap(s, x + k + 1, y + 1, h);
-    }
-  }
-  return s;
-};
+/** A tile with one variant per layout, using a ramp's usual shading letters. */
+const scattered = (name, [d, m, l, h], layouts, extras = {}) =>
+  variants(
+    name,
+    (_rng, i) => scatter(m, { d, m, l, h, ...extras }, layouts[i]),
+    layouts.length
+  );
 
-const pebble = (s, x, y) => {
-  const [d, m, l, h] = PALETTE.stone;
-  [l, h, l].forEach((c, i) => put(s, x + i, y, c));
-  [m, m, d].forEach((c, i) => put(s, x + i, y + 1, c));
-};
+// Broad, soft patches of a tone close to the base. Terrain is mostly these,
+// with only the odd detail, so it stays quiet when zoomed out.
+const BROAD = [
+  "...qqqqq....",
+  ".qqqqqqqqq..",
+  "qqqqqqqqqqqq",
+  ".qqqqqqqqqq.",
+  "....qqqqq...",
+];
+const SMALL = ["..qqqq..", "qqqqqqq.", ".qqqqqqq", "..qqqq.."];
+/** The same patch in the lighter tone. */
+const lighter = rows => rows.map(row => row.replaceAll("q", "r"));
+const BROAD_LIGHT = lighter(BROAD);
+const SMALL_LIGHT = lighter(SMALL);
+/** The legend letters of a terrain's [darker, lighter] patch tones. */
+const patches = ([q, r]) => ({ q, r });
 
-const crack = (s, rng) => {
-  let x = randInt(rng, TILE);
-  let y = randInt(rng, TILE);
-  for (let i = 0; i < 6; i++) {
-    putWrap(s, x, y, PALETTE.stone[0]);
-    putWrap(s, x + 1, y + 1, PALETTE.stone[2]);
-    x += rng() < 0.5 ? 1 : 0;
-    y += 1;
-  }
-};
+// Grass: patches, with an occasional tuft and a rare flower.
+const TUFT = ["l...l", ".l.l.", ".dld."];
+const SPRIG = ["l.l", ".d."];
+const FLOWER = [".f.", "fhf", ".d."];
+const GRASS_LAYOUTS = [
+  [
+    [BROAD, 1, 3],
+    [SPRIG, 10, 11],
+  ],
+  [
+    [SMALL_LIGHT, 7, 2],
+    [TUFT, 3, 10],
+  ],
+  [[BROAD_LIGHT, 3, 8]],
+  [
+    [SMALL, 1, 2],
+    [SMALL, 7, 10],
+  ],
+  [
+    [TUFT, 9, 3],
+    [SMALL, 2, 9],
+  ],
+  [
+    [BROAD, 2, 9],
+    [SMALL_LIGHT, 7, 1],
+  ],
+  [
+    [SMALL_LIGHT, 2, 5],
+    [SPRIG, 11, 11],
+  ],
+  [
+    [BROAD_LIGHT, 1, 2],
+    [FLOWER, 10, 10],
+  ],
+];
 
-const stone = rng => {
-  const [d, m, l] = PALETTE.stone;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.07],
-    [l, 0.07],
-  ]);
-  crack(s, rng);
-  for (let i = 0; i < 3; i++)
-    pebble(s, 1 + randInt(rng, 11), 1 + randInt(rng, 13));
-  return s;
-};
+// Sand: drifts, with an occasional wind ripple (a lit crest over its own
+// shadow) and a rare shell.
+const RIPPLE = ["..llll..", "llddddll", "dd....dd"];
+const SHORT_RIPPLE = [".lll.", "ldddl", "d...d"];
+const SHELL = ["hh.", ".dd"];
+const SAND_LAYOUTS = [
+  [
+    [BROAD, 1, 3],
+    [SHORT_RIPPLE, 9, 11],
+  ],
+  [
+    [SMALL_LIGHT, 2, 2],
+    [RIPPLE, 6, 9],
+  ],
+  [[BROAD_LIGHT, 3, 8]],
+  [
+    [SMALL, 1, 2],
+    [SMALL_LIGHT, 7, 10],
+  ],
+  [
+    [RIPPLE, 2, 3],
+    [SMALL, 7, 10],
+  ],
+  [
+    [BROAD, 2, 9],
+    [SMALL_LIGHT, 8, 2],
+  ],
+  [
+    [SMALL, 8, 4],
+    [SMALL_LIGHT, 1, 9],
+  ],
+  [
+    [BROAD_LIGHT, 1, 2],
+    [SHELL, 10, 11],
+  ],
+];
 
-const swampland = rng => {
-  const [d, m, l, h] = PALETTE.swamp;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.16],
-    [l, 0.1],
-  ]);
-  for (let i = 0; i < 2; i++) {
-    const cx = randInt(rng, TILE);
-    const cy = randInt(rng, TILE);
-    const rx = 2 + randInt(rng, 2);
-    for (let dy = -1; dy <= 1; dy++) {
-      const half = dy === 0 ? rx : rx - 1;
-      for (let dx = -half; dx <= half; dx++) {
-        putWrap(s, cx + dx, cy + dy, PALETTE.puddle[dy === 1 ? 0 : 1]);
-      }
-    }
-    putWrap(s, cx - 1, cy - 1, PALETTE.puddle[2]);
-  }
-  for (let i = 0; i < 3; i++) {
-    const x = randInt(rng, TILE);
-    const y = randInt(rng, TILE);
-    putWrap(s, x, y, l);
-    putWrap(s, x, y - 1, l);
-    putWrap(s, x, y - 2, h);
-    putWrap(s, x + 1, y - 2, h);
-  }
-  return s;
-};
+// Stone: patches of rock, with an occasional boulder, pebble or crack.
+const BOULDER = [
+  "...lll...",
+  ".lllllm..",
+  "llllmmmd.",
+  "llmmmmddd",
+  ".ddddddd.",
+];
+const SLAB = [".llll..", "llllmd.", "lmmmmdd", ".ddddd."];
+const PEBBLE = [".ll.", "lmmd", ".dd."];
+// A crack catches the light on its lower lip.
+const CRACK = ["dd....", "lld...", "..ld..", "...ldd", "....ll"];
+const STONE_LAYOUTS = [
+  [
+    [BOULDER, 2, 3],
+    [SMALL, 7, 10],
+  ],
+  [
+    [BROAD, 2, 8],
+    [SMALL_LIGHT, 7, 2],
+  ],
+  [
+    [CRACK, 8, 3],
+    [SMALL, 1, 10],
+  ],
+  [
+    [BROAD_LIGHT, 1, 2],
+    [PEBBLE, 10, 11],
+  ],
+  [
+    [SLAB, 7, 9],
+    [SMALL_LIGHT, 1, 2],
+  ],
+  [
+    [BROAD, 3, 2],
+    [SMALL, 2, 10],
+  ],
+  [
+    [BROAD_LIGHT, 2, 9],
+    [SMALL, 8, 2],
+  ],
+  [
+    [SMALL, 1, 5],
+    [SMALL_LIGHT, 8, 10],
+  ],
+];
 
-const jungle = rng => {
-  const [d, m, l, h] = PALETTE.jungle;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.18],
-    [l, 0.06],
-  ]);
-  for (let i = 0; i < 10; i++) {
-    const x = randInt(rng, TILE);
-    const y = randInt(rng, TILE);
-    const wide = rng() < 0.5;
-    putWrap(s, x, y, h);
-    putWrap(s, x + (wide ? 1 : 0), y + (wide ? 0 : 1), l);
-    putWrap(s, x + 1, y + 1, d);
-  }
-  return s;
-};
+// Swampland: murky patches, with an occasional pool or clump of reeds.
+const PUDDLE = [
+  "...aaaa...",
+  ".appaaaaa.",
+  "aaaaaaaaaa",
+  ".aaaaaaaa.",
+  "..bbbbbb..",
+];
+const REED = ["l...l", "l.l.l", ".lll.", "..d.."];
+const SWAMP_LAYOUTS = [
+  [
+    [PUDDLE, 2, 3],
+    [SMALL, 7, 11],
+  ],
+  [
+    [BROAD, 2, 9],
+    [SMALL_LIGHT, 7, 2],
+  ],
+  [
+    [REED, 9, 3],
+    [SMALL, 2, 9],
+  ],
+  [[BROAD, 1, 2]],
+  [
+    [SMALL_LIGHT, 1, 2],
+    [PUDDLE, 5, 9],
+  ],
+  [
+    [REED, 3, 9],
+    [SMALL, 7, 2],
+  ],
+  [
+    [BROAD_LIGHT, 3, 8],
+    [SMALL, 1, 1],
+  ],
+  [
+    [SMALL, 8, 9],
+    [SMALL_LIGHT, 2, 4],
+  ],
+];
 
-// An iron vein: a meandering seam of ore running through the rock.
-//
-// The seam is a sum of whole-number sine waves, so it is periodic and the tile
-// still tiles. Every variant passes through the same height (y = 8) at the
-// left/right edges, so side-by-side tiles join into one continuous vein.
-const TAU = Math.PI * 2;
-const wave = (k, t) => Math.sin((TAU * k * t) / TILE);
-const wrapIndex = n => ((n % TILE) + TILE) % TILE;
-const pixelKey = (x, y) => `${wrapIndex(x)},${wrapIndex(y)}`;
+// Jungle: deep shade and light through the canopy, with an occasional frond.
+const FROND = [
+  "..ll...",
+  ".llll..",
+  "lllldl.",
+  "llldlld",
+  ".ldlld.",
+  "..ddd..",
+];
+const LEAF = [".ll.", "llld", ".dd."];
+const JUNGLE_LAYOUTS = [
+  [
+    [FROND, 2, 2],
+    [SMALL, 7, 10],
+  ],
+  [
+    [BROAD, 2, 8],
+    [LEAF, 10, 2],
+  ],
+  [
+    [SMALL_LIGHT, 2, 2],
+    [SMALL, 7, 9],
+  ],
+  [
+    [FROND, 7, 8],
+    [SMALL, 1, 2],
+  ],
+  [
+    [BROAD_LIGHT, 1, 3],
+    [LEAF, 3, 11],
+  ],
+  [
+    [BROAD, 3, 2],
+    [SMALL_LIGHT, 2, 10],
+  ],
+  [
+    [FROND, 8, 2],
+    [SMALL_LIGHT, 1, 10],
+  ],
+  [
+    [BROAD, 1, 9],
+    [SMALL, 6, 2],
+  ],
+];
 
-/** The set of pixel keys covered by the main vein. */
-const veinPixels = (rng, variant) => {
-  const k1 = 1 + (variant % 2);
-  const k2 = 2 + (variant >> 1);
-  const a1 = 2 + rng() * 1.5;
-  const a2 = 0.8 + rng();
-  const direction = rng() < 0.5 ? -1 : 1;
-  const centre = x =>
-    Math.round(8 + direction * (a1 * wave(k1, x) + a2 * wave(k2, x)));
+// Ore deposits: rocks shot through with the ore (A, B, C = light to dark) and
+// its stain (S), so the item clearly comes out of them. Patches come first in
+// each layout so the rocks lie on top of them.
+const ORE_BOULDER = [
+  "...hhh...",
+  ".hAAllm..",
+  "hABBmAAd.",
+  "lmCCSBBCd",
+  ".ddddddd.",
+];
+const ORE_SLAB = [".hhhl..", "hAAlmd.", "lBCSAAd", ".ddBCd."];
+const ORE_PEBBLE = [".AB.", "lBCd", ".dd."];
+const ORE_LAYOUTS = [
+  [
+    [SMALL, 1, 8],
+    [SMALL_LIGHT, 8, 2],
+    [ORE_BOULDER, 1, 1],
+    [ORE_PEBBLE, 11, 4],
+    [ORE_SLAB, 8, 10],
+  ],
+  [
+    [BROAD, 1, 1],
+    [ORE_SLAB, 8, 3],
+    [ORE_BOULDER, 2, 8],
+    [ORE_PEBBLE, 11, 12],
+  ],
+  [
+    [BROAD_LIGHT, 3, 3],
+    [ORE_SLAB, 1, 2],
+    [ORE_PEBBLE, 2, 8],
+    [ORE_BOULDER, 6, 9],
+  ],
+  [
+    [SMALL, 8, 8],
+    [SMALL_LIGHT, 1, 4],
+    [ORE_PEBBLE, 2, 2],
+    [ORE_BOULDER, 6, 1],
+    [ORE_SLAB, 1, 9],
+  ],
+];
 
-  const pixels = new Set();
-  for (let x = 0; x < TILE; x++) {
-    // Fill from this column's centre to the next one so steep sections stay
-    // connected; the vein swells and thins as it goes.
-    const [from, to] = [centre(x), centre(x + 1)].sort((a, b) => a - b);
-    const width = wave(3, x + variant) > 0.3 ? 6 : 5;
-    for (let y = from; y <= to + width - 1; y++) pixels.add(pixelKey(x, y));
-  }
-  return pixels;
-};
+/** A deposit of an ore, bedded in the same ground as plain stone. */
+const deposit = (name, { ore: [C, B, A], stain: S }) =>
+  scattered(name, PALETTE.stone, ORE_LAYOUTS, {
+    ...patches(PALETTE.patch.stone),
+    A,
+    B,
+    C,
+    S,
+  });
 
-const oreDeposit =
-  ({ ore: [dark, mid, light], stain, stainDark }) =>
-  (rng, variant) => {
-    const rock = PALETTE.stone;
-    const s = fill(rock[1]);
-    speckle(s, rng, [
-      [rock[0], 0.08],
-      [rock[2], 0.05],
-    ]);
-
-    const vein = veinPixels(rng, variant);
-    const isOre = (x, y) => vein.has(pixelKey(x, y));
-    const cells = [...vein].map(key => key.split(",").map(Number));
-
-    // Rust-stained rock hugging the top and bottom of the vein, then the ore
-    // itself: a bright top edge, a bevelled dark underside, and a dark metallic
-    // body with glints of lighter ore so it reads as solid metal, not a crack.
-    for (const [x, y] of cells) {
-      for (const dy of [-1, 1])
-        if (!isOre(x, y + dy)) putWrap(s, x, y + dy, stainDark);
-    }
-    for (const [x, y] of cells) {
-      const colour = !isOre(x, y - 1)
-        ? light
-        : !isOre(x, y + 1)
-          ? rock[0]
-          : !isOre(x, y - 2) || rng() < 0.25
-            ? mid
-            : dark;
-      put(s, x, y, colour);
-    }
-
-    // A thin side branch crossing the main vein on alternate variants.
-    if (variant % 2 === 1) {
-      const amplitude = 2 + rng() * 1.5;
-      for (let y = 0; y < TILE; y++) {
-        const x = Math.round(8 - amplitude * wave(1, y));
-        if (isOre(x, y)) continue;
-        putWrap(s, x, y, mid);
-        if (!isOre(x + 1, y)) putWrap(s, x + 1, y, stainDark);
-      }
-    }
-
-    // Rust staining on the vein, and a few ore flecks drifting into the rock.
-    for (let i = 0; i < 4; i++) {
-      const [x, y] = cells[randInt(rng, cells.length)];
-      put(s, x, y, stain);
-    }
-    for (let i = 0; i < 9; i++) {
-      const x = randInt(rng, TILE);
-      const y = randInt(rng, TILE);
-      if (!isOre(x, y)) put(s, x, y, i < 4 ? stainDark : mid);
-    }
-    return s;
-  };
-
-const ironDeposit = oreDeposit({
-  ore: PALETTE.ore,
-  stain: PALETTE.rust,
-  stainDark: PALETTE.rustDark,
-});
-
-const copperDeposit = oreDeposit({
-  ore: PALETTE.copper,
-  stain: PALETTE.verdigris,
-  stainDark: PALETTE.verdigrisDark,
-});
+// Water: still patches of depth, with one wave and its glint drifting over them.
+const WAVE = [".llll.", "ll..ll"];
+const GLINT = ["ll"];
+const WATER_PATCHES = [
+  [BROAD, 0, 9],
+  [SMALL_LIGHT, 8, 1],
+];
+const WATER_WAVES = [
+  [WAVE, 1, 3],
+  [GLINT, 11, 12],
+];
 
 /** Waves slide 4px per frame -> a seamless 4-frame loop. */
-const water = (rng, frame) => {
-  const [d, m, l, h] = PALETTE.water;
-  const s = fill(m);
-  speckle(s, rng, [
-    [d, 0.1],
-    [l, 0.08],
+const water = (_rng, frame) => {
+  const [d, m, l] = PALETTE.water;
+  return scatter(m, { d, l, ...patches(PALETTE.patch.water) }, [
+    ...WATER_PATCHES,
+    ...WATER_WAVES.map(([rows, x, y]) => [rows, x + frame * 4, y]),
   ]);
-  for (let i = 0; i < 5; i++) {
-    const row = randInt(rng, TILE);
-    const x = randInt(rng, TILE) + frame * 4;
-    for (let k = 0; k < 4; k++) {
-      putWrap(s, x + k, row, h);
-      putWrap(s, x + k + 1, row + 1, d);
-    }
-  }
-  return s;
 };
 
 export const terrain = [
-  variants("grass", grass),
-  variants("sand", sand),
-  variants("stone", stone),
-  variants("swampland", swampland),
-  variants("jungle", jungle),
-  variants("iron_deposit", ironDeposit),
-  variants("copper_deposit", copperDeposit),
+  scattered("grass", PALETTE.grass, GRASS_LAYOUTS, {
+    ...patches(PALETTE.patch.grass),
+    f: PALETTE.flower,
+  }),
+  scattered("sand", PALETTE.sand, SAND_LAYOUTS, patches(PALETTE.patch.sand)),
+  scattered(
+    "stone",
+    PALETTE.stone,
+    STONE_LAYOUTS,
+    patches(PALETTE.patch.stone)
+  ),
+  scattered("swampland", PALETTE.swamp, SWAMP_LAYOUTS, {
+    ...patches(PALETTE.patch.swamp),
+    p: PALETTE.puddle[2],
+    a: PALETTE.puddle[1],
+    b: PALETTE.puddle[0],
+  }),
+  scattered(
+    "jungle",
+    PALETTE.jungle,
+    JUNGLE_LAYOUTS,
+    patches(PALETTE.patch.jungle)
+  ),
+  deposit("iron_deposit", { ore: PALETTE.ore, stain: PALETTE.rust }),
+  deposit("copper_deposit", { ore: PALETTE.copper, stain: PALETTE.verdigris }),
   animated("water", 4, water, { frameSec: 0.3 }),
 ];

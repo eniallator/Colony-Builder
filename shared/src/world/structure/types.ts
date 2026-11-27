@@ -1,13 +1,12 @@
-import { isInteger } from "deep-guards";
-
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
-  binaryEncodable,
-  chooseUIntCod,
+  encAdapt,
   encExact,
   encMapOf,
+  encNumber,
   encObjectOf,
   encRegistryValues,
+  isIntegerIn,
   type BinaryEncodable,
   type EncodableType,
 } from "../../encoding/index.ts";
@@ -18,10 +17,12 @@ import { encSubRegionId } from "../region.ts";
 // anywhere a structure can sit. A segment never leaves its region.
 const MAX_LENGTH = REGION_SIDE_LENGTH ** 2;
 
-export const encConveyorLength = binaryEncodable<number>(
-  (value): value is number =>
-    isInteger(value) && value >= 1 && value <= MAX_LENGTH,
-  chooseUIntCod(MAX_LENGTH)
+// A belt is at least one step long, so it is stored as its length minus one.
+export const encConveyorLength = encAdapt(
+  encNumber("uChoose", MAX_LENGTH - 1),
+  isIntegerIn(1, MAX_LENGTH),
+  stored => stored + 1,
+  length => length - 1
 );
 
 export const encConveyor = encObjectOf({
@@ -34,6 +35,8 @@ export const structureRegistry = {
   cactus: encExact(true),
   conveyor: encConveyor,
   tree: encExact(true),
+  mushroom: encExact(true),
+  fern: encExact(true),
 } as const satisfies Record<string, BinaryEncodable>;
 
 export const encStructureData = encRegistryValues(structureRegistry);

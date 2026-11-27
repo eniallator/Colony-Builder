@@ -2,6 +2,7 @@ import { describe, expect, it } from "vitest";
 
 import {
   chooseUIntCod,
+  codAdapt,
   codArrayOf,
   codBoolean,
   codEntries,
@@ -12,7 +13,6 @@ import {
   codI8,
   codI16,
   codI32,
-  codMap,
   codMapOf,
   codNumber,
   codObjectOf,
@@ -27,6 +27,7 @@ import {
   codU16,
   codU32,
   codUInt,
+  codUnionOf,
   isPrecision,
   type BinaryCodec,
   type CodecValue,
@@ -235,11 +236,11 @@ describe("codBoolean", () => {
   });
 });
 
-describe("codMap", () => {
-  const doubled = codMap<number, number>(
+describe("codAdapt", () => {
+  const doubled = codAdapt(
     codU8,
-    value => value * 2,
-    value => value / 2
+    stored => stored / 2,
+    value => value * 2
   );
 
   it("encodes through the mapping", () => {
@@ -249,6 +250,55 @@ describe("codMap", () => {
 
   it("decodes through the mapping", () => {
     expect(read(doubled, [10])).toEqual({ value: 5, pos: 1 });
+  });
+});
+
+describe("codUnionOf", () => {
+  const either = codUnionOf([codU8, codString], (value: number | string) =>
+    typeof value === "number" ? 0 : 1
+  );
+
+  it("writes the index of the variant before the value", () => {
+    expect(write(either, 5)).toEqual([0, 5]);
+    expect(write(either, "hi")).toEqual([1, ...write(codString, "hi")]);
+  });
+
+  it("sizes the index and the value", () => {
+    expect(either.size(5)).toBe(1 + codU8.size(5));
+    expect(either.size("hi")).toBe(1 + codString.size("hi"));
+  });
+
+  it("reads the value with the codec the index points at", () => {
+    expect(read(either, [0, 5])).toEqual({ value: 5, pos: 2 });
+    expect(read(either, write(either, "hi")).value).toBe("hi");
+  });
+
+  it("reads a variant whose value is undefined", () => {
+    const maybe = codUnionOf(
+      [codU8, codOptional(codU8)],
+      (value: number | undefined) => (value === undefined ? 1 : 0)
+    );
+
+    expect(read(maybe, write(maybe, undefined)).value).toBeUndefined();
+  });
+
+  it("throws when no variant writes the value", () => {
+    const none = codUnionOf([codU8], () => -1);
+
+    expect(() => none.size(1)).toThrow("Value matches no union variant");
+    expect(() => write(none, 1)).toThrow("Value matches no union variant");
+  });
+
+  it("throws for an index with no variant", () => {
+    expect(() => read(either, [2, 0])).toThrow("Unknown union tag");
+  });
+
+  it("widens the index past 256 variants", () => {
+    const codecs = Array.from({ length: 300 }, () => codU8);
+    const many = codUnionOf(codecs, () => 299);
+
+    expect(write(many, 7)).toEqual([0x2b, 0x01, 7]);
+    expect(read(many, [0x2b, 0x01, 7]).value).toBe(7);
   });
 });
 

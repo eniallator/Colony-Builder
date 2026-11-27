@@ -3,7 +3,12 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../../constants.ts";
-import { itemIds, type Inventory, type Item } from "../../item/types.ts";
+import {
+  itemIds,
+  type Inventory,
+  type Item,
+  type ItemData,
+} from "../../item/types.ts";
 import { World } from "../index.ts";
 import {
   createItem,
@@ -40,7 +45,8 @@ const component = (overrides: Partial<Components> = {}): Components => ({
   ...overrides,
 });
 
-const sampleItem: Item = { id: itemId, count: 1, data: false };
+const sampleData: ItemData<typeof itemId> = true;
+const sampleItem: Item = { id: itemId, count: 1, data: sampleData };
 const { id: _id, ...sampleContents } = sampleItem;
 
 const snapshotOf = (...entities: [EntityId, Components][]): EntitySnapshot =>

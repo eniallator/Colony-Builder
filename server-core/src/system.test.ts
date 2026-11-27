@@ -49,10 +49,11 @@ describe("serverSystems", () => {
 describe("pickupSystem", () => {
   const [itemId] = itemIds;
   const here = Vector.create(5, 5);
-  const itemOf = (count: number): Item => ({ id: itemId, count, data: false });
-  const contentsOf = (count: number): { count: number; data: false } => ({
+  const data = true;
+  const itemOf = (count: number): Item => ({ id: itemId, count, data });
+  const contentsOf = (count: number): { count: number; data: typeof data } => ({
     count,
-    data: false,
+    data,
   });
 
   it("moves nearby items into the player's inventory and despawns them", () => {

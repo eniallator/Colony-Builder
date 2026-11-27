@@ -73,6 +73,8 @@ const footPosOf = (
       return worldPos != null ? Vector.create(...worldPos) : undefined;
     }
 
+    // Unreachable: `targetRunFor` has already thrown for a target like this.
+    /* v8 ignore next 2 -- @preserve */
     default:
       return checkExhausted(target);
   }

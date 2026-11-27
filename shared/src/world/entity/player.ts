@@ -13,5 +13,5 @@ export const createPlayer = (
     position,
     speed: PLAYER_SPEED,
     inventory: {},
-    taskList: { tasks: [], repeat: false },
+    taskList: { tasks: [], repeat: true },
   });

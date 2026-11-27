@@ -22,7 +22,6 @@ export const mulberry32 = seed => () => {
   t = (t + Math.imul(t ^ (t >>> 7), 61 | t)) ^ t;
   return ((t ^ (t >>> 14)) >>> 0) / 4294967296;
 };
-export const randInt = (rng, max) => Math.floor(rng() * max);
 
 /** A transparent sprite buffer `tall` tiles high (taller than 1 for structures). */
 export const blank = (tall = 1) => new Uint8Array(TILE * TILE * tall * 4);

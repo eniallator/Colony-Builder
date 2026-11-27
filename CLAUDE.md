@@ -12,6 +12,7 @@ Colony builder. TypeScript, webpack, pnpm.
 - Relative imports include the `.ts` extension.
 - Oxlint is type-aware and strict: no `any`, no non-null `!`, `consistent-type-imports` (use `import type`), no unnecessary conditions. Prefix intentionally unused args with `_`.
 - Prefer expressions and small pure helpers over classes. Go for elegance/perfectionism.
+- Always value the existing code's functionality over implementing something again. Before writing a helper, search the codebase (graph tools) for one that already does the job, and reuse or extend it instead of adding a near-duplicate.
 
 ## Libraries - prefer these over hand-rolled code
 
@@ -70,7 +71,7 @@ Lightweight profiling of methods and functions. Use it when asked about performa
 - Colours live in `scripts/atlas/palette.mjs`; sprite definitions live in `scripts/atlas/sprites/` (one file per category). Don't hard-code hex values in sprite files.
 - The client loads it lazily in `client/src/render/atlas.ts` (`getAtlas()`; the renderer skips drawing until it arrives). Terrain is drawn in one `fill` per distinct tile look using repeating patterns (`client/src/render/system/render-tiles.ts`); below 8px per tile (zoom 1–2) sprites draw as their flat `colour` from `atlas.json`.
 - Facts about the art (animation timing, where a sprite rests on the ground, ...) live in `atlas.json` as sprite metadata (`frameSec`, `stepPx`, `ground`), set where the sprite is defined. Never hard-code them as constants in `client/src`.
-- `pnpm atlas:check` fails if any tile, item or entity type in the game has no sprite, so run it after adding game content.
+- `pnpm atlas:check` fails if any tile, item or entity type in the game has no sprite, or if two colours which can appear side by side when zoomed out contrast too little (`scripts/atlas/contrast.mjs`). Run it after adding game content or changing art.
 - Art rules (theme, palette roles, lighting, shape language, naming contract, recipes for adding sprites) are in `art/STYLE_GUIDE.md`. Read it before drawing or changing any sprite.
 
 ## Tooling

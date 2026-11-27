@@ -2,7 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
-import { itemIds } from "../item/types.ts";
+import { itemIds, type ItemData } from "../item/types.ts";
 import { encTime, type Time } from "../time.ts";
 import {
   encComponents,
@@ -34,7 +34,7 @@ const playerId = unsafeEntityId(1);
 const itemEntityId = unsafeEntityId(2);
 
 const [heldItem] = itemIds;
-const itemData = false;
+const itemData: ItemData<typeof heldItem> = true;
 
 const player: Components = {
   type: "player",

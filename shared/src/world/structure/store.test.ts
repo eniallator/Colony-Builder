@@ -179,6 +179,29 @@ describe("StructureStore", () => {
       expect(found.map(({ worldPos }) => worldPos[0])).not.toContain(far[0]);
     });
 
+    it("reaches as far in every direction when the window is centred on a region", () => {
+      const reach = 2;
+      const centred = new StructureStore();
+      const offsets = [-reach, reach].flatMap(dx =>
+        [-reach, reach].map(dy => [dx, dy] as const)
+      );
+      for (const [dx, dy] of offsets) {
+        centred.addStructureAt(
+          (dx + 0.5) * REGION_SIDE_LENGTH,
+          (dy + 0.5) * REGION_SIDE_LENGTH,
+          structure
+        );
+      }
+
+      expect(
+        centred.structuresAround(
+          REGION_SIDE_LENGTH / 2,
+          REGION_SIDE_LENGTH / 2,
+          (2 * reach + 1) * REGION_SIDE_LENGTH
+        )
+      ).toHaveLength(offsets.length);
+    });
+
     it("rounds the side length up to whole regions", () => {
       expect(store.structuresAround(0, 0, REGION_SIDE_LENGTH + 1)).toHaveLength(
         2

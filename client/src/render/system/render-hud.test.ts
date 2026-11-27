@@ -159,6 +159,13 @@ describe("renderHUD", () => {
     run();
   };
 
+  it("throws for a target of a kind it does not know", () => {
+    expect(() => {
+      // @ts-expect-error the domain is not one of the clickable targets
+      click({ domain: "unknown" });
+    }).toThrow("Value not exhausted");
+  });
+
   it("does nothing without click details", () => {
     run();
 

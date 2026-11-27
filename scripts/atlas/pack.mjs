@@ -60,12 +60,11 @@ export const layout = sprites => {
 /**
  * Mean colour of a sprite's visible pixels across all its frames/variants, as
  * `#rrggbb`. The renderer draws this flat colour instead of the texture when a
- * tile is smaller than 16px on screen (zoomed out), where minifying the art
- * would only shimmer. Averaged in sRGB, which matches how a box-filter
- * downscale looks; pixels are weighted by alpha so transparent areas of
- * items and entities don't dilute it.
+ * tile is smaller than 8px on screen (zoomed far out). Averaged in sRGB, which
+ * matches how a box-filter downscale looks; pixels are weighted by alpha so
+ * transparent areas of items and entities don't dilute it.
  */
-const averageColour = frames => {
+export const averageColour = frames => {
   const sum = [0, 0, 0];
   let weight = 0;
   for (const frame of frames) {

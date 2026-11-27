@@ -3,7 +3,8 @@
 
 import { writeFileSync } from "node:fs";
 
-import { conveyorSpriteName } from "../../shared/src/world/structure/conveyor.ts";
+import { variantIndex } from "../../client/src/render/sprite.ts";
+import { conveyorSpriteName } from "../../client/src/render/structure-sprites.ts";
 import { TILE } from "./core.mjs";
 import { blit, encodePng } from "./png.mjs";
 
@@ -51,6 +52,10 @@ const SCENE_STRUCTURES = [
   [9, 9, "tree"],
   [2, 3, "cactus"],
   [5, 4, "cactus"],
+  [1, 1, "fern"],
+  [3, 2, "fern"],
+  [18, 8, "fern"],
+  [1, 5, "item_fibre"],
 ];
 // A belt going right that turns up, and one going left that turns up.
 const SCENE_BELTS = [
@@ -93,8 +98,8 @@ export const writePreview = (path, sprites) => {
     [...line].forEach((ch, tx) => {
       const name = SCENE_TILES[ch];
       if (name == null) throw new Error(`unknown scene char "${ch}"`);
-      // Deterministic per-position variant so the preview shows variety.
-      draw(name, (tx * 7 + ty * 13) % 4, tx, ty);
+      // Variants are picked by position as the game does it, to show variety.
+      draw(name, variantIndex(tx, ty, frames.get(name).length), tx, ty);
     });
   });
   // Belts lie on the ground, so they have no shadow.

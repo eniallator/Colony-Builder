@@ -219,4 +219,56 @@ describe("loadAtlas", () => {
     stubNetwork({ tileSize: 16 });
     await expect(loadAtlas()).rejects.toThrow(/not a valid texture atlas/);
   });
+
+  describe("getAtlas", () => {
+    // The module remembers whether it has started loading, so each test
+    // imports a fresh copy.
+    const freshGetAtlas = async () => {
+      vi.resetModules();
+      return (await import("./atlas.ts")).getAtlas;
+    };
+
+    it("has nothing until the atlas has loaded, then has it", async () => {
+      stubNetwork(validJson);
+      const getAtlas = await freshGetAtlas();
+
+      expect(getAtlas()).toBeUndefined();
+      await vi.waitFor(() => {
+        expect(getAtlas()).toBeDefined();
+      });
+
+      expect(getAtlas()?.tileSize).toBe(validJson.tileSize);
+    });
+
+    it("loads the atlas only once, however often it is asked for", async () => {
+      const { fetchStub } = stubNetwork(validJson);
+      const getAtlas = await freshGetAtlas();
+
+      getAtlas();
+      getAtlas();
+      await vi.waitFor(() => {
+        expect(getAtlas()).toBeDefined();
+      });
+      getAtlas();
+
+      // The json and the sheet, once each.
+      expect(fetchStub).toHaveBeenCalledTimes(2);
+    });
+
+    it("logs a failed load and carries on without an atlas", async () => {
+      stubNetwork(validJson, false);
+      const error = vi.spyOn(console, "error").mockImplementation(() => {
+        // Keeps the expected failure out of the test output.
+      });
+      const getAtlas = await freshGetAtlas();
+
+      getAtlas();
+      await vi.waitFor(() => {
+        expect(error).toHaveBeenCalledOnce();
+      });
+
+      expect(getAtlas()).toBeUndefined();
+      error.mockRestore();
+    });
+  });
 });

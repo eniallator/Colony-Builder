@@ -32,12 +32,16 @@ const BIOME_STRUCTURES: Partial<
 > = {
   plains: { structure: { type: "tree", data: true }, chance: 0.005 },
   desert: { structure: { type: "cactus", data: true }, chance: 0.02 },
+  swamp: { structure: { type: "mushroom", data: true }, chance: 0.01 },
+  jungle: { structure: { type: "fern", data: true }, chance: 0.02 },
 };
 
 /** The tiles each kind of structure can grow on. */
-const GROWS_ON: Partial<Record<StructureData["type"], Tile[]>> = {
+export const GROWS_ON: Partial<Record<StructureData["type"], Tile[]>> = {
   tree: ["grass", "swampland", "jungle"],
   cactus: ["sand"],
+  mushroom: ["swampland"],
+  fern: ["jungle"],
 };
 
 /** A generated tile, with the biome it belongs to for later passes. */

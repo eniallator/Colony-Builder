@@ -1,6 +1,5 @@
 import {
   conveyorFootprint,
-  conveyorSpriteName,
   facingOf,
   ITEM_TILES,
   REGION_SIDE_LENGTH,
@@ -16,6 +15,7 @@ import type { ClientSystem } from "../../system.ts";
 import type { ClickableTarget } from "../../ui/clickable.ts";
 import { getAtlas } from "../atlas.ts";
 import { usesTextures } from "../sprite.ts";
+import { conveyorSpriteName } from "../structure-sprites.ts";
 import { conveyorBend } from "./conveyor-bend.ts";
 import {
   paintConveyor,
@@ -110,10 +110,15 @@ export const renderAboveGround: ClientSystem = ({
 
     const { regionId, id, type, worldPos } = structure;
     const pos = Vector.create(...worldPos);
+    // The tile it stands on picks which look it has, the same way for every
+    // player and every frame.
+    const variantTile = pos.copy().floor().toArray();
     aboveGround.push({
       depth: pos.y(),
       paint: () => {
-        paintWithShadow(painter, "shadow_small", type, footOf(pos), pxPerTile);
+        paintWithShadow(painter, "shadow_small", type, footOf(pos), pxPerTile, {
+          variantTile,
+        });
       },
     });
 
@@ -172,7 +177,7 @@ export const renderAboveGround: ClientSystem = ({
               footOf(pos),
               pxPerTile,
               // Animate while walking or swinging; otherwise stand still.
-              destination != null || swinging
+              { animate: destination != null || swinging }
             );
           },
         });

@@ -2,14 +2,13 @@ import {
   CONVEYOR_SPEED,
   conveyorLengthToTiles,
   conveyorSpan,
-  conveyorSpriteName,
-  type ConveyorBend,
   type ConveyorData,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
 
 import type { Atlas, AtlasSprite, Cell } from "../atlas.ts";
-import { patternFor } from "../sprite.ts";
+import { patternFor, variantIndex } from "../sprite.ts";
+import { conveyorSpriteName, type ConveyorBend } from "../structure-sprites.ts";
 import { frameOf } from "./frame.ts";
 
 export interface Painter {
@@ -18,6 +17,13 @@ export interface Painter {
   textured: boolean;
   /** Seconds. */
   now: number;
+}
+
+export interface PaintOptions {
+  /** Play the sprite's animation instead of showing its first frame. */
+  animate?: boolean;
+  /** The tile whose position picks which look of a sprite made of variants to show. */
+  variantTile?: readonly [x: number, y: number];
 }
 
 const drawCell = (
@@ -75,15 +81,16 @@ export const spriteRect = (
  * Draws the sprite `name`, `size` pixels wide (and as many tiles tall as the
  * atlas says), standing on `foot`: centred horizontally, with the line the
  * sprite rests on (its `ground` in the atlas) at `foot`. Animated if `animate`
- * is set, otherwise its first frame. Zoomed out, it becomes a flat square of
- * the sprite's colour sitting on `foot`.
+ * is set, otherwise its first frame. A sprite made of variants shows the one
+ * that `variantTile` picks (the first without it), as tiles do. Zoomed out, it
+ * becomes a flat square of the sprite's colour sitting on `foot`.
  */
 const paintSprite = (
   painter: Painter,
   name: string,
   foot: Vector<2>,
   size: number,
-  animate: boolean = false
+  { animate = false, variantTile = [0, 0] }: PaintOptions = {}
 ) => {
   const { ctx, atlas, textured, now } = painter;
   const sprite = atlas.sprites.get(name);
@@ -96,9 +103,12 @@ const paintSprite = (
     return;
   }
 
-  const cell = animate
-    ? frameOf(sprite, sprite.cells, atlas.tileSize, now)
-    : sprite.cells.at(0);
+  const cell =
+    sprite.mode === "variants"
+      ? sprite.cells.at(variantIndex(...variantTile, sprite.cells.length))
+      : animate
+        ? frameOf(sprite, sprite.cells, atlas.tileSize, now)
+        : sprite.cells.at(0);
   if (cell == null) return;
 
   drawCell(painter, cell, sprite.rows ?? 1, topLeft, size);
@@ -192,8 +202,8 @@ export const paintWithShadow = (
   name: string,
   foot: Vector<2>,
   size: number,
-  animate?: boolean
+  options?: PaintOptions
 ) => {
   if (painter.textured) paintSprite(painter, shadowName, foot, size);
-  paintSprite(painter, name, foot, size, animate);
+  paintSprite(painter, name, foot, size, options);
 };

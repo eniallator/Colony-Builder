@@ -35,9 +35,9 @@ const labelB = itemLabels[itemB];
 const bigCount = 1234;
 const smallCount = 2;
 
-const stackOf = (count: number): { count: number; data: false } => ({
+const stackOf = (count: number): { count: number; data: true } => ({
   count,
-  data: false,
+  data: true,
 });
 
 const inventory: Inventory = {

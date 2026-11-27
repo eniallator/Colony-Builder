@@ -1,4 +1,4 @@
-import { isInteger, isNumber, isOneOf } from "deep-guards";
+import { isOneOf } from "deep-guards";
 import {
   tuple,
   unsafeTag,
@@ -7,14 +7,12 @@ import {
 } from "niall-utils/core";
 
 import {
-  binaryEncodable,
-  codF32,
-  codTagged,
-  codU32,
   encMapOf,
+  encNumber,
   encObjectOf,
   encOneOf,
   encOptional,
+  encTagged,
   encVec2,
   type EncodableType,
 } from "../../encoding/index.ts";
@@ -24,20 +22,11 @@ import { encTaskList } from "../../task/types.ts";
 export type EntityId = Tagged<number, "EntityId">;
 export const unsafeEntityId = unsafeTag<EntityId>();
 
-export const encEntityId = binaryEncodable<EntityId>(
-  (value): value is EntityId =>
-    isInteger(value) && Number.isFinite(value) && value >= 0,
-  codTagged(codU32)
-);
+export const encEntityId = encTagged<EntityId>(encNumber("u32"));
 
 export const allEntityTypes = tuple("player", "robot", "item");
 export const encEntityType = encOneOf(allEntityTypes);
 export type EntityType = EncodableType<typeof encEntityType>;
-
-const encFiniteNumber = binaryEncodable(
-  (value): value is number => isNumber(value) && Number.isFinite(value),
-  codF32
-);
 
 export const encComponents = encObjectOf({
   // What kind of entity this is (e.g. "player"); used to pick behaviour and rendering.
@@ -47,7 +36,7 @@ export const encComponents = encObjectOf({
   // Point the entity is walking towards; selfMovementSystem removes it on arrival.
   destination: encOptional(encVec2),
   // Self-propelled movement speed towards the destination, scaled by dt each tick.
-  speed: encOptional(encFiniteNumber),
+  speed: encOptional(encNumber("f32")),
   // Marks an item entity that a nearby player can pick up into their inventory.
   canPickup: encOptional(encOneOf([true])),
   // Marks an entity that gets carried along by conveyor belts it stands on.

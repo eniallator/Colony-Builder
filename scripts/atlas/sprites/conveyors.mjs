@@ -3,27 +3,30 @@
 // the corner is mirrored for the clockwise turn. Sprite names come from the
 // game (`conveyorSpriteName`), so the renderer finds what is drawn here.
 //
-// A belt is raised, so a beam facing the viewer (the bottom of a belt going
-// sideways, or the outside of a corner) shows its front face: the rollers
-// under the belt seen side-on, between its top run and its return run. It is
-// painted after the belt is rotated,
-// since which beams face the viewer depends on the facing.
+// A belt is raised, so a side facing the viewer shows its front face. On a belt
+// going sideways that is the rollers under it seen side-on, between its top run
+// and its return run; round the outside of a corner it is a plain shadow under
+// one curved edge. It is painted after the belt is rotated, since which sides
+// face the viewer depends on the facing.
 
-import { FACINGS } from "../../../shared/src/facing.ts";
 import {
   conveyorBends,
   conveyorSpriteName,
-} from "../../../shared/src/world/structure/conveyor.ts";
+} from "../../../client/src/render/structure-sprites.ts";
+import { FACINGS } from "../../../shared/src/facing.ts";
 import { blank, fill, put, putWrap, remap, ROTATE, TILE } from "../core.mjs";
 import { PALETTE } from "../palette.mjs";
 
-// Chevrons shift this many px per frame -> a 4-frame loop. Published to the
-// client as `stepPx`, which derives the animation speed from it and the game's
-// CONVEYOR_SPEED so the chevrons keep pace with items on the belt.
+// Chevrons shift this many px per frame. Published to the client as `stepPx`,
+// which derives the animation speed from it and the game's CONVEYOR_SPEED so
+// the chevrons keep pace with items on the belt.
 const STEP_PX = 2;
-const FRAMES = 4;
-// Where the chevrons are, along the belt, between one and the next.
-const SPACING_PX = 8;
+// How far apart the chevrons are along the belt: one a tile.
+const SPACING_PX = TILE;
+// The loop closes once each chevron has reached the next one's place.
+const FRAMES = SPACING_PX / STEP_PX;
+// How far each arm of a chevron reaches out from its tip.
+const ARM_PX = 3;
 
 // How far the belt stands above the ground, in px. Published to the client as
 // `raise`, which lifts whatever rides the belt by this much.
@@ -40,8 +43,6 @@ const { rail, railHi, base, arrow, arrowHi } = PALETTE.belt;
 // a front face fills when the beam faces the viewer). Every belt has the same
 // beams, so they join the next one's, mirrored or not.
 const BEAM = [rail, railHi, base, base];
-// How much of a beam shows as a beam, the rest being belt surface.
-const EDGE_PX = 2;
 
 // Rollers are this many px across, and one every `ROLLER_SPACING_PX`.
 const ROLLER_PX = 2;
@@ -81,10 +82,7 @@ const rollerAt = (column, row, frame, clockwise) => {
   return place === marked ? rail : railHi;
 };
 
-/**
- * A belt going up: a bed between two beams, rollers turning under it, and
- * chevrons pointing up it.
- */
+/** A belt going up: a plain bed between two beams, and a chevron pointing up it. */
 const straight = frame => {
   const s = fill(base);
   for (let y = 0; y < TILE; y++) {
@@ -93,20 +91,12 @@ const straight = frame => {
       put(s, TILE - 1 - i, y, colour);
     });
   }
-  // A roller shows from above as a lit ridge across the bed.
-  for (let k = 0; k < TILE / ROLLER_SPACING_PX; k++) {
-    const y = k * ROLLER_SPACING_PX - frame * STEP_PX;
-    for (let x = EDGE_PX; x < TILE - EDGE_PX; x++) putWrap(s, x, y, railHi);
-  }
-  for (const start of [0, SPACING_PX]) {
-    const tip = start - frame * STEP_PX;
-    // Chevron: tip at the top, arms sweeping down and outwards.
-    for (let i = 0; i < 4; i++) {
-      putWrap(s, 7 - i, tip + i, arrow);
-      putWrap(s, 8 + i, tip + i, arrow);
-    }
-    putWrap(s, 7, tip, arrowHi);
-    putWrap(s, 8, tip, arrowHi);
+  const tip = -frame * STEP_PX;
+  // Chevron: tip at the top, arms sweeping down and outwards.
+  for (let i = 0; i < ARM_PX; i++) {
+    const colour = i === 0 ? arrowHi : arrow;
+    putWrap(s, 7 - i, tip + i, colour);
+    putWrap(s, 8 + i, tip + i, colour);
   }
   return s;
 };
@@ -129,11 +119,10 @@ const turningPixelAt = (x, y) => {
 
 /**
  * A belt coming in from the left and going up: a quarter ring round the tile's
- * top left corner, with rollers and chevrons following the curve. Only its
- * outer beam has a front face, since one on the inner beam would cut into the
- * belt's surface.
+ * top left corner. Its chevrons are `turningChevrons`. Only its outer beam has
+ * a front face, since one on the inner beam would cut into the belt's surface.
  */
-const turning = frame => {
+const turning = () => {
   const s = blank();
   for (let y = 0; y < TILE; y++) {
     for (let x = 0; x < TILE; x++) {
@@ -143,51 +132,42 @@ const turning = frame => {
       put(s, x, y, pixel.beam != null ? BEAM[pixel.fromEdge] : base);
     }
   }
+  return s;
+};
 
+/**
+ * The chevron pixels of a turn, as [x, y, colour], some of them off the tile.
+ * A chevron rides the middle of the ring, from the left edge to the top, in as
+ * long as it takes to cross a straight tile, so it stays in step with the belts
+ * either side. As on a straight tile, a tip starts on the last pixel before
+ * this one, and the chevron ahead still trails into it.
+ */
+const turningChevrons = frame => {
   const middle = TILE / 2;
-  const length = (middle * Math.PI) / 2;
-  const mark = (along, radius, colour) => {
-    const angle = Math.PI / 2 - along / middle;
-    const x = Math.floor(radius * Math.cos(angle));
-    const y = Math.floor(radius * Math.sin(angle));
-    const pixel = turningPixelAt(x, y);
-    // Not over a beam's dark edge or lit top, or off the belt.
-    if (pixel == null || (pixel.beam != null && pixel.fromEdge < EDGE_PX)) {
-      return;
-    }
-    put(s, x, y, colour);
-  };
-
-  // Rollers lie across the belt, like spokes, rolling from the left edge to the
-  // top with the chevrons.
-  const first = (frame * STEP_PX) % ROLLER_SPACING_PX;
-  for (let along = first; along <= length; along += ROLLER_SPACING_PX) {
-    for (let radius = EDGE_PX; radius < TILE - EDGE_PX; radius += 0.5) {
-      mark(along, radius, railHi);
-    }
-  }
-
-  // Chevrons ride the middle of the ring, going from the left edge to the top.
-  for (const start of [0, SPACING_PX]) {
-    const along = start + frame * STEP_PX;
-    if (along > length) continue;
-
-    const angle = Math.PI / 2 - along / middle;
+  return [-0.5, SPACING_PX - 0.5].flatMap(lead => {
+    const progress = (((frame * STEP_PX + lead) / TILE) * Math.PI) / 2;
+    const angle = Math.PI / 2 - progress;
     const ahead = [Math.sin(angle), -Math.cos(angle)];
     const outward = [Math.cos(angle), Math.sin(angle)];
-    for (let i = 0; i < 4; i++) {
-      for (const side of [-1, 1]) {
-        const out = side * (0.5 + i);
-        put(
-          s,
-          Math.floor(middle * outward[0] - i * ahead[0] + out * outward[0]),
-          Math.floor(middle * outward[1] - i * ahead[1] + out * outward[1]),
-          i === 0 ? arrowHi : arrow
+    return [-1, 1].flatMap(side => {
+      // The pixel `i` along one arm, counting from the tip.
+      const along = i =>
+        [0, 1].map(axis =>
+          Math.floor(
+            (middle + side * (0.5 + i)) * outward[axis] - i * ahead[axis]
+          )
         );
-      }
-    }
-  }
-  return s;
+      const [tipX, tipY] = along(0);
+      const [endX, endY] = along(ARM_PX - 1);
+      // Joined up from end to end, so a slanted arm never breaks apart.
+      const steps = Math.max(Math.abs(endX - tipX), Math.abs(endY - tipY));
+      return Array.from({ length: steps + 1 }, (_, i) => [
+        Math.round(tipX + ((endX - tipX) * i) / steps),
+        Math.round(tipY + ((endY - tipY) * i) / steps),
+        i === 0 ? arrowHi : arrow,
+      ]);
+    });
+  });
 };
 
 /**
@@ -212,25 +192,41 @@ const STRAIGHT_BEAMS = Array.from({ length: TILE }, (_, y) =>
   ])
 ).flat(2);
 
+// A turn's beams show no rollers: `shadeCurvedFace` draws the side of a curve
+// that faces the viewer.
 const TURNING_BEAMS = Array.from({ length: TILE * TILE }, (_, i) => [
   i % TILE,
   Math.floor(i / TILE),
-]).flatMap(([x, y]) => {
-  const pixel = turningPixelAt(x, y);
-  if (pixel?.beam == null) return [];
-  // The inner beam has no front face, which would cut into the belt's surface.
-  if (pixel.beam === "inner") return [{ at: [x, y] }];
+]).flatMap(([x, y]) =>
+  turningPixelAt(x, y)?.beam != null ? [{ at: [x, y] }] : []
+);
 
-  const angle = Math.atan2(y + 0.5, x + 0.5);
-  return [
-    {
-      at: [x, y],
-      depth: RAIL_PX - 1 - pixel.fromEdge,
-      faces: [Math.cos(angle), Math.sin(angle)],
-      travels: [Math.sin(angle), -Math.cos(angle)],
-    },
-  ];
-});
+/**
+ * Redraws the outer side of a corner which faces the viewer, round the inner
+ * corner at (`centreX`, 0): a single lit edge sweeping from the lit top of the
+ * beam going away to the lip above the front face of the belt going sideways,
+ * with that face in shadow under it.
+ */
+const shadeCurvedFace = (s, centreX) => {
+  // Whether a pixel, `across` and `down` from the centre, is on top of the belt.
+  const onTop = (across, down) =>
+    Math.hypot(across / (TILE - 1), down / (TILE - RAIL_PX)) <= 1;
+
+  for (let y = 0; y < TILE; y++) {
+    for (let x = 0; x < TILE; x++) {
+      if (s[pixelAt(x, y) + 3] === 0) continue;
+
+      const across = Math.abs(x + 0.5 - centreX);
+      const down = y + 0.5;
+      if (!onTop(across, down)) put(s, x, y, rail);
+      else if (!onTop(across + 1, down) || !onTop(across, down + 1)) {
+        put(s, x, y, railHi);
+      } else if (Math.hypot(across, down) >= TILE - RAIL_PX) {
+        put(s, x, y, base);
+      }
+    }
+  }
+};
 
 const MIRROR = (x, y) => [TILE - 1 - x, y];
 const FACING_ROTATIONS = {
@@ -256,7 +252,12 @@ const copyPixel = (from, fromX, fromY, to, toX, toY) => {
 };
 
 const STRAIGHT = { draw: straight, beams: STRAIGHT_BEAMS, wraps: true };
-const TURNING = { draw: turning, beams: TURNING_BEAMS, wraps: false };
+const TURNING = {
+  draw: turning,
+  beams: TURNING_BEAMS,
+  wraps: false,
+  curve: turningChevrons,
+};
 
 /**
  * A sprite drawn as `drawing`, then moved by `mappings`. Its bed, the surface
@@ -266,8 +267,12 @@ const TURNING = { draw: turning, beams: TURNING_BEAMS, wraps: false };
  * With `wraps`, a bed's top row comes round to the bottom, so a belt that goes
  * on past the tile stays seamless. Without, it is lost, and the bottom row also
  * stays where it is so the tile below joins on.
+ *
+ * A turn gives `curve`, its chevrons for a frame. They are painted after the bed
+ * moves, so that what comes in from the next tile is not lost. A turn whose
+ * inner corner ends up at the top also has its outer side towards the viewer.
  */
-const sprite = (name, { draw, beams, wraps }, ...mappings) => {
+const sprite = (name, { draw, beams, wraps, curve }, ...mappings) => {
   const place = compose(mappings);
   const [originX, originY] = place(0, 0);
   // Where a direction points once placed, so without moving it.
@@ -325,6 +330,13 @@ const sprite = (name, { draw, beams, wraps }, ...mappings) => {
         clockwise,
       } of placedBeams) {
         if (front) put(out, x, y, rollerAt(x, depth, frame, clockwise));
+      }
+      if (curve != null) {
+        if (originY === 0) shadeCurvedFace(out, originX === 0 ? 0 : TILE);
+        for (const [x, y, colour] of curve(frame)) {
+          const [placedX, placedY] = place(x, y);
+          put(out, placedX, placedY - 1, colour);
+        }
       }
       return out;
     }),

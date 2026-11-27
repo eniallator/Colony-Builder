@@ -1,10 +1,8 @@
-import { isInteger } from "deep-guards";
 import { mapObject } from "niall-utils";
 
 import {
-  binaryEncodable,
-  codU32,
   encExact,
+  encNumber,
   encObjectOf,
   encOneOf,
   encOptional,
@@ -14,11 +12,15 @@ import {
 } from "../encoding/index.ts";
 
 export const itemRegistry = {
-  iron_ore: encExact(false),
-  copper_ore: encExact(false),
-  log: encExact(false),
-  cactus: encExact(false),
+  iron_ore: encExact(true),
+  copper_ore: encExact(true),
+  log: encExact(true),
+  cactus: encExact(true),
+  mushroom: encExact(true),
+  fibre: encExact(true),
+  robot: encExact(true),
 } as const satisfies Record<string, BinaryEncodable>;
+
 type ItemRegistry = typeof itemRegistry;
 export type ItemData<Id extends keyof ItemRegistry> = EncodableType<
   ItemRegistry[Id]
@@ -35,10 +37,7 @@ export const itemIds = Object.keys(itemRegistry) as unknown as readonly [
 export const encItemId = encOneOf(itemIds);
 export type ItemId = EncodableType<typeof encItemId>;
 
-const encCount = binaryEncodable(
-  (value): value is number => isInteger(value) && value >= 0,
-  codU32
-);
+const encCount = encNumber("u32");
 
 export const encItem = encUnionOf<
   { [Id in ItemId]: { id: Id; count: number; data: ItemData<Id> } }[ItemId][]

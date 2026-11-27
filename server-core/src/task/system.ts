@@ -16,14 +16,27 @@ import type { ServerSystem } from "../system.ts";
 import { destinationFor, isInRange } from "./helpers.ts";
 import type { EntityParams, TaskRunner, TaskRunners } from "./types.ts";
 
-const tileDrops: Partial<Record<Tile, Item>> = {
-  iron_deposit: { id: "iron_ore", count: 5, data: false },
-  copper_deposit: { id: "copper_ore", count: 5, data: false },
+const randIntRange = (start: number, end: number, exp: number = 1) =>
+  Math.round(start + Math.random() ** exp * (end - start));
+
+const tileDrops: Partial<Record<Tile, () => Item>> = {
+  iron_deposit: () => ({
+    id: "iron_ore",
+    count: randIntRange(1, 3),
+    data: true,
+  }),
+  copper_deposit: () => ({
+    id: "copper_ore",
+    count: randIntRange(1, 3),
+    data: true,
+  }),
 };
 
-const structureDrops: Partial<Record<StructureType, Item>> = {
-  tree: { id: "log", count: 5, data: false },
-  cactus: { id: "cactus", count: 5, data: false },
+const structureDrops: Partial<Record<StructureType, () => Item>> = {
+  tree: () => ({ id: "log", count: randIntRange(1, 4, 1.5), data: true }),
+  cactus: () => ({ id: "cactus", count: randIntRange(1, 4, 1.5), data: true }),
+  mushroom: () => ({ id: "mushroom", count: randIntRange(1, 3), data: true }),
+  fern: () => ({ id: "fibre", count: randIntRange(1, 3), data: true }),
 };
 
 const tickTimer = (
@@ -61,7 +74,7 @@ const gatherTileTask: TaskRunner<GatherTile> = ctx => {
   const gatheredItem = targetTile != null ? tileDrops[targetTile] : null;
 
   if (done && gatheredItem != null) {
-    addItemToInventory(entity.inventory, gatheredItem);
+    addItemToInventory(entity.inventory, gatheredItem());
     return { done: true, cleanTask: { ...task, endsAt: undefined } };
   } else return { done: false, changed };
 };
@@ -90,9 +103,9 @@ const gatherStructureTask: TaskRunner<GatherStructure> = ctx => {
   const gatheredItem = structureDrops[structure.type];
 
   if (done && gatheredItem != null) {
-    addItemToInventory(entity.inventory, gatheredItem);
+    addItemToInventory(entity.inventory, gatheredItem());
     world.structures.deleteStructure(task.regionId, task.subRegionId);
-    return { done: true, cleanTask: { ...task, endsAt: undefined } };
+    return { done: true, cleanTask: null };
   } else return { done: false, changed };
 };
 
@@ -143,7 +156,7 @@ export const taskSystem: ServerSystem = ({ world, time }) => {
     // Components are only tracked as changed when re-added
     if (result.done) {
       taskList.tasks.shift();
-      if (taskList.repeat && result.cleanTask) {
+      if (taskList.repeat && result.cleanTask != null) {
         taskList.tasks.push(result.cleanTask);
       }
       world.entities.add(id, "taskList", taskList);

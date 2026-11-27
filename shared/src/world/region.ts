@@ -1,16 +1,12 @@
-import { isInteger } from "deep-guards";
 import type { Tagged } from "niall-utils/core";
 import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import {
-  binaryEncodable,
-  codI32,
-  codMap,
-  codTupleOf,
-  codU16,
-  U16_MAX,
-  type BinaryCodec,
+  encAdapt,
+  encNumber,
+  encTagged,
+  encTupleOf,
 } from "../encoding/index.ts";
 
 // Two i32 region coordinates packed into one u64: `x` in the high 32 bits, `y` in the low 32.
@@ -28,12 +24,12 @@ export const regionPosToId = (x: number, y: number): RegionId =>
   ((BigInt.asUintN(I32_BITS, BigInt(x)) << BigInt(I32_BITS)) |
     BigInt.asUintN(I32_BITS, BigInt(y))) as RegionId;
 
-export const encRegionId = binaryEncodable<RegionId>(
+export const encRegionId = encAdapt(
+  encTupleOf(encNumber("i32"), encNumber("i32")),
   (value): value is RegionId =>
     typeof value === "bigint" && value >= 0n && value < U64_LIMIT,
-  codMap(codTupleOf(codI32, codI32), regionIdToPos, ([x, y]) =>
-    regionPosToId(x, y)
-  )
+  ([x, y]) => regionPosToId(x, y),
+  regionIdToPos
 );
 
 export const worldToRegionPos = (
@@ -65,11 +61,7 @@ export const regionsAround = (
   );
 
 export type SubRegionId = Tagged<number, "RegionPos">;
-export const encSubRegionId = binaryEncodable(
-  (value): value is SubRegionId =>
-    isInteger(value) && value >= 0 && value < U16_MAX,
-  codU16 as BinaryCodec<SubRegionId>
-);
+export const encSubRegionId = encTagged<SubRegionId>(encNumber("u16"));
 
 export const subRegionIdToPos = (id: SubRegionId): [x: number, y: number] => [
   (id >> 8) & 0xff,

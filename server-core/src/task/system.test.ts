@@ -49,6 +49,9 @@ const runGather = (world: World) => {
 
 const target = Vector.create(5.5, 5.5);
 
+// What every item carries: the data its registry entry allows.
+const data = true;
+
 const worldWithTile = (tile: Tile) => {
   const world = new World();
   world.terrain.add(
@@ -144,7 +147,7 @@ describe("taskSystem", () => {
       runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual({
-        iron_ore: { count: 5, data: false },
+        iron_ore: { count: 5, data },
       });
     });
 
@@ -259,7 +262,7 @@ describe("taskSystem", () => {
       runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual({
-        log: { count: 5, data: false },
+        log: { count: 5, data },
       });
     });
 
@@ -271,8 +274,32 @@ describe("taskSystem", () => {
       runGather(world);
 
       expect(world.entities.get(id, "inventory")).toEqual({
-        cactus: { count: 5, data: false },
+        cactus: { count: 5, data },
       });
+    });
+
+    it("gathers mushrooms from a mushroom once the duration has elapsed", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "mushroom");
+      const id = createRobot(world, position.copy().add(0.5), [task()]);
+
+      runGather(world);
+
+      expect(world.entities.get(id, "inventory")).toEqual({
+        mushroom: { count: 5, data },
+      });
+    });
+
+    it("gathers fibre from a fern once the duration has elapsed", () => {
+      const world = new World();
+      const { position, task } = structureOf(world, "fern");
+      const id = createRobot(world, position.copy().add(0.5), [task()]);
+
+      runGather(world);
+
+      expect(Object.keys(world.entities.get(id, "inventory"))).toEqual([
+        "fibre",
+      ]);
     });
 
     it("removes the structure once it has been gathered", () => {
@@ -375,7 +402,7 @@ describe("taskSystem", () => {
   describe("dropInventory", () => {
     const robotHolding = (world: World, position: Vector<2>) => {
       const id = createRobot(world, position, [drop]);
-      world.entities.get(id, "inventory").log = { count: 2, data: false };
+      world.entities.get(id, "inventory").log = { count: 2, data };
       return id;
     };
 
@@ -413,7 +440,7 @@ describe("taskSystem", () => {
       expect(dropped).toHaveLength(1);
       const [item] = dropped;
       expect(world.entities.get(item ?? id, "inventory")).toEqual({
-        log: { count: 2, data: false },
+        log: { count: 2, data },
       });
     });
 
@@ -488,8 +515,8 @@ describe("taskSystem", () => {
         .query("canPickup", "inventory")
         .map(item => world.entities.get(item, "inventory").iron_ore);
       expect(dropped).toEqual([
-        { count: 5, data: false },
-        { count: 5, data: false },
+        { count: 5, data },
+        { count: 5, data },
       ]);
     });
 

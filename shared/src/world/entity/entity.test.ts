@@ -2,7 +2,7 @@ import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
 import { PLAYER_SPEED } from "../../constants.ts";
-import { itemIds, type Item } from "../../item/types.ts";
+import { itemIds, type Item, type ItemData } from "../../item/types.ts";
 import { World } from "../index.ts";
 import { createItem } from "./item.ts";
 import { createPlayer } from "./player.ts";
@@ -34,7 +34,8 @@ describe("createPlayer", () => {
 
 describe("createItem", () => {
   const [itemId] = itemIds;
-  const item: Item = { id: itemId, count: 1, data: false };
+  const data: ItemData<typeof itemId> = true;
+  const item: Item = { id: itemId, count: 1, data };
 
   it("spawns a pickable, conveyable item holding the given item", () => {
     const world = new World();

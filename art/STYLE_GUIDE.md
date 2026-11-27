@@ -13,31 +13,36 @@ The generated files (`client/public/textures/`, `art/palette.gpl`,
 A hand-built diorama. A small, friendly colony carves a factory out of a calm
 natural world. Chunky, readable and warm, closer to a toy than to a blueprint.
 
-**Three pillars**
+**Four pillars**
 
-1. **Calm world, busy machines.** Terrain is muted and mid-value, so it
-   fades into the background. Everything the player acts on (machines, robots,
-   items, resource nodes) is warmer, more saturated and outlined, so it pops.
-2. **Silhouette first.** At 16×16 and small on screen, shape carries the
+1. **Calm world, busy machines.** Terrain is quiet ground that fades into the
+   background, even zoomed out. Robots, players and items are warmer, more
+   saturated and darkly outlined, so they pop. Belts are plain dark steel
+   marked with amber, plants are softly outlined, and resource nodes stand out
+   by their colour alone.
+2. **Drawn with intention.** Every pixel belongs to a shape you could name.
+   Nothing is random speckle, noise or a lone stray pixel. When something looks
+   busy, take shapes away.
+3. **Silhouette first.** At 16×16 and small on screen, shape carries the
    meaning. Each object type needs a distinct outline before any detail.
-3. **One light, one palette.** All art shares a single light direction and
+4. **One light, one palette.** All art shares a single light direction and
    the colours in `palette.mjs`. If it isn't in the palette, it doesn't ship.
 
 ## Technical spec
 
-| Property          | Value                                                                                                                                                                          |
-| ----------------- | ------------------------------------------------------------------------------------------------------------------------------------------------------------------------------ |
-| Tile size         | 16×16 px. Multi-tile objects are multiples of 16 (32×32, …).                                                                                                                   |
-| Format            | RGBA PNG atlas, 16 columns, grows downwards. No scaling in assets.                                                                                                             |
-| Rendering         | Nearest-neighbour when magnified (zoom 4–5). At 8px per tile (exactly ½×) it is smoothed, which averages each 2×2 block.                                                       |
-| Camera            | Top-down, tilted slightly: we see the top plus a little front.                                                                                                                 |
-| Zoom              | Integer steps (zoom 1–5 = 2, 4, 8, 16, 32 px per tile). Textures draw from 8px per tile (zoom 3) up.                                                                           |
-| Zoomed-out LOD    | Below 8px per tile (zoom 1–2) the renderer draws each sprite's flat `colour` from `atlas.json`: the mean of its visible pixels, so restyling the art updates it automatically. |
-| Sprite modes      | `atlas.json` marks each sprite `variants` (interchangeable looks, picked per tile by position) or `frames` (an animation, or one frame).                                       |
-| Transparency      | Fully opaque terrain; entities/items use 0 or 255 alpha.                                                                                                                       |
-| Soft alpha        | Only the shadow sprite uses partial alpha (~27% black).                                                                                                                        |
-| Anti-aliasing     | Never. Every pixel is a deliberate palette colour.                                                                                                                             |
-| Max frames/sprite | 16 (one atlas row).                                                                                                                                                            |
+| Property          | Value                                                                                                                                    |
+| ----------------- | ---------------------------------------------------------------------------------------------------------------------------------------- |
+| Tile size         | 16×16 px. Multi-tile objects are multiples of 16 (32×32, …).                                                                             |
+| Format            | RGBA PNG atlas, 16 columns, grows downwards. No scaling in assets.                                                                       |
+| Rendering         | Nearest-neighbour when magnified (zoom 4–5). At 8px per tile (exactly ½×) it is smoothed, which averages each 2×2 block.                 |
+| Camera            | Top-down, tilted slightly: we see the top plus a little front.                                                                           |
+| Zoom              | Integer steps (zoom 1–5 = 2, 4, 8, 16, 32 px per tile). Textures draw from 8px per tile (zoom 3) up.                                     |
+| Zoomed-out LOD    | Below 8px per tile (zoom 1–2) the renderer draws each sprite's flat `colour` from `atlas.json`: the mean of its visible pixels.          |
+| Sprite modes      | `atlas.json` marks each sprite `variants` (interchangeable looks, picked per tile by position) or `frames` (an animation, or one frame). |
+| Transparency      | Fully opaque terrain; entities/items use 0 or 255 alpha.                                                                                 |
+| Soft alpha        | Only the shadow sprite uses partial alpha (~27% black).                                                                                  |
+| Anti-aliasing     | Never. Every pixel is a deliberate palette colour.                                                                                       |
+| Max frames/sprite | 16 (one atlas row).                                                                                                                      |
 
 ## Palette
 
@@ -48,22 +53,24 @@ on every `pnpm atlas`.
 
 Ramps run **dark → light** (index 0 → 3).
 
-| Group     | Ramp                                             | Used for                   |
-| --------- | ------------------------------------------------ | -------------------------- |
-| outline   | `#1b1a22`                                        | Entity and item outlines   |
-| grass     | `#35693a` `#4a8340` `#629c48` `#86b95c`          | Grass                      |
-| sand      | `#b39656` `#cdb374` `#e0cc92` `#efe1b0`          | Sand                       |
-| stone     | `#4f5560` `#6b727c` `#868d96` `#a6adb4`          | Stone, pebbles, vein rock  |
-| swamp     | `#2b4531` `#3b5a3a` `#51714a` `#7e9a5e`          | Swampland                  |
-| jungle    | `#173f27` `#22583a` `#2e7344` `#4a9552`          | Jungle                     |
-| water     | `#2a4f8a` `#3a68a8` `#4d82bf` `#9cc8e6`          | Water, wave highlights     |
-| ore       | `#6c7f93` `#9fb4c8` `#cbd9e5` (+ deep `#46556a`) | Iron: body, glints, edge   |
-| rust      | `#a8654a` (+ dark stain `#6e3f2e`)               | Staining on iron           |
-| copper    | `#8e4a3c` `#c8704f` `#ec9f7c` (+ deep `#5c2f2c`) | Copper: body, glints, edge |
-| verdigris | `#4fae94` (+ dark stain `#2f6f62`)               | Staining on copper         |
-| robot     | `#8a4e22` `#d98a3a` `#f0b866` (+ visor/glow/led) | Robots (orange)            |
-| player    | teal tunic ramp, skin `#f0c8a0`, hair `#5a3a22`  | Player characters (teal)   |
-| belt      | rails, base, amber arrows                        | Conveyors                  |
+| Group     | Ramp                                                  | Used for                   |
+| --------- | ----------------------------------------------------- | -------------------------- |
+| outline   | `#1b1a22`                                             | Entity and item outlines   |
+| grass     | `#35693a` `#4a8340` `#629c48` `#86b95c`               | Grass                      |
+| sand      | `#b39656` `#cdb374` `#e0cc92` `#efe1b0`               | Sand                       |
+| stone     | `#4f5560` `#6b727c` `#868d96` `#a6adb4`               | Stone, pebbles, ore rock   |
+| swamp     | `#44391f` `#63532d` `#7b6a3e` `#a0905c`               | Swampland                  |
+| jungle    | `#08241b` `#103a2c` `#1b543d` `#317a54`               | Jungle                     |
+| water     | `#2a4f8a` `#3a68a8` `#4d82bf` `#9cc8e6`               | Water, wave highlights     |
+| puddle    | `#2d4338` `#3d5a4b` `#6f8f7c`                         | Swamp pools                |
+| patch     | a darker and a lighter tone close to each base        | All terrain                |
+| ore       | `#6c7f93` `#9fb4c8` `#cbd9e5` (+ deep `#46556a`)      | Iron: deposits and items   |
+| rust      | `#a8654a` (+ dark stain `#6e3f2e`)                    | Staining on iron           |
+| copper    | `#8e4a3c` `#c8704f` `#ec9f7c` (+ deep `#5c2f2c`)      | Copper: deposits and items |
+| verdigris | `#4fae94` (+ dark stain `#2f6f62`)                    | Staining on copper         |
+| robot     | `#8a4e22` `#d98a3a` `#f0b866` (+ visor/code/glow/led) | Robots (orange)            |
+| player    | teal tunic ramp, skin `#f0c8a0`, hair `#5a3a22`       | Player characters (teal)   |
+| belt      | dark steel rails and bed, amber arrows                | Conveyors                  |
 
 **Colour roles.** These carry meaning across the whole game, so keep them
 consistent as content grows:
@@ -73,12 +80,35 @@ consistent as content grows:
 - **Amber/yellow** = movement and logistics (belt arrows, future inserters).
 - **Cyan glow** = power / "active" (robot eyes). Reuse for powered machines.
 - **Red LED** = a status or warning light. Keep it tiny.
-- **Rust brown** = raw iron and weathered metal. Only ever as stains and
-  specks on iron; never as a main fill.
-- **Cool blue-grey** = iron. Its body is _dark_ (`ore[0]`/`oreDark`); the pale
-  tones are reserved for the top-left edge and a few glints.
+- **Terminal green** = program code on a screen.
+- **Rust brown** = raw iron and weathered metal. Only ever as small stains on
+  iron; never as a main fill.
+- **Cool blue-grey** = iron. The pale tones sit on the top-left and the dark
+  ones toward the bottom-right.
 - **Pinkish copper** = copper. Kept redder than the robots' orange so the two
   never read as the same thing; verdigris green is its stain colour.
+
+## Contrast when zoomed out
+
+**If two colours can appear next to each other when zoomed out, they must have
+enough contrast to tell apart.** Zoomed far out, each sprite is one flat
+`colour` in `atlas.json`, so shading and outlines can't separate it from its
+neighbours: only that colour can. This covers every pairing the game can
+produce, such as one terrain beside another, or a structure, entity or item on
+any ground it can be on, or beside another of those. When a pair is too close,
+move one of them in lightness first, then in hue.
+
+The colour is the mean of the sprite's visible pixels, so restyling the art
+updates it. The one exception is between **stone and the ore deposits**: they
+share a ground and stay close in colour when zoomed out, needing only about as
+much contrast as iron deposits have from stone.
+
+`pnpm atlas:check` measures every such pair and fails if any is closer than
+`MIN_CONTRAST` (a perceptual distance in `scripts/atlas/contrast.mjs`), or than
+the smaller minimum there for stone and deposits.
+`pnpm atlas` only lists them. The pairs come from the game's registries and
+rules, such as where each structure grows, so new content is checked without
+further work.
 
 ## Lighting and shading
 
@@ -86,8 +116,8 @@ consistent as content grows:
   shadows on the bottom and right.
 - A form is built from 3 values: highlight, base, shade. Use a 4th (darkest)
   only for crevices, outlines of shaded objects and ground drop-shadows.
-- Don't add extra ramp steps to cheat depth; use dithering sparingly (single
-  isolated speckle pixels, never checkerboards).
+- Shade with solid areas: no dithering, and no extra ramp steps to cheat
+  depth.
 - Entities get a **contact shadow** (`shadow` sprite) drawn underneath by the
   renderer, and dropped items a smaller one (`shadow_small`). The renderer
   lines the shadow's centre up with the sprite's `ground` line (see "Sprite
@@ -96,13 +126,14 @@ consistent as content grows:
 
 ## Outlines
 
-| Object type                      | Outline                                 |
-| -------------------------------- | --------------------------------------- |
-| Terrain                          | **None.** It is the quiet backdrop.     |
-| Resource nodes (ore deposit)     | None; rust-stained rock edges the vein. |
-| Items, robots, players, machines | 1px `outline` colour, all around.       |
-| Structures (trees, cacti)        | 1px `outline` colour, all around.       |
-| Conveyors                        | Dark rails act as the outline.          |
+| Object type                      | Outline                             |
+| -------------------------------- | ----------------------------------- |
+| Terrain                          | **None.** It is the quiet backdrop. |
+| Resource nodes (ore deposit)     | None; the rocks' shadows edge them. |
+| Items, robots, players, machines | 1px `outline` colour, all around.   |
+| Trees, cacti, ferns              | 1px of their ramp's darkest step.   |
+| Mushrooms                        | 1px `outline` colour, all around.   |
+| Conveyors                        | The rails' edges act as it.         |
 
 Round off corners by omitting the 4 corner pixels. Don't use pure black or white.
 
@@ -112,7 +143,7 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 | ----------------------------- | --------------------------------------------------------------- |
 | Natural resources (ore, rock) | **Angular and jagged**: uneven stair-steps, spikes, notches.    |
 | Machines, robots, characters  | **Chunky and rounded**: boxes with the 4 corner pixels removed. |
-| Terrain                       | **Organic and soft**: scattered detail, no hard shapes.         |
+| Terrain                       | **Organic and soft**: broad patches, small details.             |
 
 - Nothing natural is a smooth blob or a perfect ellipse. If an edge could be
   drawn with a compass, add a notch or a spike.
@@ -121,35 +152,52 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
   from **at most 4 chunks** (a tall centre piece, two base pieces, one small
   front piece that sits lowest). More chunks turns to noise at 16×16.
 - **Broken-off pieces look like what they came from.** An ore chunk uses the
-  same recipe as its vein: dark metallic body, light top-left edge, a few
-  glints, rust staining. If the item and the terrain it comes from don't look
-  related, fix the item.
+  same colours as the rocks of its deposit: the ore's tones, lit from the
+  top-left, with stone mixed in and a little staining. If the item and the
+  terrain it comes from don't look related, fix the item.
 
 ## Per-category rules
 
 ### Terrain
 
-- **Tileable**: details wrap across edges. Never put a feature on an edge that
-  doesn't continue on the opposite edge.
-- **Low contrast**: base colour plus roughly 10–25% speckle in the ramp's
-  neighbouring values. No single pixel should leap more than one ramp step.
-- **Variants**: 4 per tile so the grid doesn't look stamped. A few rare
-  details (flowers) appear on a single variant only.
-- **Identity**: each terrain has one signature detail: tufts (grass),
-  ripples (sand), cracks and pebbles (stone), puddles and reeds (swamp), leaf
-  clusters (jungle), a winding rust-edged vein (iron deposit), horizontal wave
-  dashes (water).
-- **Linear features** (veins, later rivers or roads) must cross the tile edges
-  at a fixed position in _every_ variant, so neighbouring tiles join into one
-  continuous line. The iron vein is built from whole-number sine waves, which
-  makes it periodic (tileable) and always crosses the left/right edges at the
-  same height. Make it thick enough (5–6px) to read as solid metal, not a crack.
-- **Animation**: water only, 4 frames, waves slide exactly 4px per frame so it
-  loops seamlessly. Keep animated terrain rare: it competes with the player.
+A tile is built in three layers, in this order:
+
+1. **Base**: the flat second colour of the terrain's ramp.
+2. **Patches**: one or two broad, soft shapes in the darker or lighter
+   `PALETTE.patch` tone. They give the ground most of its texture.
+3. **Detail**: at most one small signature shape, and many variants have none.
+   It is lit from the top-left, mostly in the ramp's neighbouring values; keep
+   the brightest for glints and rare finds.
+
+| Terrain   | Signature details                  |
+| --------- | ---------------------------------- |
+| Grass     | Tufts, sprigs, a rare flower       |
+| Sand      | Wind ripples, a rare shell         |
+| Stone     | Boulders, pebbles, cracks          |
+| Swampland | Pools, reeds                       |
+| Jungle    | Fronds, leaves                     |
+| Water     | One wave and its glint, drifting   |
+| Deposits  | Rocks carrying the ore (see below) |
+
+- **Ore deposits** are the exception to "one detail": on stone's base and
+  patches, a boulder, slab and pebble on every tile carry the ore's tones and a
+  touch of its stain. They should look like where the item came from.
+- **Variants**: 8 per terrain, so details stay occasional and the grid doesn't
+  look stamped; 4 for ore deposits. Rare details appear on a single variant.
+- **Tileable**: any variant can sit beside any other, so keep shapes inside the
+  tile. Only a feature every neighbour shares may cross an edge (water, which
+  has no variants; later rivers or roads), and it must continue on the opposite
+  one at the same position.
+- **Animation**: water only, 4 frames. Its patches stay still while the wave
+  slides exactly 4px per frame, so it loops seamlessly. Keep animated terrain
+  rare: it competes with the player.
+- **Judge it in bulk**: look at a large area, zoomed out, not one tile. If a
+  repeating pattern or busy texture shows, remove shapes or lower contrast.
 
 ### Machines and conveyors
 
-- Warmer and more saturated than terrain; always outlined or railed.
+- Machines are warmer and more saturated than terrain and always outlined.
+  Belts are plainer: dark steel, much darker than stone, with amber arrows.
 - Directional machines are drawn once (facing up) and rotated by the generator.
 - Movement is shown by animating the _surface_ (belt chevrons), not by moving
   the whole sprite.
@@ -158,6 +206,11 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
   (dark edge, lit top, dark edge) with the bed between them, and they stand
   `raise` px above the ground (see "Sprite metadata"). They lie on the ground
   as one flat piece, so they have **no shadow**.
+- The bed is plain, with **one chevron a tile** that crosses a tile in an
+  8-frame loop, on corners as on straights.
+- A side facing the viewer shows a front face: turning rollers under a straight
+  belt, and plain shadow round a corner. Either way the belt has a **single lit
+  edge**, which on a corner is one curve.
 - A belt is drawn once going up, and the generator rotates it for the other
   facings. A corner is drawn once for a belt coming in from the left (it turns
   anticlockwise) and mirrored for the clockwise turn. Its band is a quarter
@@ -169,6 +222,11 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 - Occupy roughly the central 10×12 px so there is breathing room on the tile.
 - **Face = direction.** Down shows the face/visor, up shows the back, sides
   show a profile with the visor on the leading edge.
+- **A robot's back panel** is where it is programmed: a grey metal plate with a
+  screen of green code and two buttons. It never uses the eyes' cyan, so the
+  facing stays clear. On the back view it sits inside the body's lit and shaded
+  edges; side-on it stands a pixel out from the rear side. Each side view has one
+  small eye, level with those seen from the front.
 - **Gathering** is a 4-frame tool swing in every facing
   (`<entityType>_gather_up|down|left|right`), from the same body drawing plus
   an outlined pick held just outside the body's right edge (the left edge when
@@ -183,16 +241,21 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 ### Structures
 
 - Plants and other things that stand on the terrain. They keep the lit-top-left
-  shading and the 1px outline of entities, so they pop off the terrain they
-  grow on. Foliage uses the `leaf` ramp (a touch darker and yellower than
-  grass) and cacti the cooler `cactus` ramp, so each reads against its ground.
-- 16px wide and a whole number of tiles tall: a tree is 16×32, a cactus 16×16.
-  The sprite's lowest pixel is its foot: the renderer stands it on its world
-  position, centred, and draws a `shadow_small` under it. Keep the trunk or
-  stem at the bottom centre and the canopy within about 14px so neighbours
-  don't merge into a wall.
-- Drawn from shapes in `sprites/structures.mjs` (rather than ASCII), so the
-  shading stays consistent; the edge is made ragged by the sprite's seeded RNG.
+  shading of entities. **Trees, cacti and ferns** are shaded in the three
+  brighter steps of their ramp (`leaf`, `cactus`, `fern`), with a soft outline in
+  its darkest, so they sit gently on their ground. **Mushrooms** keep the dark
+  `outline`, with a few pale spots on their caps.
+- 16px wide and a whole number of tiles tall: a tree is 16×32, the other plants
+  16×16. The sprite's lowest pixel is its foot: the renderer stands it
+  on its world position, centred, and draws a `shadow_small` under it. Keep the
+  trunk or stem at the bottom centre and the canopy within about 14px so
+  neighbours don't merge into a wall.
+- Each has several **looks** with distinct silhouettes, picked per tile by
+  position.
+- Mostly drawn from shapes in `sprites/structures.mjs` (rather than ASCII), so
+  the shading stays consistent; thin forms like fern fronds are drawn by hand.
+  Edges may be uneven, in a regular way like a crown's scallops, and surfaces
+  carry little beyond their shading: a flower or two.
 
 ### Items
 
@@ -200,9 +263,9 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
   piles composed from a few outlined chunks (`compose`, see below).
 - Material cue: ore is jagged, dark and metallic with rust; wood is warm with
   visible end grain. An item should be identifiable by silhouette alone.
-- **Iron ore** is a pile of jagged chunks broken from the vein: mostly iron,
-  with a couple of plain-stone and stone-and-iron-mix chunks so it reads as
-  raw ore, not ingots.
+- **Ore** is a pile of jagged chunks broken from its deposit: mostly ore, with
+  a couple of plain-stone and stone-and-ore-mix chunks so it reads as raw ore,
+  not ingots.
 - Items are also drawn small (in inventory UI and on the ground), so avoid
   detail that disappears at half size.
 
@@ -231,13 +294,13 @@ Round off corners by omitting the 4 corner pixels. Don't use pure black or white
 
 `pnpm atlas` cross-checks the game's registries against the atlas.
 
-| Game concept               | Sprite name(s)                                                                                                                                                                          |
-| -------------------------- | --------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
-| Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`)                                                                                                                                                   |
-| `ItemId` `x`               | `item_x`                                                                                                                                                                                |
-| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right`; gatherers (robot, player) also `x_gather_up`, `x_gather_down`, `x_gather_left`, `x_gather_right`                                                 |
-| Structure id `x`           | the sprites `structureSprites[x]` lists: `tree` and `cactus` one named after them, `conveyor` the `conveyor_<facing>` and `conveyor_<facing>_turning_<clockwise\|anticlockwise>` family |
-| Renderer helper            | `shadow`, `shadow_small`                                                                                                                                                                |
+| Game concept               | Sprite name(s)                                                                                                                                                                                              |
+| -------------------------- | ----------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
+| Terrain `Tile` id `x`      | `x` (variants/frames in `atlas.json`)                                                                                                                                                                       |
+| `ItemId` `x`               | `item_x`                                                                                                                                                                                                    |
+| Entity type `x` (not item) | `x_up`, `x_down`, `x_left`, `x_right`; gatherers (robot, player) also `x_gather_up`, `x_gather_down`, `x_gather_left`, `x_gather_right`                                                                     |
+| Structure id `x`           | the sprites `structureSprites[x]` lists: `tree`, `cactus`, `mushroom` and `fern` one named after them, `conveyor` the `conveyor_<facing>` and `conveyor_<facing>_turning_<clockwise\|anticlockwise>` family |
+| Renderer helper            | `shadow`, `shadow_small`                                                                                                                                                                                    |
 
 `pnpm atlas:check` exits non-zero if anything in the game has no sprite.
 
@@ -271,8 +334,8 @@ Each recipe touches **one file** (plus the palette if you need a new colour).
 | I want to add…   | Do this                                                                                   |
 | ---------------- | ----------------------------------------------------------------------------------------- |
 | A colour         | Add it to `scripts/atlas/palette.mjs` (inside an existing ramp if possible).              |
-| A terrain tile   | In `sprites/terrain.mjs`: write `draw(rng, variant)`, add `variants("id", draw)`.         |
-| An animated tile | Same file, `animated("id", frameCount, draw(rng, frame))`.                                |
+| A terrain tile   | Add patch tones; in `sprites/terrain.mjs` draw details, lay out variants, `scattered()`.  |
+| An animated tile | Same file, `animated("id", frameCount, draw)`, moving a `scatter` layout each frame.      |
 | An item          | In `sprites/items.mjs`: add `item("id", [16 ascii rows], { legend })`.                    |
 | An item pile     | Same file: `still("item_id", compose([[chunk, x, y], …], legend, outline))`.              |
 | A conveyor tier  | In `sprites/conveyors.mjs`: recolour with `PALETTE.belt`, or draw another look beside it. |
@@ -286,8 +349,12 @@ sprites never changes the look of existing ones.
 
 - [ ] Only palette colours used (no stray hex values in sprite files).
 - [ ] Light from the top-left.
-- [ ] Terrain tiles with no outline and no edge discontinuities.
-- [ ] Outlined, high-contrast objects; readable at half size.
+- [ ] No random speckle or lone pixels.
+- [ ] Terrain stays calm over a large area, with no outline and no edge
+      discontinuities.
+- [ ] Objects outlined as in "Outlines", and readable at half size.
+- [ ] Flat colours that can appear side by side contrast clearly (see "Contrast
+      when zoomed out").
 - [ ] Natural things are jagged, not smooth blobs; piles are tallest in the
       middle, at most 4 chunks.
 - [ ] Items look like pieces of the terrain they come from.

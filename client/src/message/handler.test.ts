@@ -54,7 +54,7 @@ describe("messageHandler", () => {
     const player = createPlayer(server, Vector.create(1, 2));
     const item = createItem(
       server,
-      { id: itemId, count: 1, data: false },
+      { id: itemId, count: 1, data: true },
       Vector.create(3, 4)
     );
     const state = createState();
@@ -98,7 +98,7 @@ describe("messageHandler", () => {
     const player = createPlayer(server);
     const item = createItem(
       server,
-      { id: itemId, count: 1, data: false },
+      { id: itemId, count: 1, data: true },
       Vector.zero(2)
     );
     const state = createState();

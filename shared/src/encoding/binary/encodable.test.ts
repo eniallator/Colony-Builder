@@ -1,9 +1,11 @@
 import { isNumber, isString } from "deep-guards";
+import { unsafeTag, type Tagged } from "niall-utils/core";
 import { describe, expect, it } from "vitest";
 
 import { codStringOf, codU8 } from "./codec.ts";
 import {
   binaryEncodable,
+  encAdapt,
   encArrayOf,
   encExact,
   encNumber,
@@ -12,8 +14,10 @@ import {
   encOptional,
   encRecordOf,
   encSetOf,
+  encTagged,
   encTupleOf,
   encUnionOf,
+  isIntegerIn,
   type BinaryEncodable,
 } from "./encodable.ts";
 
@@ -66,6 +70,50 @@ describe("encNumber", () => {
     expect(encNumber("f32").guard("1.5")).toBe(false);
   });
 
+  it.each(["f16", "f32", "f64"] as const)(
+    "only accepts finite numbers for %s",
+    tpe => {
+      const { guard } = encNumber(tpe);
+
+      expect(guard(-1.5)).toBe(true);
+      expect(guard(Number.NaN)).toBe(false);
+      expect(guard(Infinity)).toBe(false);
+      expect(guard(-Infinity)).toBe(false);
+    }
+  );
+
+  it.each([
+    ["u8", 0, 2 ** 8 - 1],
+    ["u16", 0, 2 ** 16 - 1],
+    ["u32", 0, 2 ** 32 - 1],
+    ["i8", -(2 ** 7), 2 ** 7 - 1],
+    ["i16", -(2 ** 15), 2 ** 15 - 1],
+    ["i32", -(2 ** 31), 2 ** 31 - 1],
+  ] as const)(
+    "only accepts integers within the range of %s",
+    (tpe, min, max) => {
+      const { guard } = encNumber(tpe);
+
+      expect(guard(min)).toBe(true);
+      expect(guard(max)).toBe(true);
+      expect(guard(min - 1)).toBe(false);
+      expect(guard(max + 1)).toBe(false);
+      expect(guard(min + 0.5)).toBe(false);
+      expect(guard(Number.NaN)).toBe(false);
+      expect(guard(String(min))).toBe(false);
+    }
+  );
+
+  it("only accepts integers up to the largest value for uChoose", () => {
+    const { guard } = encNumber("uChoose", 1000);
+
+    expect(guard(0)).toBe(true);
+    expect(guard(1000)).toBe(true);
+    expect(guard(1001)).toBe(false);
+    expect(guard(-1)).toBe(false);
+    expect(guard(1.5)).toBe(false);
+  });
+
   it("chooses the narrowest unsigned width that fits the largest value", () => {
     expect(encNumber("uChoose", 255).encode(1)).toHaveLength(1);
     expect(encNumber("uChoose", 256).encode(1)).toHaveLength(2);
@@ -76,6 +124,60 @@ describe("encNumber", () => {
     const wide = encNumber("uChoose", 1000);
 
     expect(wide.decode(wide.encode(999))).toBe(999);
+  });
+});
+
+describe("encAdapt", () => {
+  // Counts from 1, stored from 0.
+  const positive = encAdapt(
+    encNumber("u8"),
+    isIntegerIn(1, 256),
+    stored => stored + 1,
+    value => value - 1
+  );
+
+  it("converts a value before it is written with the wrapped codec", () => {
+    expect(positive.encode(1)).toEqual(Uint8Array.of(0));
+    expect(positive.encode(5)).toEqual(Uint8Array.of(4));
+  });
+
+  it("converts what the wrapped codec reads back", () => {
+    expect(positive.decode(Uint8Array.of(4))).toBe(5);
+  });
+
+  it("returns undefined when the bytes cannot be decoded", () => {
+    expect(positive.decode(Uint8Array.of())).toBeUndefined();
+    expect(positive.decode(Uint8Array.of(1, 2))).toBeUndefined();
+  });
+
+  it("guards with the given guard", () => {
+    expect(positive.guard(1)).toBe(true);
+    expect(positive.guard(256)).toBe(true);
+    expect(positive.guard(0)).toBe(false);
+    expect(positive.guard(257)).toBe(false);
+    expect(positive.guard("2")).toBe(false);
+    expect(positive.guard(2n)).toBe(false);
+  });
+
+  it("converts the same way inside other encodables", () => {
+    const counted = encObjectOf({ count: positive });
+
+    expect(counted.encode({ count: 5 })).toEqual(Uint8Array.of(4));
+    expect(counted.decode(Uint8Array.of(4))).toEqual({ count: 5 });
+  });
+});
+
+describe("encTagged", () => {
+  const id = encTagged<Tagged<number, "Id">>(encNumber("u16"));
+
+  it("keeps the guard and codec of the encodable it wraps", () => {
+    const inner = encNumber("u16");
+
+    expect(id.encode(unsafeTag<Tagged<number, "Id">>()(0x0102))).toEqual(
+      inner.encode(0x0102)
+    );
+    expect(id.guard(0x0102)).toBe(true);
+    expect(id.guard(-1)).toBe(false);
   });
 });
 

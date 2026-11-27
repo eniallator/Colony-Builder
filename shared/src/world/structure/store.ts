@@ -13,7 +13,7 @@ import {
   type RegionId,
   type SubRegionId,
 } from "../region.ts";
-import { structureFootprints } from "./footprint.ts";
+import { structureFootprints } from "./helpers.ts";
 import {
   isStructureOfType,
   type RegionStructures,
@@ -77,8 +77,12 @@ export class StructureStore {
     worldY: number,
     sideLength: number
   ): LocatedStructure[] {
+    const [regionX, regionY] = worldToRegionPos(worldX, worldY);
+    // The half region centres the window on that region, rather than on its
+    // corner, so it reaches as far right and down as it does left and up.
     return regionsAround(
-      ...worldToRegionPos(worldX, worldY),
+      regionX + 0.5,
+      regionY + 0.5,
       Math.ceil(sideLength / REGION_SIDE_LENGTH)
     ).flatMap(
       regionId =>

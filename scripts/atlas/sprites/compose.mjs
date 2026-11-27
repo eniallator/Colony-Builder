@@ -6,14 +6,23 @@
 
 import { blank, put } from "../core.mjs";
 
-/** Paints one chunk (outline first, then fill) at (ox, oy). */
-const stamp = (s, rows, legend, outline, ox, oy) => {
+/**
+ * Paints one chunk (outline first, if there is one, then fill) at (ox, oy).
+ * `plot` places each pixel: pass `putWrap` to carry a chunk over the edges.
+ */
+export const stamp = (
+  s,
+  rows,
+  legend,
+  [ox, oy],
+  { outline, plot = put } = {}
+) => {
   const height = rows.length;
   const width = rows[0].length;
   const filled = (x, y) =>
     x >= 0 && y >= 0 && x < width && y < height && rows[y][x] !== ".";
 
-  for (let y = -1; y <= height; y++) {
+  for (let y = -1; outline != null && y <= height; y++) {
     for (let x = -1; x <= width; x++) {
       if (filled(x, y)) continue;
       const touches = [
@@ -22,7 +31,7 @@ const stamp = (s, rows, legend, outline, ox, oy) => {
         [0, 1],
         [0, -1],
       ].some(([dx, dy]) => filled(x + dx, y + dy));
-      if (touches) put(s, ox + x, oy + y, outline);
+      if (touches) plot(s, ox + x, oy + y, outline);
     }
   }
   rows.forEach((row, y) =>
@@ -30,7 +39,7 @@ const stamp = (s, rows, legend, outline, ox, oy) => {
       if (ch === ".") return;
       const colour = legend[ch];
       if (colour == null) throw new Error(`no legend entry for "${ch}"`);
-      put(s, ox + x, oy + y, colour);
+      plot(s, ox + x, oy + y, colour);
     })
   );
 };
@@ -41,7 +50,7 @@ export const compose = (layers, legend, outline) => {
   for (const [rows, x, y] of layers) {
     if (new Set(rows.map(r => r.length)).size !== 1)
       throw new Error(`chunk rows must all be the same width: ${rows}`);
-    stamp(s, rows, legend, outline, x, y);
+    stamp(s, rows, legend, [x, y], { outline });
   }
   return s;
 };

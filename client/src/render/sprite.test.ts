@@ -3,10 +3,12 @@ import { describe, expect, it } from "vitest";
 import {
   frameAt,
   MIN_TEXTURE_PX_PER_TILE,
+  patternFor,
   runsOf,
   usesTextures,
   variantIndex,
 } from "./sprite.ts";
+import { createFakeContext, FakePattern } from "./system/render-test-utils.ts";
 
 describe("usesTextures", () => {
   it("draws textures from 8px per tile upwards", () => {
@@ -137,5 +139,48 @@ describe("frameAt", () => {
 
   it("reports the frame's index too", () => {
     expect(frameAt(frames, 1, 1.5).index).toBe(1);
+  });
+});
+
+describe("patternFor", () => {
+  it("makes a repeating pattern from the bitmap", () => {
+    const { ctx, context } = createFakeContext();
+    const bitmap = {} as ImageBitmap;
+
+    const pattern = patternFor(ctx, bitmap);
+
+    expect(context.createPattern).toHaveBeenCalledExactlyOnceWith(
+      bitmap,
+      "repeat"
+    );
+    expect(pattern).toBeInstanceOf(FakePattern);
+  });
+
+  it("makes each bitmap's pattern once and reuses it", () => {
+    const { ctx, context } = createFakeContext();
+    const bitmap = {} as ImageBitmap;
+
+    const first = patternFor(ctx, bitmap);
+    const second = patternFor(ctx, bitmap);
+
+    expect(second).toBe(first);
+    expect(context.createPattern).toHaveBeenCalledOnce();
+  });
+
+  it("makes a separate pattern for each bitmap", () => {
+    const { ctx } = createFakeContext();
+
+    expect(patternFor(ctx, {} as ImageBitmap)).not.toBe(
+      patternFor(ctx, {} as ImageBitmap)
+    );
+  });
+
+  it("throws when the context cannot make a pattern", () => {
+    const { ctx, context } = createFakeContext();
+    context.createPattern.mockReturnValueOnce(null);
+
+    expect(() => patternFor(ctx, {} as ImageBitmap)).toThrow(
+      "Could not create a texture pattern"
+    );
   });
 });

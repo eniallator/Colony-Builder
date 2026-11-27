@@ -47,12 +47,7 @@ export default defineConfig({
       enabled: true,
       reporter: ["text-summary"],
       include: ["*/{src,worker}/**/*.ts"],
-      exclude: [
-        "**/*.test.ts",
-        "**/*.d.ts",
-        // Rendering is placeholder code for now; remove this once it's final.
-        "client/src/render/**",
-      ],
+      exclude: ["**/*.test.ts", "**/*.d.ts"],
       thresholds: {
         statements: 100,
         functions: 100,

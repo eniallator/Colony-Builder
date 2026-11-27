@@ -3,14 +3,11 @@ import { describe, expect, it } from "vitest";
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import { facingDirOf, FACINGS, type Facing } from "../../facing.ts";
 import {
-  conveyorBends,
   conveyorFootprint,
   conveyorSpan,
-  conveyorSpriteName,
-  conveyorSpriteNames,
   splitConveyor,
-} from "./conveyor.ts";
-import type { Footprint } from "./footprint.ts";
+  type Footprint,
+} from "./helpers.ts";
 import type { ConveyorData } from "./types.ts";
 
 const stepsOf = (tiles: number) => tiles * REGION_SIDE_LENGTH;
@@ -94,31 +91,6 @@ describe("conveyorSpan", () => {
       expect(size.toSorted((a, b) => a - b)).toEqual([1, tiles - 1]);
     }
   );
-});
-
-describe("conveyorSpriteName", () => {
-  it.each(FACINGS)("names a straight belt facing %s after it", facing => {
-    expect(conveyorSpriteName(facing)).toContain(facing);
-    expect(conveyorSpriteName(facing, null)).toBe(conveyorSpriteName(facing));
-  });
-
-  it.each(FACINGS)("names the turns of a belt facing %s apart", facing => {
-    const names = [
-      conveyorSpriteName(facing),
-      ...conveyorBends.map(bend => conveyorSpriteName(facing, bend)),
-    ];
-
-    expect(new Set(names).size).toBe(1 + conveyorBends.length);
-    for (const bend of conveyorBends) {
-      expect(conveyorSpriteName(facing, bend)).toContain(bend);
-    }
-  });
-
-  it("lists a different sprite for every facing and bend", () => {
-    expect(new Set(conveyorSpriteNames).size).toBe(
-      FACINGS.length * (1 + conveyorBends.length)
-    );
-  });
 });
 
 describe("splitConveyor", () => {

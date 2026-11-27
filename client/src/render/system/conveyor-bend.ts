@@ -2,12 +2,13 @@ import {
   conveyorLengthToTiles,
   facingDirOf,
   FACINGS,
-  type ConveyorBend,
   type ConveyorData,
   type Facing,
   type StructureStore,
 } from "@colony-builder/shared";
 import { Vector } from "vectyped";
+
+import type { ConveyorBend } from "../structure-sprites.ts";
 
 interface PlacedConveyor {
   worldPos: [x: number, y: number];
