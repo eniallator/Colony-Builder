@@ -13,6 +13,8 @@ import {
   type EntityId,
   type GatherStructure,
   type GatherTile,
+  type Inventory,
+  type ItemId,
   type StructureType,
   type Task,
   type Tile,
@@ -21,6 +23,7 @@ import {
 import { Vector } from "vectyped";
 import { describe, expect, it } from "vitest";
 
+import { messageHandler } from "../message/handler.ts";
 import { taskSystem as serverTaskSystem } from "./system.ts";
 
 // Only ever moves forwards, and tasks are relative to it, so tests share it.
@@ -51,6 +54,13 @@ const target = Vector.create(5.5, 5.5);
 
 // What every item carries: the data its registry entry allows.
 const data = true;
+
+// Checks that only `item` was gathered. How many is random, but never none.
+const expectOnlyGathered = (inventory: Inventory, item: ItemId) => {
+  expect(Object.keys(inventory)).toEqual([item]);
+  expect(inventory[item]?.data).toBe(data);
+  expect(inventory[item]?.count).toBeGreaterThan(0);
+};
 
 const worldWithTile = (tile: Tile) => {
   const world = new World();
@@ -140,16 +150,20 @@ describe("taskSystem", () => {
       expect(world.entities.get(id, "inventory")).toEqual({});
     });
 
-    it("gathers the tile once the duration has elapsed", () => {
-      const world = worldWithTile("iron_deposit");
-      const id = createRobot(world, nearTarget(), [gather()]);
+    it.each([
+      ["iron_deposit", "iron_ore"],
+      ["copper_deposit", "copper_ore"],
+    ] as const)(
+      "gathers from %s once the duration has elapsed",
+      (tile, item) => {
+        const world = worldWithTile(tile);
+        const id = createRobot(world, nearTarget(), [gather()]);
 
-      runGather(world);
+        runGather(world);
 
-      expect(world.entities.get(id, "inventory")).toEqual({
-        iron_ore: { count: 5, data },
-      });
-    });
+        expectOnlyGathered(world.entities.get(id, "inventory"), item);
+      }
+    );
 
     it("restarts the timer when the entity leaves reach", () => {
       const world = worldWithTile("iron_deposit");
@@ -169,10 +183,13 @@ describe("taskSystem", () => {
       stopRepeating(world, id);
 
       runGather(world);
+      const gathered = world.entities.get(id, "inventory").iron_ore?.count;
       taskSystem({ world, dt: 1 });
 
       expect(world.entities.get(id, "taskList").tasks).toHaveLength(0);
-      expect(world.entities.get(id, "inventory").iron_ore?.count).toBe(5);
+      expect(world.entities.get(id, "inventory").iron_ore?.count).toBe(
+        gathered
+      );
     });
 
     it("gathers nothing from a tile with no tile", () => {
@@ -254,53 +271,23 @@ describe("taskSystem", () => {
       expect(world.entities.optGet(id, "destination")).toBeUndefined();
     });
 
-    it("gathers logs from a tree once the duration has elapsed", () => {
-      const world = new World();
-      const { position, task } = structureOf(world, "tree");
-      const id = createRobot(world, position.copy().add(0.5), [task()]);
+    it.each([
+      ["tree", "log"],
+      ["cactus", "cactus"],
+      ["mushroom", "mushroom"],
+      ["fern", "fibre"],
+    ] as const)(
+      "gathers from a %s once the duration has elapsed",
+      (type, item) => {
+        const world = new World();
+        const { position, task } = structureOf(world, type);
+        const id = createRobot(world, position.copy().add(0.5), [task()]);
 
-      runGather(world);
+        runGather(world);
 
-      expect(world.entities.get(id, "inventory")).toEqual({
-        log: { count: 5, data },
-      });
-    });
-
-    it("gathers cactus from a cactus once the duration has elapsed", () => {
-      const world = new World();
-      const { position, task } = structureOf(world, "cactus");
-      const id = createRobot(world, position.copy().add(0.5), [task()]);
-
-      runGather(world);
-
-      expect(world.entities.get(id, "inventory")).toEqual({
-        cactus: { count: 5, data },
-      });
-    });
-
-    it("gathers mushrooms from a mushroom once the duration has elapsed", () => {
-      const world = new World();
-      const { position, task } = structureOf(world, "mushroom");
-      const id = createRobot(world, position.copy().add(0.5), [task()]);
-
-      runGather(world);
-
-      expect(world.entities.get(id, "inventory")).toEqual({
-        mushroom: { count: 5, data },
-      });
-    });
-
-    it("gathers fibre from a fern once the duration has elapsed", () => {
-      const world = new World();
-      const { position, task } = structureOf(world, "fern");
-      const id = createRobot(world, position.copy().add(0.5), [task()]);
-
-      runGather(world);
-
-      expect(Object.keys(world.entities.get(id, "inventory"))).toEqual([
-        "fibre",
-      ]);
-    });
+        expectOnlyGathered(world.entities.get(id, "inventory"), item);
+      }
+    );
 
     it("removes the structure once it has been gathered", () => {
       const world = new World();
@@ -376,15 +363,16 @@ describe("taskSystem", () => {
       });
     });
 
-    it("clears its end time when the finished task is repeated", () => {
+    it("does not repeat the task once the structure has been gathered", () => {
       const world = new World();
       const { position, task } = structureOf(world, "tree");
       const id = createRobot(world, position.copy().add(0.5), [task()]);
-      const { tasks } = world.entities.get(id, "taskList");
+      const { tasks, repeat } = world.entities.get(id, "taskList");
 
       runGather(world);
 
-      expect(tasks).toEqual([task()]);
+      expect(repeat).toBe(true);
+      expect(tasks).toEqual([]);
     });
 
     it("drops the task for good when the structure no longer exists", () => {
@@ -443,26 +431,6 @@ describe("taskSystem", () => {
         log: { count: 2, data },
       });
     });
-
-    it("is finished once it has dropped everything", () => {
-      const world = new World();
-      const id = robotHolding(world, nearTarget());
-      stopRepeating(world, id);
-
-      taskSystem({ world, dt: 1 });
-
-      expect(world.entities.get(id, "taskList").tasks).toHaveLength(0);
-    });
-
-    it("is not finished while still travelling to the drop target", () => {
-      const world = new World();
-      const id = robotHolding(world, Vector.zero(2));
-      stopRepeating(world, id);
-
-      taskSystem({ world, dt: 1 });
-
-      expect(world.entities.get(id, "taskList").tasks).toHaveLength(1);
-    });
   });
 
   describe("task list", () => {
@@ -514,10 +482,31 @@ describe("taskSystem", () => {
       const dropped = world.entities
         .query("canPickup", "inventory")
         .map(item => world.entities.get(item, "inventory").iron_ore);
-      expect(dropped).toEqual([
-        { count: 5, data },
-        { count: 5, data },
+      expect(dropped).toHaveLength(2);
+      for (const stack of dropped) {
+        expect(stack?.data).toBe(data);
+        expect(stack?.count).toBeGreaterThan(0);
+      }
+    });
+
+    it("works on the latest order only, in place of the ones before", () => {
+      const world = new World();
+      const id = createRobot(world, nearTarget());
+      const state = { world, time, players: new Map() };
+      const latest = Vector.create(40, 40);
+
+      for (const position of [target.copy(), latest.copy()]) {
+        messageHandler(state, id, { type: "gatherTile", position });
+      }
+      taskSystem({ world, dt: 1 });
+
+      expect(world.entities.get(id, "taskList").tasks).toEqual([
+        { type: "gatherTile", target: latest, endsAt: undefined },
       ]);
+      // Off to the latest target, not gathering where it already stands.
+      expect(
+        world.entities.get(id, "destination").distTo(latest.copy().add(0.5))
+      ).toBeLessThan(TASK_RADIUS);
     });
 
     it("discards a finished task when not repeating", () => {

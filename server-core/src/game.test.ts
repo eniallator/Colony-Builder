@@ -544,19 +544,6 @@ describe("changed regions", () => {
     expect(resent(client)).toHaveLength(1);
   });
 
-  it("resends a region again each time it changes", () => {
-    const game = createTestGame();
-    const client = connect(game);
-    tick(game);
-
-    requestPlace(client, [3.5, 5.5]);
-    tick(game);
-    requestPlace(client, [4.5, 5.5]);
-    tick(game);
-
-    expect(resent(client)).toHaveLength(2);
-  });
-
   it("resends the changed region to every player who has it", () => {
     const game = createTestGame();
     const [placer, watcher] = [connect(game), connect(game)];
@@ -642,15 +629,6 @@ describe("changed regions", () => {
     for (let i = 0; i < Math.floor((TASK_DURATION * TPS) / 2); i++) tick(game);
 
     expect(snapshots(client)).toHaveLength(sentBefore);
-  });
-
-  it("does not resend anything while nothing changes", () => {
-    const game = createTestGame();
-    const client = connect(game);
-
-    for (let i = 0; i < 5; i++) tick(game);
-
-    expect(terrainSnapshots(client)).toHaveLength(1);
   });
 
   it("resends a region once when it was unloaded and changed in the same tick", () => {

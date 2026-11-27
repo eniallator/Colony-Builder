@@ -1,11 +1,11 @@
 import { REGION_SIDE_LENGTH } from "../../constants.ts";
 import {
-  encAdapt,
   encExact,
   encMapOf,
   encNumber,
   encObjectOf,
   encRegistryValues,
+  encTransform,
   isIntegerIn,
   type BinaryEncodable,
   type EncodableType,
@@ -18,7 +18,7 @@ import { encSubRegionId } from "../region.ts";
 const MAX_LENGTH = REGION_SIDE_LENGTH ** 2;
 
 // A belt is at least one step long, so it is stored as its length minus one.
-export const encConveyorLength = encAdapt(
+export const encConveyorLength = encTransform(
   encNumber("uChoose", MAX_LENGTH - 1),
   isIntegerIn(1, MAX_LENGTH),
   stored => stored + 1,

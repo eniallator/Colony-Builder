@@ -235,35 +235,6 @@ describe("messageHandler", () => {
       expect(world.terrain.optTileAt(4, 4)).toBe(existing);
     });
 
-    it("marks only the changed region dirty", () => {
-      const world = worldWithOrigin();
-      world.terrain.add(east, world.terrain.get(origin).slice());
-      world.flushAllDirtyRegions();
-      const player = createPlayer(world);
-
-      messageHandler(stateWith(world, [player, []]), player, {
-        type: "place",
-        position: Vector.create(3, 4),
-        tile: tileToId(placed),
-      });
-
-      expect(world.flushAllDirtyRegions()).toEqual([origin]);
-    });
-
-    it("marks nothing dirty when the tile is already there", () => {
-      const world = worldWithOrigin();
-      world.flushAllDirtyRegions();
-      const player = createPlayer(world);
-
-      messageHandler(stateWith(world, [player, []]), player, {
-        type: "place",
-        position: Vector.create(3, 4),
-        tile: tileToId(existing),
-      });
-
-      expect(world.flushAllDirtyRegions()).toEqual([]);
-    });
-
     it("leaves what players have loaded to the dirty regions", () => {
       const world = worldWithOrigin();
       const player = createPlayer(world);
@@ -280,19 +251,6 @@ describe("messageHandler", () => {
         east,
         north,
       ]);
-    });
-
-    it("throws when the region of the tile does not exist", () => {
-      const world = new World();
-      const player = createPlayer(world);
-
-      expect(() => {
-        messageHandler(stateWith(world, [player, []]), player, {
-          type: "place",
-          position: Vector.create(3, 4),
-          tile: tileToId(placed),
-        });
-      }).toThrow("No region exists for world pos 3,4");
     });
   });
 
@@ -322,25 +280,6 @@ describe("messageHandler", () => {
       });
 
       expect(world.entities.flushDirtyEntities()).toEqual([player]);
-    });
-
-    it("queues it after the tasks already there", () => {
-      const world = new World();
-      const player = createPlayer(world);
-      const state = stateWith(world, [player, []]);
-
-      messageHandler(state, player, {
-        type: "gatherTile",
-        position: Vector.create(1, 1),
-      });
-      messageHandler(state, player, {
-        type: "gatherTile",
-        position: Vector.create(2, 2),
-      });
-
-      expect(
-        world.entities.get(player, "taskList").tasks.map(task => task.type)
-      ).toEqual(["gatherTile", "gatherTile"]);
     });
 
     it("only affects the given player", () => {

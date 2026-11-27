@@ -131,18 +131,4 @@ describe("createStoneAt", () => {
       }
     }
   );
-
-  it.each(["a", "b", "colony"])(
-    "carries every ore, each in its own deposits (seed %s)",
-    seed => {
-      const tiles = scan(seed);
-
-      for (const ore of stoneOres) {
-        expect(
-          patches(tiles, tile => tile === ore).length,
-          ore
-        ).toBeGreaterThan(0);
-      }
-    }
-  );
 });

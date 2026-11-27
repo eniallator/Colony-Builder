@@ -3,9 +3,9 @@ import { positiveMod } from "niall-utils/math";
 
 import { REGION_SIDE_LENGTH } from "../constants.ts";
 import {
-  encAdapt,
   encNumber,
   encTagged,
+  encTransform,
   encTupleOf,
 } from "../encoding/index.ts";
 
@@ -24,7 +24,7 @@ export const regionPosToId = (x: number, y: number): RegionId =>
   ((BigInt.asUintN(I32_BITS, BigInt(x)) << BigInt(I32_BITS)) |
     BigInt.asUintN(I32_BITS, BigInt(y))) as RegionId;
 
-export const encRegionId = encAdapt(
+export const encRegionId = encTransform(
   encTupleOf(encNumber("i32"), encNumber("i32")),
   (value): value is RegionId =>
     typeof value === "bigint" && value >= 0n && value < U64_LIMIT,

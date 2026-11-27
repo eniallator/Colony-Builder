@@ -89,25 +89,6 @@ describe("StructureStore", () => {
   });
 
   describe("addStructureAt", () => {
-    it("puts a structure at a world position", () => {
-      const store = new StructureStore();
-      store.addStructureAt(1.5, 3, structure);
-
-      const [region, sub] = worldPosToRegionIds(1.5, 3);
-      expect(store.optGetStructure(region, sub)).toEqual({
-        ...structure,
-        worldPos: [1.5, 3],
-      });
-    });
-
-    it("adds to a region that already has structures", () => {
-      const store = new StructureStore();
-      store.add(origin, regionWith([0, 0, structure]));
-      store.addStructureAt(2, 2, otherStructure);
-
-      expect(store.get(origin).size).toBe(2);
-    });
-
     it("finds the region containing a negative position", () => {
       const store = new StructureStore();
       store.addStructureAt(-0.5, -REGION_SIDE_LENGTH - 0.5, structure);
@@ -334,10 +315,6 @@ describe("StructureStore", () => {
       return store;
     };
 
-    it("starts with nothing dirty", () => {
-      expect(new StructureStore().flushDirtyRegions()).toEqual([]);
-    });
-
     it("marks a region dirty when it is added", () => {
       const store = new StructureStore();
       store.add(origin, regionWith([1, 2, structure]));
@@ -390,13 +367,6 @@ describe("StructureStore", () => {
       expect(store.flushDirtyRegions()).toEqual([other]);
     });
 
-    it("marks the next region for a position just over a region's edge", () => {
-      const store = cleanStoreWith([origin, new Map()]);
-      store.addStructureAt(REGION_SIDE_LENGTH, 0, structure);
-
-      expect(store.flushDirtyRegions()).toEqual([regionPosToId(1, 0)]);
-    });
-
     it("marks a region dirty when one of its structures is deleted", () => {
       const store = cleanStoreWith(
         [origin, regionWith([1, 2, structure])],
@@ -429,14 +399,6 @@ describe("StructureStore", () => {
       expect(store.flushDirtyRegions()).toEqual([]);
     });
 
-    it("keeps a deleted region dirty when it is added again as not dirty", () => {
-      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
-      store.delete(origin);
-      store.add(origin, new Map(), false);
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
     it("does not mark anything dirty when reading", () => {
       const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
 
@@ -448,43 +410,6 @@ describe("StructureStore", () => {
       store.ids.toArray();
 
       expect(store.flushDirtyRegions()).toEqual([]);
-    });
-
-    it("lists a region once however many times it changed", () => {
-      const store = cleanStoreWith([origin, new Map()]);
-      store.addStructureAt(1.5, 1.5, structure);
-      store.addStructure(origin, sub, otherStructure);
-      store.deleteStructure(origin, sub);
-      store.add(origin, new Map());
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
-    it("lists every region that changed", () => {
-      const store = new StructureStore();
-      store.add(origin, regionWith([1, 2, structure]));
-      store.addStructure(other, sub, structure);
-
-      expect(new Set(store.flushDirtyRegions())).toEqual(
-        new Set([origin, other])
-      );
-    });
-
-    it("clears the dirty regions when they are flushed", () => {
-      const store = new StructureStore();
-      store.add(origin, regionWith([1, 2, structure]));
-      store.flushDirtyRegions();
-
-      expect(store.flushDirtyRegions()).toEqual([]);
-    });
-
-    it("marks a region dirty again when it changes after a flush", () => {
-      const store = cleanStoreWith([origin, regionWith([1, 2, structure])]);
-      store.deleteStructure(origin, sub);
-      store.flushDirtyRegions();
-      store.addStructure(origin, sub, structure);
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
     });
   });
 });

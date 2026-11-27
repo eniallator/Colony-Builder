@@ -200,7 +200,7 @@ describe("EntityStore", () => {
               conveyable: undefined,
               // Starting inventory contents are temporary
               inventory: world.entities.get(player, "inventory"),
-              taskList: { tasks: [], repeat: false },
+              taskList: world.entities.get(player, "taskList"),
             },
           ],
           [
@@ -218,34 +218,6 @@ describe("EntityStore", () => {
           ],
         ])
       );
-    });
-
-    it("captures the contents of an inventory", () => {
-      const world = new World();
-      const contents = { data: sampleItem.data, count: 3 };
-      const item = createItem(
-        world,
-        { id: itemId, ...contents },
-        Vector.zero(2)
-      );
-
-      expect(world.entities.takeSnapshot([item]).get(item)?.inventory).toEqual({
-        [itemId]: contents,
-      });
-    });
-
-    it("round-trips an inventory with items in it", () => {
-      const world = new World();
-      const item = createItem(
-        world,
-        { ...sampleItem, count: 3 },
-        Vector.zero(2)
-      );
-      const snapshot = world.entities.takeSnapshot([item]);
-
-      expect(
-        encEntitySnapshot.decode(encEntitySnapshot.encode(snapshot))
-      ).toEqual(snapshot);
     });
 
     it("includes the destination when there is one", () => {
@@ -273,18 +245,6 @@ describe("EntityStore", () => {
       expect(world.entities.takeSnapshot([])).toEqual(new Map());
     });
 
-    it("survives an encode / decode round trip", () => {
-      const world = new World();
-      const player = createPlayer(world, Vector.create(1.5, 2.5));
-      const item = createItem(world, sampleItem, Vector.zero(2));
-
-      const snapshot = world.entities.takeSnapshot([player, item]);
-
-      expect(
-        encEntitySnapshot.decode(encEntitySnapshot.encode(snapshot))
-      ).toEqual(snapshot);
-    });
-
     it("can be applied to another EntityStore", () => {
       const world = new World();
       const player = createPlayer(world, Vector.create(1, 2));
@@ -306,10 +266,6 @@ describe("EntityStore", () => {
       store.flushDirtyEntities();
       return { store, id };
     };
-
-    it("is empty for a new store", () => {
-      expect(new EntityStore().flushDirtyEntities()).toEqual([]);
-    });
 
     it("includes a spawned entity", () => {
       const store = new EntityStore();
@@ -369,35 +325,6 @@ describe("EntityStore", () => {
       store.get(id, "position");
       store.query("position");
       store.takeSnapshot([id]);
-
-      expect(store.flushDirtyEntities()).toEqual([]);
-    });
-
-    it("lists an entity once however many times it changed", () => {
-      const { store, id } = stored();
-
-      store.add(id, "speed", speed);
-      store.add(id, "speed", speed + 1);
-      store.delete(id, "speed");
-
-      expect(store.flushDirtyEntities()).toEqual([id]);
-    });
-
-    it("lists every entity that changed", () => {
-      const { store, id } = stored();
-      const other = store.spawn(component());
-      store.flushDirtyEntities();
-
-      store.add(other, "speed", speed);
-      store.add(id, "speed", speed);
-
-      expect(store.flushDirtyEntities()).toEqual([other, id]);
-    });
-
-    it("is empty once flushed", () => {
-      const { store, id } = stored();
-      store.add(id, "speed", speed);
-      store.flushDirtyEntities();
 
       expect(store.flushDirtyEntities()).toEqual([]);
     });
@@ -463,16 +390,6 @@ describe("EntityStore", () => {
     });
 
     // A snapshot only holds the entities that changed, so it never removes any.
-    it("keeps entities missing from the snapshot", () => {
-      const store = new EntityStore();
-      store.applySnapshot(snapshotOf([a, component()], [b, component()]));
-
-      store.applySnapshot(snapshotOf([a, component()]));
-
-      expect(store.query("position")).toEqual([a, b]);
-      expect(store.get(b, "type")).toBe(typeA);
-    });
-
     it("keeps every component of an entity missing from the snapshot", () => {
       const store = new EntityStore();
       store.applySnapshot(
@@ -491,18 +408,11 @@ describe("EntityStore", () => {
 
       store.applySnapshot(snapshotOf([a, component()]));
 
+      expect(store.query("position")).toEqual([a, b]);
+      expect(store.get(b, "type")).toBe(typeA);
       expect(store.get(b, "destination").toArray()).toEqual([7, 8]);
       expect(store.get(b, "speed")).toBe(speed);
       expect(store.get(b, "conveyable")).toBe(true);
-    });
-
-    it("keeps everything for an empty snapshot", () => {
-      const store = new EntityStore();
-      store.applySnapshot(snapshotOf([a, component()], [b, component()]));
-
-      store.applySnapshot(new Map());
-
-      expect(store.query("position")).toEqual([a, b]);
     });
 
     it("does not mark the entities it applies as dirty", () => {

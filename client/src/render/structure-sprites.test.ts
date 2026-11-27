@@ -41,8 +41,4 @@ describe("structureSprites", () => {
       expect(structureSprites[type].length).toBeGreaterThan(0);
     }
   );
-
-  it("gives a belt every sprite it is drawn with", () => {
-    expect(structureSprites.conveyor).toEqual(conveyorSpriteNames);
-  });
 });

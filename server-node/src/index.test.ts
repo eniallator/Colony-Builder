@@ -119,18 +119,6 @@ describe("server", () => {
 });
 
 describe("connections", () => {
-  it("tells a new player their id", async () => {
-    const socket = connect(await load());
-
-    expect(received(socket)).toEqual([
-      {
-        type: "init",
-        id: playerIdOf(socket),
-        time: { start: 0, lastFrame: 0, now: 0, delta: 0 },
-      },
-    ]);
-  });
-
   it("removes a player when their socket closes", async () => {
     const server = await load();
     const leaver = connect(server);

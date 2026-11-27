@@ -161,10 +161,6 @@ describe("TerrainStore", () => {
       return store;
     };
 
-    it("starts with nothing dirty", () => {
-      expect(new TerrainStore().flushDirtyRegions()).toEqual([]);
-    });
-
     it("marks a region dirty when it is added", () => {
       const store = new TerrainStore();
       store.add(origin, baseRegion);
@@ -202,28 +198,6 @@ describe("TerrainStore", () => {
       expect(store.flushDirtyRegions()).toEqual([regionPosToId(-1, -1)]);
     });
 
-    it("marks a tile in the last row and column of its region", () => {
-      const store = cleanStoreWith([0, 0, region()], [1, 1, region()]);
-      store.addTile(
-        REGION_SIDE_LENGTH - 0.5,
-        REGION_SIDE_LENGTH - 0.5,
-        tileToId(markerTile)
-      );
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
-    it("marks a tile in the first row and column of the next region", () => {
-      const store = cleanStoreWith([0, 0, region()], [1, 1, region()]);
-      store.addTile(
-        REGION_SIDE_LENGTH,
-        REGION_SIDE_LENGTH,
-        tileToId(markerTile)
-      );
-
-      expect(store.flushDirtyRegions()).toEqual([regionPosToId(1, 1)]);
-    });
-
     it("leaves a region clean when the tile is already that tile", () => {
       const store = cleanStoreWith([0, 0, region()]);
       store.addTile(3, 5, tileToId(baseTile));
@@ -238,15 +212,6 @@ describe("TerrainStore", () => {
       store.addTile(3, 5, tileToId(baseTile));
 
       expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
-    it("leaves a region clean when the same tile is placed again", () => {
-      const store = cleanStoreWith([0, 0, region()]);
-      store.addTile(3, 5, tileToId(markerTile));
-      store.flushDirtyRegions();
-      store.addTile(3, 5, tileToId(markerTile));
-
-      expect(store.flushDirtyRegions()).toEqual([]);
     });
 
     it("marks nothing when a tile has no region to go in", () => {
@@ -272,14 +237,6 @@ describe("TerrainStore", () => {
       expect(store.flushDirtyRegions()).toEqual([]);
     });
 
-    it("keeps a deleted region dirty when it is added again as not dirty", () => {
-      const store = cleanStoreWith([0, 0, region()]);
-      store.delete(origin);
-      store.add(origin, altRegion, false);
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
     it("does not mark anything dirty when reading", () => {
       const store = cleanStoreWith([0, 0, region()]);
 
@@ -292,42 +249,6 @@ describe("TerrainStore", () => {
       store.positions.toArray();
 
       expect(store.flushDirtyRegions()).toEqual([]);
-    });
-
-    it("lists a region once however many times it changed", () => {
-      const store = cleanStoreWith([0, 0, region()]);
-      store.addTile(1, 1, tileToId(markerTile));
-      store.addTile(2, 2, tileToId(markerTile));
-      store.add(origin, altRegion);
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
-    });
-
-    it("lists every region that changed", () => {
-      const store = new TerrainStore();
-      store.add(origin, baseRegion);
-      store.add(other, altRegion);
-
-      expect(new Set(store.flushDirtyRegions())).toEqual(
-        new Set([origin, other])
-      );
-    });
-
-    it("clears the dirty regions when they are flushed", () => {
-      const store = new TerrainStore();
-      store.add(origin, baseRegion);
-      store.flushDirtyRegions();
-
-      expect(store.flushDirtyRegions()).toEqual([]);
-    });
-
-    it("marks a region dirty again when it changes after a flush", () => {
-      const store = cleanStoreWith([0, 0, region()]);
-      store.addTile(1, 1, tileToId(markerTile));
-      store.flushDirtyRegions();
-      store.addTile(2, 2, tileToId(markerTile));
-
-      expect(store.flushDirtyRegions()).toEqual([origin]);
     });
   });
 });

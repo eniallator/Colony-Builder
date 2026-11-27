@@ -57,7 +57,8 @@ const listenForDismissal = memoize(() => {
   });
 });
 
-const footPosOf = (
+/** Where `target` stands in the world, if it is still there. */
+export const footPosOf = (
   world: World,
   target: ClickableTarget
 ): Vector<2> | undefined => {
@@ -73,8 +74,6 @@ const footPosOf = (
       return worldPos != null ? Vector.create(...worldPos) : undefined;
     }
 
-    // Unreachable: `targetRunFor` has already thrown for a target like this.
-    /* v8 ignore next 2 -- @preserve */
     default:
       return checkExhausted(target);
   }

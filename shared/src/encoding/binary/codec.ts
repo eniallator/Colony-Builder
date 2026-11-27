@@ -37,7 +37,7 @@ export interface BinaryCodec<T extends CodecValue> extends Codec<BinaryFormat> {
 export type CodecType<C extends BinaryCodec<any>> =
   C extends BinaryCodec<infer T> ? T : never;
 
-export const codAdapt = <
+export const codTransform = <
   const B extends CodecValue,
   const A extends CodecValue,
 >(
@@ -167,7 +167,7 @@ export const U16_MAX = 2 ** 16;
 export const chooseUIntCod = (value: number): BinaryCodec<number> =>
   value < U8_MAX ? codU8 : value < U16_MAX ? codU16 : codU32;
 
-export const codBoolean = codAdapt(codU8, v => !!v, Number);
+export const codBoolean = codTransform(codU8, v => !!v, Number);
 
 const PRECISIONS = tuple("u8", "u16", "u32");
 export const isPrecision = isOneOf(...PRECISIONS);

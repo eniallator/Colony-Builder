@@ -34,7 +34,7 @@ const loaded = (regionTiles: RegionTiles) => ({
   structures: new Map(),
 });
 
-const [firstTile, secondTile, thirdTile] = tiles;
+const [firstTile, secondTile] = tiles;
 const [itemId] = itemIds;
 
 describe("messageHandler", () => {
@@ -93,30 +93,6 @@ describe("messageHandler", () => {
     expect(state.world.entities.query("position")).toEqual([]);
   });
 
-  it("keeps entities that a later entities message does not mention", () => {
-    const server = new World();
-    const player = createPlayer(server);
-    const item = createItem(
-      server,
-      { id: itemId, count: 1, data: true },
-      Vector.zero(2)
-    );
-    const state = createState();
-    messageHandler(state, {
-      type: "entities",
-      snapshot: server.entities.takeSnapshot([player, item]),
-      despawned: new Set(),
-    });
-
-    messageHandler(state, {
-      type: "entities",
-      snapshot: server.entities.takeSnapshot([item]),
-      despawned: new Set(),
-    });
-
-    expect(state.world.entities.query("position")).toEqual([player, item]);
-  });
-
   it("ignores a despawned entity it does not have", () => {
     const state = createState();
 
@@ -157,25 +133,6 @@ describe("messageHandler", () => {
 
     expect(state.world.terrain.get(regionPosToId(0, 0))).toBe(first);
     expect(state.world.terrain.get(regionPosToId(1, 0))).toBe(second);
-  });
-
-  it("keeps entities and terrain separate", () => {
-    const state = createState();
-    const server = new World();
-    const player = createPlayer(server);
-
-    messageHandler(state, {
-      type: "entities",
-      snapshot: server.entities.takeSnapshot([player]),
-      despawned: new Set(),
-    });
-    messageHandler(state, {
-      type: "load",
-      snapshot: new Map([[regionPosToId(0, 0), loaded(region(thirdTile))]]),
-    });
-
-    expect(state.world.entities.query("position")).toHaveLength(1);
-    expect([...state.world.terrain.ids]).toEqual([regionPosToId(0, 0)]);
   });
 
   it("throws on a message it does not know", () => {

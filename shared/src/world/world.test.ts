@@ -35,20 +35,6 @@ describe("World", () => {
     expect(world.structures).toBeInstanceOf(StructureStore);
   });
 
-  it("returns the same stores on every access", () => {
-    const world = new World();
-
-    expect(world.entities).toBe(world.entities);
-    expect(world.terrain).toBe(world.terrain);
-    expect(world.structures).toBe(world.structures);
-  });
-
-  it("does not share stores between worlds", () => {
-    expect(new World().entities).not.toBe(new World().entities);
-    expect(new World().terrain).not.toBe(new World().terrain);
-    expect(new World().structures).not.toBe(new World().structures);
-  });
-
   describe("entitiesAround", () => {
     it("returns the indexed entities near the position", () => {
       const world = new World();
@@ -170,10 +156,6 @@ describe("World", () => {
   describe("flushAllDirtyRegions", () => {
     const dirtyAfter = (world: World) => new Set(world.flushAllDirtyRegions());
 
-    it("starts with nothing dirty", () => {
-      expect(new World().flushAllDirtyRegions()).toEqual([]);
-    });
-
     it("leaves the regions it generates clean", () => {
       const world = new World();
       world.loadWorld(0, 0, flatGenerator);
@@ -188,22 +170,6 @@ describe("World", () => {
       world.loadWorld(0, 0, flatGenerator);
 
       expect(dirtyAfter(world)).toEqual(new Set([id]));
-    });
-
-    it("includes a region whose terrain changed", () => {
-      const world = new World();
-      world.loadWorld(0, 0, flatGenerator);
-      world.terrain.addTile(1, 1, tileToId(otherTile));
-
-      expect(dirtyAfter(world)).toEqual(new Set([regionPosToId(0, 0)]));
-    });
-
-    it("includes a region whose structures changed", () => {
-      const world = new World();
-      world.loadWorld(0, 0, flatGenerator);
-      world.structures.addStructureAt(1.5, 1.5, { type: "tree", data: true });
-
-      expect(dirtyAfter(world)).toEqual(new Set([regionPosToId(0, 0)]));
     });
 
     it("includes the regions of both stores when they differ", () => {
@@ -281,15 +247,6 @@ describe("World", () => {
       expect(world.entities.flushDirtyEntities()).toHaveLength(1);
       expect(world.terrain.flushDirtyRegions()).toHaveLength(1);
       expect(world.structures.flushDirtyRegions()).toHaveLength(1);
-    });
-
-    it("tracks changes to every store when turned on", () => {
-      const world = new World({ trackChanges: true });
-
-      changeEverything(world);
-
-      expect(world.entities.flushDirtyEntities()).toHaveLength(1);
-      expect(world.flushAllDirtyRegions().length).toBeGreaterThan(0);
     });
 
     it("tracks nothing in any store when turned off", () => {

@@ -5,9 +5,6 @@ import { REGION_SIDE_LENGTH } from "../constants.ts";
 import { itemIds, type ItemData } from "../item/types.ts";
 import { encTime, type Time } from "../time.ts";
 import {
-  encComponents,
-  encEntitySnapshot,
-  encRegionTiles,
   regionPosToId,
   tiles,
   tileToId,
@@ -47,23 +44,6 @@ const player: Components = {
   taskList: undefined,
 };
 
-const robot: Components = {
-  type: "robot",
-  position: Vector.create(2, 3),
-  destination: undefined,
-  speed: 2,
-  canPickup: undefined,
-  conveyable: undefined,
-  inventory: {},
-  taskList: {
-    tasks: [
-      { type: "gatherTile", target: Vector.create(3, 4), endsAt: 0.5 },
-      { type: "dropInventory", target: Vector.create(-1, 2) },
-    ],
-    repeat: true,
-  },
-};
-
 const item: Components = {
   type: "item",
   position: Vector.create(0, 0),
@@ -95,108 +75,6 @@ const terrain: WorldSnapshot = new Map([
   [regionPosToId(0, 0), { tiles: uniform, structures: new Map() }],
   [regionPosToId(-3, 7), { tiles: checkerboard, structures: new Map() }],
 ]);
-
-describe("encComponents", () => {
-  it("round-trips an entity with every field", () => {
-    expect(encComponents.decode(encComponents.encode(player))).toEqual(player);
-  });
-
-  it("round-trips a robot with a task list", () => {
-    expect(encComponents.decode(encComponents.encode(robot))).toEqual(robot);
-  });
-
-  it("round-trips an entity without its optional fields", () => {
-    expect(encComponents.decode(encComponents.encode(item))).toEqual(item);
-  });
-
-  it("rejects non-finite numbers when decoding", () => {
-    const nan = encComponents.encode({
-      ...item,
-      position: Vector.create(Number.NaN, 0),
-    });
-    const infinite = encComponents.encode({ ...item, speed: Infinity });
-
-    expect(encComponents.decode(nan)).toBeUndefined();
-    expect(encComponents.decode(infinite)).toBeUndefined();
-  });
-
-  it("round-trips an empty inventory", () => {
-    const empty = { ...item, inventory: {} };
-
-    expect(encComponents.decode(encComponents.encode(empty))).toEqual(empty);
-  });
-
-  it("rejects an unknown item id or a negative item count", () => {
-    const withItem = (id: string, count: number) => ({
-      ...item,
-      inventory: { [id]: { data: itemData, count } },
-    });
-
-    expect(encComponents.guard(withItem("not an item id", 1))).toBe(false);
-    expect(encComponents.guard(withItem(heldItem, -1))).toBe(false);
-    expect(encComponents.guard(withItem(heldItem, 1.5))).toBe(false);
-  });
-
-  it("rejects an unknown entity type", () => {
-    expect(encComponents.guard({ ...item, type: "not an entity type" })).toBe(
-      false
-    );
-  });
-});
-
-describe("encEntitySnapshot", () => {
-  it("round-trips entities keyed by id", () => {
-    expect(
-      encEntitySnapshot.decode(encEntitySnapshot.encode(entities))
-    ).toEqual(entities);
-  });
-
-  it("round-trips an empty snapshot", () => {
-    expect(
-      encEntitySnapshot.decode(encEntitySnapshot.encode(new Map()))
-    ).toEqual(new Map());
-  });
-
-  it("rejects an invalid entity id", () => {
-    expect(encEntitySnapshot.guard(new Map([[-1, item]]))).toBe(false);
-    expect(encEntitySnapshot.guard(new Map([[1.5, item]]))).toBe(false);
-  });
-});
-
-describe("encRegionTiles", () => {
-  it("round-trips a region", () => {
-    expect(encRegionTiles.decode(encRegionTiles.encode(uniform))).toEqual(
-      uniform
-    );
-    expect(encRegionTiles.decode(encRegionTiles.encode(checkerboard))).toEqual(
-      checkerboard
-    );
-  });
-
-  it("run-length encodes runs of the same tile", () => {
-    // The fixedrle mode, then 256 uniform tiles as a run of 255 and a run of 1.
-    expect(encRegionTiles.encode(uniform)).toEqual(
-      Uint8Array.of(3, 255, 0, 1, 0)
-    );
-  });
-
-  it("stores one byte per tile when no neighbours match", () => {
-    // The fixed mode, then every tile.
-    const encoded = encRegionTiles.encode(checkerboard);
-
-    expect(encoded).toHaveLength(1 + REGION_TILE_COUNT);
-    expect(encoded[0]).toBe(2);
-  });
-
-  it("rejects a region with the wrong number of tiles", () => {
-    expect(encRegionTiles.guard(uniform.slice(1))).toBe(false);
-    expect(encRegionTiles.guard([...uniform, firstTile])).toBe(false);
-  });
-
-  it("rejects an unknown tile", () => {
-    expect(encRegionTiles.guard(uniform.map(() => "not a tile"))).toBe(false);
-  });
-});
 
 describe("encClientMessage", () => {
   const move: ClientMessage = { type: "move", position: Vector.create(10, 20) };

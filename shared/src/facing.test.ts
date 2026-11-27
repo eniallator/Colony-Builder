@@ -29,10 +29,6 @@ describe("facingDirOf", () => {
 });
 
 describe("facingOf", () => {
-  it.each(FACINGS)("recovers %s from a vector pointing that way", facing => {
-    expect(facingOf(facingDirOf[facing].copy().multiply(3))).toBe(facing);
-  });
-
   it.each(FACINGS)("recovers %s whatever the vector's length", facing => {
     for (const length of [0.001, 0.4, 1, 250]) {
       expect(facingOf(facingDirOf[facing].copy().multiply(length))).toBe(
@@ -115,10 +111,6 @@ describe("facingOf", () => {
 });
 
 describe("encFacing", () => {
-  it.each(FACINGS)("accepts %s", facing => {
-    expect(encFacing.guard(facing)).toBe(true);
-  });
-
   it("rejects anything else", () => {
     expect(encFacing.guard("not a facing")).toBe(false);
     expect(encFacing.guard(0)).toBe(false);

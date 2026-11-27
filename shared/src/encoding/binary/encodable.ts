@@ -25,7 +25,6 @@ import { Vector } from "vectyped";
 import type { Encodable } from "../format.ts";
 import {
   chooseUIntCod,
-  codAdapt,
   codArrayOf,
   codBoolean,
   codExact,
@@ -36,6 +35,7 @@ import {
   codOptional,
   codRecordOf,
   codSetOf,
+  codTransform,
   codTupleOf,
   codUnionOf,
   type ArrayOptions,
@@ -137,7 +137,7 @@ export const encNumber: {
       )
     : binaryEncodable(numberGuards[tpe], codNumber(tpe));
 
-export const encAdapt = <
+export const encTransform = <
   const B extends CodecValue,
   const A extends CodecValue,
 >(
@@ -146,7 +146,7 @@ export const encAdapt = <
   decode: (stored: B) => A,
   encode: (value: A) => B
 ): BinaryEncodable<A> =>
-  binaryEncodable(guard, codAdapt(enc.codec, decode, encode));
+  binaryEncodable(guard, codTransform(enc.codec, decode, encode));
 
 export const encTagged = <T extends Tagged<CodecValue, string>>(
   enc: BinaryEncodable<Untag<T>>
@@ -183,7 +183,7 @@ export const encTupleOf = <const T extends ReadonlyNonEmptyArray<CodecValue>>(
     )
   );
 
-export const encVec2 = encAdapt(
+export const encVec2 = encTransform(
   encTupleOf(encNumber("f32"), encNumber("f32")),
   (value): value is Vector<2> =>
     value instanceof Vector && value.isSize(2) && value.every(Number.isFinite),

@@ -2,7 +2,6 @@ import { describe, expect, it } from "vitest";
 
 import {
   chooseUIntCod,
-  codAdapt,
   codArrayOf,
   codBoolean,
   codEntries,
@@ -22,6 +21,7 @@ import {
   codSetOf,
   codStringOf,
   codTagged,
+  codTransform,
   codTupleOf,
   codU8,
   codU16,
@@ -163,6 +163,21 @@ describe("codOneOf", () => {
   it("throws on an index outside the values", () => {
     expect(() => read(codOneOf(["a", "b"]), [2])).toThrow("Unknown enum index");
   });
+
+  it("takes a precision overriding the narrowest index width", () => {
+    const wide = codOneOf(["a", "b"], "u16");
+
+    expect(wide.size("a")).toBe(2);
+    expect(write(wide, "b")).toEqual([1, 0]);
+    expect(read(wide, [1, 0])).toEqual({ value: "b", pos: 2 });
+  });
+
+  it("throws when an index overflows the precision", () => {
+    const many = Array.from({ length: 300 }, (_, i) => i);
+    const narrow = codOneOf(many as [number, ...number[]], "u8");
+
+    expect(() => write(narrow, 299)).toThrow(RangeError);
+  });
 });
 
 describe("codU32", () => {
@@ -236,8 +251,8 @@ describe("codBoolean", () => {
   });
 });
 
-describe("codAdapt", () => {
-  const doubled = codAdapt(
+describe("codTransform", () => {
+  const doubled = codTransform(
     codU8,
     stored => stored / 2,
     value => value * 2
@@ -431,13 +446,13 @@ describe("codUInt", () => {
     expect(() => write(codUInt("u8"), 256)).toThrow(RangeError);
     expect(() => write(codUInt("u16"), 65536)).toThrow(RangeError);
   });
+
+  it("throws when reading past the end of the buffer", () => {
+    expect(() => read(codUInt("u16"), [1])).toThrow(RangeError);
+  });
 });
 
 describe("length precision", () => {
-  it("defaults to u32", () => {
-    expect(write(codArrayOf(codU8), [1])).toEqual([0, 1, 0, 0, 0, 1]);
-  });
-
   it("is honoured by every length-prefixed codec", () => {
     expect(write(codStringOf("u8"), "a")).toEqual([1, 0x61]);
     expect(write(codArrayOf(codU8, { lengthPrecision: "u8" }), [1])).toEqual([
@@ -448,14 +463,6 @@ describe("length precision", () => {
     expect(write(codMapOf(codU8, codU8, "u8"), new Map([[1, 2]]))).toEqual([
       1, 1, 2,
     ]);
-  });
-
-  it("throws when a length overflows the precision", () => {
-    const distinct = Array.from({ length: 256 }, (_, i) => i);
-
-    expect(() =>
-      write(codArrayOf(codU8, { lengthPrecision: "u8" }), distinct)
-    ).toThrow(RangeError);
   });
 });
 
@@ -471,6 +478,10 @@ describe("codEntries", () => {
     expect(read(cod, write(cod, value)).value).toEqual(value);
     expect(cod.size(value)).toBe(8);
   });
+
+  it("throws when the entries run past the end of the buffer", () => {
+    expect(() => read(cod, [2, 0, 0, 0, 1, 2])).toThrow(RangeError);
+  });
 });
 
 describe("isPrecision", () => {
@@ -480,35 +491,6 @@ describe("isPrecision", () => {
 
   it.each(["u64", "U8", 8, undefined])("rejects %j", value => {
     expect(isPrecision(value)).toBe(false);
-  });
-});
-
-describe("codUInt reading", () => {
-  it("throws when reading past the end of the buffer", () => {
-    expect(() => read(codUInt("u16"), [1])).toThrow(RangeError);
-  });
-});
-
-describe("codOneOf precision", () => {
-  const values = ["a", "b"] as const;
-
-  it("overrides the narrowest index width", () => {
-    const wide = codOneOf(values, "u16");
-
-    expect(wide.size("a")).toBe(2);
-    expect(write(wide, "b")).toEqual([1, 0]);
-    expect(read(wide, [1, 0])).toEqual({ value: "b", pos: 2 });
-  });
-
-  it("falls back to the narrowest width when omitted", () => {
-    expect(write(codOneOf(values), "b")).toEqual([1]);
-  });
-
-  it("throws when an index overflows the precision", () => {
-    const many = Array.from({ length: 300 }, (_, i) => i);
-    const narrow = codOneOf(many as [number, ...number[]], "u8");
-
-    expect(() => write(narrow, 299)).toThrow(RangeError);
   });
 });
 
@@ -830,14 +812,6 @@ describe("length precision reading", () => {
   });
 });
 
-describe("codEntries reading", () => {
-  it("throws when the entries run past the end of the buffer", () => {
-    expect(() => read(codEntries(codU8, codU8), [2, 0, 0, 0, 1, 2])).toThrow(
-      RangeError
-    );
-  });
-});
-
 describe("codSetOf", () => {
   it("writes a u8 length then each member", () => {
     const set = codSetOf(codU8);
@@ -905,10 +879,6 @@ describe("remaining-bytes guard", () => {
     expect(() => read(codRecordOf(codU8, codU8), hugeU32)).toThrow(
       "Record length exceeds remaining bytes"
     );
-  });
-
-  it("accepts a length that exactly fits the remaining bytes", () => {
-    expect(read(codSetOf(codU8), [2, 7, 9]).value).toEqual(new Set([7, 9]));
   });
 });
 

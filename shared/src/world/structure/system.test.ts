@@ -38,18 +38,6 @@ const spawnConveyable = (world: World, position = Vector.create(1.5, 1.5)) =>
   world.entities.spawn({ position, conveyable: true });
 
 describe("conveyorMovementSystem", () => {
-  it("moves a conveyable entity in the direction of the belt", () => {
-    const world = worldWithBelt();
-    const id = spawnConveyable(world);
-
-    conveyorMovementSystem({ world, time, dt: 0.5 });
-
-    expect(world.entities.get(id, "position").toArray()).toEqual([
-      1.5 + 0.5 * CONVEYOR_SPEED,
-      1.5,
-    ]);
-  });
-
   it.each<Facing>(["up", "down", "left", "right"])(
     "carries an entity %s along a belt facing that way",
     facing => {

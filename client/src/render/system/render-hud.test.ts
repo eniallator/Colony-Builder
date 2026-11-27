@@ -1,5 +1,6 @@
 import {
   allEntityTypes,
+  createPlayer,
   REGION_SIDE_LENGTH,
   regionPosToId,
   tiles,
@@ -29,7 +30,7 @@ import { Keyboard } from "../../ui/keyboard.ts";
 import { Mouse } from "../../ui/mouse.ts";
 import { createStateful } from "../../ui/types.ts";
 import { getAtlas, type Atlas, type AtlasSprite } from "../atlas.ts";
-import { renderHUD } from "./render-hud.ts";
+import { footPosOf, renderHUD } from "./render-hud.ts";
 
 vi.mock("../atlas.ts", () => ({ getAtlas: vi.fn() }));
 
@@ -62,6 +63,26 @@ const atlas: Atlas = {
   sheet: { width: 16, height: 32 } as ImageBitmap,
   sprites: new Map([[structure.type, structureSprite]]),
 };
+
+// Where structures stand is covered by the popover placement tests below.
+describe("footPosOf", () => {
+  it("is an entity's position", () => {
+    const world = new World();
+    const position = Vector.create(3, 4);
+    const id = createPlayer(world, position);
+
+    expect(
+      footPosOf(world, { domain: "entity", type: entityType, id })
+    ).toEqual(position);
+  });
+
+  it("throws for a target of a kind it does not know", () => {
+    expect(() =>
+      // @ts-expect-error the domain is not one of the clickable targets
+      footPosOf(new World(), { domain: "unknown" })
+    ).toThrow("Value not exhausted");
+  });
+});
 
 describe("renderHUD", () => {
   const canvas = toElement("<canvas></canvas>");
@@ -213,15 +234,23 @@ describe("renderHUD", () => {
       run();
     };
 
-    it("offers to gather an ore deposit, titled by its name", () => {
-      clickOre();
+    it.each([
+      ["iron_deposit", "Iron Deposit"],
+      ["copper_deposit", "Copper Deposit"],
+    ] as const)(
+      "offers to gather from %s, titled by its name",
+      (deposit, title) => {
+        world.terrain.addTile(5, 5, tileToId(deposit));
 
-      expect(popover().querySelector(".click-popover-title")?.textContent).toBe(
-        "Iron Deposit"
-      );
-      expect(buttons().map(button => button.textContent)).toEqual(["Gather"]);
-      expect(send).not.toHaveBeenCalled();
-    });
+        clickOre();
+
+        expect(
+          popover().querySelector(".click-popover-title")?.textContent
+        ).toBe(title);
+        expect(buttons().map(button => button.textContent)).toEqual(["Gather"]);
+        expect(send).not.toHaveBeenCalled();
+      }
+    );
 
     it("sends a gatherTile message for the clicked position on Gather, then clears the click", () => {
       clickOre();

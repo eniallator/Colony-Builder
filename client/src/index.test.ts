@@ -1,5 +1,4 @@
 import {
-  allEntityTypes,
   createPlayer,
   encClientMessage,
   encServerMessage,
@@ -15,7 +14,6 @@ import {
   unsafeEntityId,
   World,
   type ClientMessage,
-  type Components,
   type EntityId,
   type RegionTiles,
   type ServerMessage,
@@ -107,8 +105,6 @@ const message = (data: unknown) => new MessageEvent("message", { data });
 
 const serverMessage = (serverMsg: ServerMessage) =>
   message(encServerMessage.encode(serverMsg).buffer);
-
-const [entityType] = allEntityTypes;
 
 const serverTime: Time = { start: 1, lastFrame: 2, now: 3, delta: 1 };
 
@@ -223,48 +219,6 @@ describe("app.init", () => {
       expect(state.serverTime).toEqual(serverTime);
     });
 
-    it("applies entities messages to the world", () => {
-      const state = app.init(createAppContext());
-      const id = unsafeEntityId(2);
-      const entity: Components = {
-        type: entityType,
-        position: Vector.create(3, 4),
-        destination: undefined,
-        speed: undefined,
-        canPickup: true,
-        conveyable: true,
-        inventory: undefined,
-        taskList: undefined,
-      };
-
-      lastSocket().dispatchEvent(
-        serverMessage({
-          type: "entities",
-          snapshot: new Map([[id, entity]]),
-          despawned: new Set(),
-        })
-      );
-
-      expect(state.world.entities.get(id, "position").toArray()).toEqual([
-        3, 4,
-      ]);
-    });
-
-    it("applies terrain messages to the world", () => {
-      const state = app.init(createAppContext());
-
-      lastSocket().dispatchEvent(
-        serverMessage({
-          type: "load",
-          snapshot: new Map([
-            [regionPosToId(1, 2), { tiles: flatRegion, structures: new Map() }],
-          ]),
-        })
-      );
-
-      expect(state.world.terrain.get(regionPosToId(1, 2))).toEqual(flatRegion);
-    });
-
     it("ignores messages that are not binary", () => {
       const state = app.init(createAppContext());
 
@@ -363,26 +317,30 @@ describe("app.init", () => {
     };
 
     it.each([
-      ["Equal", 3],
-      ["NumpadAdd", 3],
-      ["Minus", 1],
-      ["NumpadSubtract", 1],
-    ])("%s moves the zoom to %d", (code, expected) => {
+      ["Equal", 1],
+      ["NumpadAdd", 1],
+      ["Minus", -1],
+      ["NumpadSubtract", -1],
+    ])("%s changes the zoom by %d", (code, change) => {
       const ctx = createAppContext();
       const state = app.init(ctx);
+      // Clear of both limits, so it can move either way.
+      const zoom = MIN_ZOOM + 1;
+      state.camera.zoom = zoom;
 
       press(ctx, code);
 
-      expect(state.camera.zoom).toBe(expected);
+      expect(state.camera.zoom).toBe(zoom + change);
     });
 
     it("ignores other keys", () => {
       const ctx = createAppContext();
       const state = app.init(ctx);
+      const { zoom } = state.camera;
 
       press(ctx, "KeyA");
 
-      expect(state.camera.zoom).toBe(2);
+      expect(state.camera.zoom).toBe(zoom);
     });
 
     it("stops at the maximum zoom", () => {

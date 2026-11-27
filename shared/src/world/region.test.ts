@@ -31,10 +31,6 @@ describe("regionPosToId / regionIdToPos", () => {
     expect(regionIdToPos(id)).toEqual([-3, 7]);
   });
 
-  it("round-trips", () => {
-    expect(regionIdToPos(regionPosToId(12, -34))).toEqual([12, -34]);
-  });
-
   it("round-trips the full i32 range", () => {
     const min = -(2 ** 31);
     const max = 2 ** 31 - 1;
