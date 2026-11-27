@@ -15,8 +15,8 @@ describe("tiles", () => {
   it("lists every tile", () => {
     expect(tiles).toEqual([
       "grass",
-      "swampland",
-      "jungle",
+      "marsh",
+      "moss",
       "water",
       "sand",
       "stone",

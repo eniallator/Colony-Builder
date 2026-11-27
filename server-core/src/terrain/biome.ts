@@ -14,8 +14,8 @@ interface BiomeDef {
 export const BIOMES = {
   plains: { centre: [-0.2, 0.25], tile: "grass" },
   desert: { centre: [-0.2, -0.25], tile: "sand" },
-  swamp: { centre: [0.2, -0.25], tile: "swampland" },
-  jungle: { centre: [0.2, 0.25], tile: "jungle" },
+  swamp: { centre: [0.2, -0.25], tile: "marsh" },
+  jungle: { centre: [0.2, 0.25], tile: "moss" },
 } satisfies Record<string, BiomeDef>;
 
 export type Biome = keyof typeof BIOMES;

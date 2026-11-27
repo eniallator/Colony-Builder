@@ -162,7 +162,7 @@ const STONE_LAYOUTS = [
   ],
 ];
 
-// Swampland: murky patches, with an occasional pool or clump of reeds.
+// Marsh: murky patches, with an occasional pool or clump of reeds.
 const PUDDLE = [
   "...aaaa...",
   ".appaaaaa.",
@@ -171,7 +171,7 @@ const PUDDLE = [
   "..bbbbbb..",
 ];
 const REED = ["l...l", "l.l.l", ".lll.", "..d.."];
-const SWAMP_LAYOUTS = [
+const MARSH_LAYOUTS = [
   [
     [PUDDLE, 2, 3],
     [SMALL, 7, 11],
@@ -203,7 +203,7 @@ const SWAMP_LAYOUTS = [
   ],
 ];
 
-// Jungle: deep shade and light through the canopy, with an occasional frond.
+// Moss: deep shade and light through the canopy, with an occasional frond.
 const FROND = [
   "..ll...",
   ".llll..",
@@ -213,7 +213,7 @@ const FROND = [
   "..ddd..",
 ];
 const LEAF = [".ll.", "llld", ".dd."];
-const JUNGLE_LAYOUTS = [
+const MOSS_LAYOUTS = [
   [
     [FROND, 2, 2],
     [SMALL, 7, 10],
@@ -332,18 +332,13 @@ export const terrain = [
     STONE_LAYOUTS,
     patches(PALETTE.patch.stone)
   ),
-  scattered("swampland", PALETTE.swamp, SWAMP_LAYOUTS, {
-    ...patches(PALETTE.patch.swamp),
+  scattered("marsh", PALETTE.marsh, MARSH_LAYOUTS, {
+    ...patches(PALETTE.patch.marsh),
     p: PALETTE.puddle[2],
     a: PALETTE.puddle[1],
     b: PALETTE.puddle[0],
   }),
-  scattered(
-    "jungle",
-    PALETTE.jungle,
-    JUNGLE_LAYOUTS,
-    patches(PALETTE.patch.jungle)
-  ),
+  scattered("moss", PALETTE.moss, MOSS_LAYOUTS, patches(PALETTE.patch.moss)),
   deposit("iron_deposit", { ore: PALETTE.ore, stain: PALETTE.rust }),
   deposit("copper_deposit", { ore: PALETTE.copper, stain: PALETTE.verdigris }),
   animated("water", 4, water, { frameSec: 0.3 }),

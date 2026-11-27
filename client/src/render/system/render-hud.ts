@@ -190,8 +190,8 @@ const terrainRunFor = (
       );
 
     case "grass":
-    case "swampland":
-    case "jungle":
+    case "marsh":
+    case "moss":
     case "water":
     case "sand":
     case "stone":

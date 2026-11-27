@@ -14,9 +14,9 @@ export const PALETTE = {
   grass: ["#35693a", "#4a8340", "#629c48", "#86b95c"],
   sand: ["#b39656", "#cdb374", "#e0cc92", "#efe1b0"],
   stone: ["#4f5560", "#6b727c", "#868d96", "#a6adb4"],
-  swamp: ["#44391f", "#63532d", "#7b6a3e", "#a0905c"],
+  marsh: ["#44391f", "#63532d", "#7b6a3e", "#a0905c"],
   puddle: ["#2d4338", "#3d5a4b", "#6f8f7c"],
-  jungle: ["#08241b", "#103a2c", "#1b543d", "#317a54"],
+  moss: ["#08241b", "#103a2c", "#1b543d", "#317a54"],
   water: ["#2a4f8a", "#3a68a8", "#4d82bf", "#9cc8e6"],
   // Broad patches that break up a terrain's base: [darker, lighter], each only
   // a hair from the base so they read as ground rather than detail.
@@ -25,8 +25,8 @@ export const PALETTE = {
     sand: ["#c6ac6e", "#d3ba7b"],
     water: ["#3662a1", "#3f6fb0"],
     stone: ["#656c76", "#727984"],
-    swamp: ["#5d4e2a", "#695931"],
-    jungle: ["#0e3427", "#134031"],
+    marsh: ["#5d4e2a", "#695931"],
+    moss: ["#0e3427", "#134031"],
   },
 
   // --- Resources ---
@@ -50,12 +50,12 @@ export const PALETTE = {
   // Foliage is much deeper and bluer than grass, so trees stand out on it, even
   // as the single flat colour they draw as when zoomed far out.
   leaf: ["#10332b", "#1b4d38", "#286640", "#448a4c"],
-  // Bright, fresh fronds, so ferns show up against the dark jungle floor.
+  // Bright, fresh fronds, so ferns show up against the dark moss.
   fern: ["#173f1a", "#3d8030", "#68ae42", "#a9da66"],
   // Cooler and bluer than grass, so cacti read as desert plants on sand.
   cactus: ["#2f5f45", "#437c52", "#5f9c62", "#8fc281"],
-  // Rose caps on pale stalks: warm against the cool swamp and lighter than its
-  // ground, and clear of the robot orange and the red LED.
+  // Rose caps on pale stalks: warm against the cool marsh pools and lighter
+  // than its ground, and clear of the robot orange and the red LED.
   mushroom: {
     cap: ["#9a4a66", "#d4728a", "#f2a0a8", "#ffd0c8"],
     stalk: ["#9c8672", "#c9b497", "#ebdcc0"],
@@ -93,7 +93,7 @@ export const PALETTE = {
 
   // --- UI (panels and buttons, drawn as 9-slice boxes) ---
   // Each box is fill / hi (top-left bevel) / lo (bottom-right bevel). Panels
-  // are a deep indigo and buttons the jungle greens, so UI is as colourful as
+  // are a deep indigo and buttons leafy greens, so UI is as colourful as
   // the world but stays clear of the colour roles below (orange = robots, teal =
   // player, amber = logistics).
   ui: {

@@ -38,10 +38,10 @@ const BIOME_STRUCTURES: Partial<
 
 /** The tiles each kind of structure can grow on. */
 export const GROWS_ON: Partial<Record<StructureData["type"], Tile[]>> = {
-  tree: ["grass", "swampland", "jungle"],
+  tree: ["grass", "marsh", "moss"],
   cactus: ["sand"],
-  mushroom: ["swampland"],
-  fern: ["jungle"],
+  mushroom: ["marsh"],
+  fern: ["moss"],
 };
 
 /** A generated tile, with the biome it belongs to for later passes. */

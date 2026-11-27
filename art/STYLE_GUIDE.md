@@ -59,10 +59,10 @@ Ramps run **dark → light** (index 0 → 3).
 | grass     | `#35693a` `#4a8340` `#629c48` `#86b95c`               | Grass                      |
 | sand      | `#b39656` `#cdb374` `#e0cc92` `#efe1b0`               | Sand                       |
 | stone     | `#4f5560` `#6b727c` `#868d96` `#a6adb4`               | Stone, pebbles, ore rock   |
-| swamp     | `#44391f` `#63532d` `#7b6a3e` `#a0905c`               | Swampland                  |
-| jungle    | `#08241b` `#103a2c` `#1b543d` `#317a54`               | Jungle                     |
+| marsh     | `#44391f` `#63532d` `#7b6a3e` `#a0905c`               | Marsh                      |
+| moss      | `#08241b` `#103a2c` `#1b543d` `#317a54`               | Moss                       |
 | water     | `#2a4f8a` `#3a68a8` `#4d82bf` `#9cc8e6`               | Water, wave highlights     |
-| puddle    | `#2d4338` `#3d5a4b` `#6f8f7c`                         | Swamp pools                |
+| puddle    | `#2d4338` `#3d5a4b` `#6f8f7c`                         | Marsh pools                |
 | patch     | a darker and a lighter tone close to each base        | All terrain                |
 | ore       | `#6c7f93` `#9fb4c8` `#cbd9e5` (+ deep `#46556a`)      | Iron: deposits and items   |
 | rust      | `#a8654a` (+ dark stain `#6e3f2e`)                    | Staining on iron           |
@@ -169,15 +169,15 @@ A tile is built in three layers, in this order:
    It is lit from the top-left, mostly in the ramp's neighbouring values; keep
    the brightest for glints and rare finds.
 
-| Terrain   | Signature details                  |
-| --------- | ---------------------------------- |
-| Grass     | Tufts, sprigs, a rare flower       |
-| Sand      | Wind ripples, a rare shell         |
-| Stone     | Boulders, pebbles, cracks          |
-| Swampland | Pools, reeds                       |
-| Jungle    | Fronds, leaves                     |
-| Water     | One wave and its glint, drifting   |
-| Deposits  | Rocks carrying the ore (see below) |
+| Terrain  | Signature details                  |
+| -------- | ---------------------------------- |
+| Grass    | Tufts, sprigs, a rare flower       |
+| Sand     | Wind ripples, a rare shell         |
+| Stone    | Boulders, pebbles, cracks          |
+| Marsh    | Pools, reeds                       |
+| Moss     | Fronds, leaves                     |
+| Water    | One wave and its glint, drifting   |
+| Deposits | Rocks carrying the ore (see below) |
 
 - **Ore deposits** are the exception to "one detail": on stone's base and
   patches, a boulder, slab and pebble on every tile carry the ore's tones and a

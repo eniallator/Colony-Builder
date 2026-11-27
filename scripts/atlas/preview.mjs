@@ -9,16 +9,16 @@ import { TILE } from "./core.mjs";
 import { blit, encodePng } from "./png.mjs";
 
 const SCENE = [
-  "jjjjjggggggggggsswww",
-  "jjjjggggggggggsswwww",
-  "jjjgggggggggggsswwww",
+  "oooooggggggggggsswww",
+  "ooooggggggggggsswwww",
+  "ooogggggggggggsswwww",
   "mmgggggggggggssswwww",
   "mmmggggggggggsssswww",
   "gggggggggggggggggsss",
   "gggggggggggggggggggg",
-  "ttttggggggggggggggjj",
-  "ttiiggggggggggggjjjj",
-  "ttiittgggggggggggjjj",
+  "ttttggggggggggggggoo",
+  "ttiiggggggggggggoooo",
+  "ttiittgggggggggggooo",
   "tttttttggggggggggggg",
   "ttttttgggggggggggggg",
 ];
@@ -28,8 +28,8 @@ const SCENE_TILES = {
   w: "water",
   t: "stone",
   i: "iron_deposit",
-  j: "jungle",
-  m: "swampland",
+  o: "moss",
+  m: "marsh",
 };
 const SCENE_ENTITIES = [
   [9, 6, "robot_right"],

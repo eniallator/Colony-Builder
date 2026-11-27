@@ -10,8 +10,8 @@ import {
 
 export const tiles = tuple(
   "grass",
-  "swampland",
-  "jungle",
+  "marsh",
+  "moss",
   "water",
   "sand",
   "stone",
