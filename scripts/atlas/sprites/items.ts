@@ -5,10 +5,10 @@
 //
 // Legend characters are per-item; '.' is always transparent.
 
-import { fromAscii } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
-import { compose } from "./compose.mjs";
-import { still } from "./define.mjs";
+import { fromAscii, type Legend } from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import { compose } from "./compose.ts";
+import { still } from "./define.ts";
 
 // Ore chunk shapes (no outline - `compose` adds it). Light comes from the top
 // left. Iron: l light edge, m glint, a body, d deep shade. Stone: p/q/s =
@@ -31,10 +31,23 @@ const BASE_MIXED = ["..p....", ".ppq.q.", "pqaalqs", "pqRaasq", ".qsdsq."];
 const BASE_IRON = ["...l...", ".llma.a", "lmaaRad", "laaraad", ".adddd."];
 const FRONT_STONE = ["..pp..", ".pqqqs", "pqaass"];
 
-const item = (id, rows, legend) =>
+const item = (id: string, rows: readonly string[], legend: Legend) =>
   still(`item_${id}`, fromAscii(rows, { O: PALETTE.outline, ...legend }));
 
-const orePile = (id, { ore: [a, m, l], deep, stain, stainDark }) =>
+const orePile = (
+  id: string,
+  {
+    ore: [a, m, l],
+    deep,
+    stain,
+    stainDark,
+  }: {
+    ore: readonly [body: string, mid: string, light: string];
+    deep: string;
+    stain: string;
+    stainDark: string;
+  }
+) =>
   still(
     `item_${id}`,
     compose(

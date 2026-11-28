@@ -26,7 +26,7 @@ natural world. Chunky, readable and warm, closer to a toy than to a blueprint.
 3. **Silhouette first.** At 16×16 and small on screen, shape carries the
    meaning. Each object type needs a distinct outline before any detail.
 4. **One light, one palette.** All art shares a single light direction and
-   the colours in `palette.mjs`. If it isn't in the palette, it doesn't ship.
+   the colours in `palette.ts`. If it isn't in the palette, it doesn't ship.
 
 ## Technical spec
 
@@ -46,7 +46,7 @@ natural world. Chunky, readable and warm, closer to a toy than to a blueprint.
 
 ## Palette
 
-Source of truth: `scripts/atlas/palette.mjs`. Exports: `art/palette.gpl`
+Source of truth: `scripts/atlas/palette.ts`. Exports: `art/palette.gpl`
 (Aseprite, LibreSprite, Pixelorama, Krita, GIMP) and `art/palette.hex`
 (Lospec and most pixel editors). Both are generated (gitignored) and refresh
 on every `pnpm atlas`.
@@ -104,7 +104,7 @@ share a ground and stay close in colour when zoomed out, needing only about as
 much contrast as iron deposits have from stone.
 
 `pnpm atlas:check` measures every such pair and fails if any is closer than
-`MIN_CONTRAST` (a perceptual distance in `scripts/atlas/contrast.mjs`), or than
+`MIN_CONTRAST` (a perceptual distance in `scripts/atlas/contrast.ts`), or than
 the smaller minimum there for stone and deposits.
 `pnpm atlas` only lists them. The pairs come from the game's registries and
 rules, such as where each structure grows, so new content is checked without
@@ -252,7 +252,7 @@ A tile is built in three layers, in this order:
   neighbours don't merge into a wall.
 - Each has several **looks** with distinct silhouettes, picked per tile by
   position.
-- Mostly drawn from shapes in `sprites/structures.mjs` (rather than ASCII), so
+- Mostly drawn from shapes in `sprites/structures.ts` (rather than ASCII), so
   the shading stays consistent; thin forms like fern fronds are drawn by hand.
   Edges may be uneven, in a regular way like a crown's scallops, and surfaces
   carry little beyond their shading: a flower or two.
@@ -271,7 +271,7 @@ A tile is built in three layers, in this order:
 
 ### Interface (panels, buttons)
 
-- Drawn in `sprites/ui.mjs` as 16×16 outlined boxes with the same top-left
+- Drawn in `sprites/ui.ts` as 16×16 outlined boxes with the same top-left
   lighting as everything else, using the `ui` palette group (fill / hi / lo per
   box). A box is meant to be **9-sliced**: keep all detail inside the 3px
   corners, and keep the edges and centre flat so they stretch cleanly. Unlike
@@ -309,7 +309,7 @@ A tile is built in three layers, in this order:
 Anything the renderer needs to know about the art comes from `atlas.json`, never
 from constants in `client/src`. Sprite definitions (`scripts/atlas/sprites/`)
 can pass these as the last argument of `animated`, `directional` and `still`
-(or as fields on the sprite object); `pack.mjs` writes them out:
+(or as fields on the sprite object); `pack.ts` writes them out:
 
 | Field      | Meaning                                                                                                                                                                          |
 | ---------- | -------------------------------------------------------------------------------------------------------------------------------------------------------------------------------- |
@@ -325,22 +325,22 @@ pass that speed to `frameOf` where it is drawn (belts use `CONVEYOR_SPEED` in
 
 `raise` is how many art pixels a surface things ride on (a belt) stands above
 the ground. Whatever rides it is drawn that much higher, and its shadow with it.
-Set it with the sprite (`sprites/conveyors.mjs`), never in `client/src`.
+Set it with the sprite (`sprites/conveyors.ts`), never in `client/src`.
 
 ## Adding new art
 
 Each recipe touches **one file** (plus the palette if you need a new colour).
 
-| I want to add…   | Do this                                                                                   |
-| ---------------- | ----------------------------------------------------------------------------------------- |
-| A colour         | Add it to `scripts/atlas/palette.mjs` (inside an existing ramp if possible).              |
-| A terrain tile   | Add patch tones; in `sprites/terrain.mjs` draw details, lay out variants, `scattered()`.  |
-| An animated tile | Same file, `animated("id", frameCount, draw)`, moving a `scatter` layout each frame.      |
-| An item          | In `sprites/items.mjs`: add `item("id", [16 ascii rows], { legend })`.                    |
-| An item pile     | Same file: `still("item_id", compose([[chunk, x, y], …], legend, outline))`.              |
-| A conveyor tier  | In `sprites/conveyors.mjs`: recolour with `PALETTE.belt`, or draw another look beside it. |
-| A walking entity | In `sprites/entities.mjs`: write `draw(dir, frame)`, add `directional(...)`.              |
-| A new category   | New file in `sprites/` exporting a list; spread it into `sprites/index.mjs`.              |
+| I want to add…   | Do this                                                                                  |
+| ---------------- | ---------------------------------------------------------------------------------------- |
+| A colour         | Add it to `scripts/atlas/palette.ts` (inside an existing ramp if possible).              |
+| A terrain tile   | Add patch tones; in `sprites/terrain.ts` draw details, lay out variants, `scattered()`.  |
+| An animated tile | Same file, `animated("id", frameCount, draw)`, moving a `scatter` layout each frame.     |
+| An item          | In `sprites/items.ts`: add `item("id", [16 ascii rows], { legend })`.                    |
+| An item pile     | Same file: `still("item_id", compose([[chunk, x, y], …], legend, outline))`.             |
+| A conveyor tier  | In `sprites/conveyors.ts`: recolour with `PALETTE.belt`, or draw another look beside it. |
+| A walking entity | In `sprites/entities.ts`: write `draw(dir, frame)`, add `directional(...)`.              |
+| A new category   | New file in `sprites/` exporting a list; spread it into `sprites/index.ts`.              |
 
 Then run `pnpm atlas`. Seeds derive from sprite names, so adding or reordering
 sprites never changes the look of existing ones.

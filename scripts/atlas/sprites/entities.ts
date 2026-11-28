@@ -2,16 +2,37 @@
 // `draw(dir, frame)` and add a `directional(...)` line. Sprite names must be
 // `<entityType>_<dir>`. Frame 1 bobs up 1px; shadows are drawn separately.
 
-import { blank, put, rect, roundBox, TILE } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
-import { stamp } from "./compose.mjs";
-import { directional, DIRS } from "./define.mjs";
+import type { Facing } from "../../../shared/src/facing.ts";
+import {
+  blank,
+  NEIGHBOURS,
+  put,
+  rect,
+  roundBox,
+  TILE,
+  type Dot,
+  type Pixels,
+  type Point,
+} from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import { stamp } from "./compose.ts";
+import { directional, DIRS, type Sprite } from "./define.ts";
+
+/** Draws an entity facing `dir`. */
+type Draw = (dir: Facing, frame: number) => Pixels;
+
+/** One frame of a tool swing (see `SWINGS`). */
+interface Swing {
+  lift: number;
+  handle: Point;
+  len: number;
+}
 
 // The panel on a robot's back, where it is programmed: a metal plate (s) with a
 // screen (v) of code (c) beside two buttons (r, k).
 const PROGRAMMING_PANEL = ["vvvvvs", "vccvvr", "vvvvvs", "vcccvk"];
 
-const robot = (dir, frame) => {
+const robot: Draw = (dir, frame) => {
   const { dark, base, light, visor, code, glow, led } = PALETTE.robot;
   const [, metal, , key] = PALETTE.stone;
   const s = blank();
@@ -48,7 +69,7 @@ const robot = (dir, frame) => {
   return s;
 };
 
-const player = (dir, frame) => {
+const player: Draw = (dir, frame) => {
   const p = PALETTE.player;
   const s = blank();
   const dy = frame === 1 ? -1 : 0;
@@ -95,7 +116,7 @@ const WALK = { frameSec: 0.16 };
 //  - Facing the viewer: the tool swings toward them, so it shortens while it
 //    comes down past the grip, then reaches out below it.
 //  - Facing away: the tool swings away, so it dips behind the body's top edge.
-const SWINGS = {
+const SWINGS: Record<"side" | "toward" | "away", readonly Swing[]> = {
   side: [
     { lift: 1, handle: [0, -1], len: 2 },
     { lift: 1, handle: [1, -1], len: 2 },
@@ -115,7 +136,7 @@ const SWINGS = {
     { lift: 0, handle: [0, -1], len: 1 },
   ],
 };
-const SWING_OF = {
+const SWING_OF: Record<Facing, keyof typeof SWINGS> = {
   left: "side",
   right: "side",
   down: "toward",
@@ -127,12 +148,17 @@ const GATHER = { frameSec: 0.15 };
  * The pixels of a tool held at `grip`, as [x, y, colour] with the grip hand
  * first, then the handle and a head across its tip.
  */
-const toolPixels = ([gx, gy], [hx, hy], len, hand) => {
+const toolPixels = (
+  [gx, gy]: Point,
+  [hx, hy]: Point,
+  len: number,
+  hand: string
+): Dot[] => {
   const { ore, log } = PALETTE;
-  const tip = [gx + len * hx, gy + len * hy];
+  const tip: Point = [gx + len * hx, gy + len * hy];
   // Across the handle's tip, so the head turns with the handle.
   const [px, py] = [-hy, hx];
-  const handle = Array.from({ length: len - 1 }, (_, i) => [
+  const handle = Array.from({ length: len - 1 }, (_, i): Dot => [
     gx + (i + 1) * hx,
     gy + (i + 1) * hy,
     log.bark,
@@ -147,9 +173,9 @@ const toolPixels = ([gx, gy], [hx, hy], len, hand) => {
 };
 
 /** Puts `pixels` on `s` with a 1px outline around them, like the rest of the art. */
-const drawOutlined = (s, pixels) => {
+const drawOutlined = (s: Pixels, pixels: readonly Dot[]) => {
   const covered = new Set(pixels.map(([x, y]) => y * TILE + x));
-  const isEmpty = (x, y) =>
+  const isEmpty = (x: number, y: number) =>
     x >= 0 &&
     y >= 0 &&
     x < TILE &&
@@ -157,12 +183,7 @@ const drawOutlined = (s, pixels) => {
     s[(y * TILE + x) * 4 + 3] === 0 &&
     !covered.has(y * TILE + x);
   for (const [x, y] of pixels) {
-    for (const [dx, dy] of [
-      [1, 0],
-      [-1, 0],
-      [0, 1],
-      [0, -1],
-    ]) {
+    for (const [dx, dy] of NEIGHBOURS) {
       if (isEmpty(x + dx, y + dy)) put(s, x + dx, y + dy, PALETTE.outline);
     }
   }
@@ -175,25 +196,31 @@ const drawOutlined = (s, pixels) => {
  * height). The tool is in the hand on the right as seen when facing right or
  * towards the viewer, and mirrored to the left for the other two facings.
  */
-const gathering = (draw, grip, hand) => (dir, frame) => {
-  const { lift, handle, len } = SWINGS[SWING_OF[dir]][frame];
-  const s = draw(dir, lift);
-  const mirrored = dir === "left" || dir === "up";
-  const pixels = toolPixels(
-    [mirrored ? TILE - 1 - grip[0] : grip[0], grip[1] - lift],
-    [mirrored ? -handle[0] : handle[0], handle[1]],
-    len,
-    hand
-  );
-  drawOutlined(s, pixels);
-  return s;
-};
+const gathering =
+  (draw: Draw, grip: Point, hand: string) =>
+  (dir: Facing, { lift, handle, len }: Swing): Pixels => {
+    const s = draw(dir, lift);
+    const mirrored = dir === "left" || dir === "up";
+    const pixels = toolPixels(
+      [mirrored ? TILE - 1 - grip[0] : grip[0], grip[1] - lift],
+      [mirrored ? -handle[0] : handle[0], handle[1]],
+      len,
+      hand
+    );
+    drawOutlined(s, pixels);
+    return s;
+  };
 
-const gatherSprites = (name, draw, grip, hand) =>
+const gatherSprites = (
+  name: string,
+  draw: Draw,
+  grip: Point,
+  hand: string
+): Sprite[] =>
   DIRS.map(dir => ({
     name: `${name}_gather_${dir}`,
-    frames: SWINGS[SWING_OF[dir]].map((_, frame) =>
-      gathering(draw, grip, hand)(dir, frame)
+    frames: SWINGS[SWING_OF[dir]].map(swing =>
+      gathering(draw, grip, hand)(dir, swing)
     ),
     ...GATHER,
   }));

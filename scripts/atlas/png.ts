@@ -1,8 +1,8 @@
 import { crc32, deflateSync } from "node:zlib";
 
-import { TILE } from "./core.mjs";
+import { byteAt, TILE, type Pixels } from "./core.ts";
 
-const chunk = (type, data) => {
+const chunk = (type: string, data: Buffer): Buffer => {
   const body = Buffer.concat([Buffer.from(type), data]);
   const len = Buffer.alloc(4);
   len.writeUInt32BE(data.length);
@@ -12,7 +12,11 @@ const chunk = (type, data) => {
 };
 
 /** Minimal dependency-free RGBA PNG encoder. */
-export const encodePng = (width, height, rgba) => {
+export const encodePng = (
+  width: number,
+  height: number,
+  rgba: Pixels
+): Buffer => {
   const ihdr = Buffer.alloc(13);
   ihdr.writeUInt32BE(width, 0);
   ihdr.writeUInt32BE(height, 4);
@@ -36,18 +40,18 @@ export const encodePng = (width, height, rgba) => {
 
 /** Copies a sprite into `dst`, optionally upscaled; `alpha: "copy"` keeps raw RGBA. */
 export const blit = (
-  dst,
-  dstWidth,
-  sprite,
-  ox,
-  oy,
-  { scale = 1, copy = false } = {}
-) => {
+  dst: Pixels,
+  dstWidth: number,
+  sprite: Pixels,
+  ox: number,
+  oy: number,
+  { scale = 1, copy = false }: { scale?: number; copy?: boolean } = {}
+): void => {
   const height = sprite.length / (TILE * 4);
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < TILE; x++) {
       const from = (y * TILE + x) * 4;
-      const a = sprite[from + 3] / 255;
+      const a = byteAt(sprite, from + 3) / 255;
       if (a === 0 && !copy) continue;
       for (let sy = 0; sy < scale; sy++) {
         for (let sx = 0; sx < scale; sx++) {
@@ -59,10 +63,10 @@ export const blit = (
           }
           for (let c = 0; c < 3; c++) {
             dst[to + c] = Math.round(
-              sprite[from + c] * a + dst[to + c] * (1 - a)
+              byteAt(sprite, from + c) * a + byteAt(dst, to + c) * (1 - a)
             );
           }
-          dst[to + 3] = Math.max(dst[to + 3], sprite[from + 3]);
+          dst[to + 3] = Math.max(byteAt(dst, to + 3), byteAt(sprite, from + 3));
         }
       }
     }

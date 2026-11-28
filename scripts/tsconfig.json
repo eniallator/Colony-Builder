@@ -1,0 +1,11 @@
+{
+  "compilerOptions": {
+    "erasableSyntaxOnly": true,
+    "lib": ["esnext", "dom"],
+    "noEmit": true,
+    "types": ["node"],
+    "verbatimModuleSyntax": true
+  },
+  "extends": "../tsconfig.common.json",
+  "include": ["."]
+}

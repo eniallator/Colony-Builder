@@ -9,7 +9,7 @@ import {
 import { typedToEntries } from "niall-utils/data";
 
 import { createTextDecoder, createTextEncoder } from "../../lib/text.ts";
-import type { Codec, Format } from "../format.ts";
+import type { Codec } from "../format.ts";
 
 export interface Cursor {
   view: DataView;
@@ -18,19 +18,15 @@ export interface Cursor {
 
 export type CodecValue = NonNullable<unknown> | undefined;
 
-export type BinaryFormat = Format<
-  "binary",
-  Uint8Array<ArrayBuffer>,
-  Uint8Array
->;
-
 /** Fixed-layout binary codec. All multi-byte values are little-endian. */
-export interface BinaryCodec<T extends CodecValue> extends Codec<BinaryFormat> {
-  // Method syntax keeps `T` bivariant, so an `object` codec (required keys that may be
-  // `undefined`) is assignable to a guard's type (optional keys).
+export interface BinaryCodec<T extends CodecValue> extends Codec<
+  T,
+  Cursor,
+  [cursor: Cursor],
+  void
+> {
+  /** The number of bytes `write` takes for `value`. */
   size(value: T): number;
-  write(cursor: Cursor, value: T): void;
-  read(cursor: Cursor): T;
 }
 
 // oxlint-disable-next-line typescript/no-explicit-any

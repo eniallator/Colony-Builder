@@ -7,28 +7,60 @@
 // cacti and ferns are shaded in the brighter steps of their ramp, with a soft
 // outline in its darkest.
 
-import { blank, put, TILE } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
-import { stamp } from "./compose.mjs";
-import { variants } from "./define.mjs";
+import {
+  blank,
+  byteAt,
+  NEIGHBOURS,
+  put,
+  TILE,
+  type Pixels,
+  type Point,
+  type Rng,
+} from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import { stamp } from "./compose.ts";
+import { variants } from "./define.ts";
 
 const { leaf, cactus, fern, mushroom, log, outline, flower } = PALETTE;
 
+type Ramp = readonly [dark: string, mid: string, light: string, high: string];
+type Blob = readonly [centreX: number, centreY: number, radius: number];
+type Rect = readonly [left: number, top: number, width: number, height: number];
+
+interface TreeLook {
+  blobs: readonly Blob[];
+  trunk: { left: number; right: number; top: number };
+  blossoms?: readonly Point[];
+}
+
+interface CactusLook {
+  parts: readonly Rect[];
+  bloom: Point;
+}
+
+/** One toadstool of a mushroom (see `MUSHROOM_LOOKS`). */
+interface Toadstool {
+  x: number;
+  base: number;
+  stalk: number;
+  width: number;
+  height: number;
+}
+
 /** Adds a 1px outline around every opaque pixel's transparent neighbours. */
-const outlined = (s, colour = outline) => {
+const outlined = (s: Pixels, colour: string = outline) => {
   const height = s.length / (TILE * 4);
-  const opaque = (x, y) =>
-    x >= 0 && y >= 0 && x < TILE && y < height && s[(y * TILE + x) * 4 + 3] > 0;
-  const edge = [];
+  const opaque = (x: number, y: number) =>
+    x >= 0 &&
+    y >= 0 &&
+    x < TILE &&
+    y < height &&
+    byteAt(s, (y * TILE + x) * 4 + 3) > 0;
+  const edge: Point[] = [];
   for (let y = 0; y < height; y++) {
     for (let x = 0; x < TILE; x++) {
       if (opaque(x, y)) continue;
-      const touches = [
-        [1, 0],
-        [-1, 0],
-        [0, 1],
-        [0, -1],
-      ].some(([dx, dy]) => opaque(x + dx, y + dy));
+      const touches = NEIGHBOURS.some(([dx, dy]) => opaque(x + dx, y + dy));
       if (touches) edge.push([x, y]);
     }
   }
@@ -37,12 +69,12 @@ const outlined = (s, colour = outline) => {
 };
 
 /** Which of the 4 ramp steps a point lit from the top-left falls on. */
-const shade = (ramp, lit) =>
+const shade = (ramp: Ramp, lit: number) =>
   lit > 0.45 ? ramp[3] : lit > 0.05 ? ramp[2] : lit > -0.4 ? ramp[1] : ramp[0];
 // A tree is 16x32: a canopy of overlapping blobs on a short trunk. Each look
 // has its own silhouette (the first is the classic two-tier crown), so a grove
 // is not a row of stamps. Every one stands with its foot on the bottom row.
-const TREE_LOOKS = [
+const TREE_LOOKS: readonly TreeLook[] = [
   {
     // Round: a two-tier crown.
     blobs: [
@@ -93,19 +125,19 @@ const TREE_LOOKS = [
 const TREE_BASE = 31;
 
 /** A flower two pixels wide, starting at (x, y). */
-const bloomAt = (s, [x, y]) => {
+const bloomAt = (s: Pixels, [x, y]: Point) => {
   put(s, x, y, flower);
   put(s, x + 1, y, flower);
 };
 
 /** The frontmost blob over a pixel, each with an evenly scalloped edge. */
-const blobAt = (blobs, x, y) =>
+const blobAt = (blobs: readonly Blob[], x: number, y: number) =>
   blobs.findLast(([cx, cy, r]) => {
     const scallop = 0.55 * Math.sin(6 * Math.atan2(y - cy, x - cx));
     return Math.hypot(x - cx, y - cy) <= r + scallop;
   });
 
-const tree = (_rng, { blobs, trunk, blossoms = [] }) => {
+const tree = (_rng: Rng, { blobs, trunk, blossoms = [] }: TreeLook) => {
   const s = blank(2);
 
   // Trunk: lit left edge, shaded right edge (and the middle, if it is thicker
@@ -138,7 +170,7 @@ const tree = (_rng, { blobs, trunk, blossoms = [] }) => {
 
 // A cactus is 16x16: a trunk, usually with arms. Each look has its own
 // silhouette; all of them stand on row 14 (the outline takes row 15).
-const CACTUS_LOOKS = [
+const CACTUS_LOOKS: readonly CactusLook[] = [
   {
     // Two arms raised, the right one lower.
     parts: [
@@ -178,9 +210,9 @@ const CACTUS_LOOKS = [
   },
 ];
 
-const cactusPlant = (_rng, { parts, bloom }) => {
+const cactusPlant = (_rng: Rng, { parts, bloom }: CactusLook) => {
   const s = blank();
-  const inside = (x, y) =>
+  const inside = (x: number, y: number) =>
     parts.some(
       ([left, top, width, height]) =>
         x >= left && x < left + width && y >= top && y < top + height
@@ -201,7 +233,7 @@ const cactusPlant = (_rng, { parts, bloom }) => {
 
 // A mushroom is 16x16: a few toadstools, each a pale stalk under a domed cap.
 // Every look has one standing on row 14, like the other structures.
-const MUSHROOM_LOOKS = [
+const MUSHROOM_LOOKS: readonly (readonly Toadstool[])[] = [
   // Each toadstool is { x: centre, base: the stalk's lowest row, stalk: its
   // height, width and height: the cap's }. Back (higher up) to front.
   // One big toadstool.
@@ -226,7 +258,11 @@ const MUSHROOM_LOOKS = [
   ],
 ];
 
-const toadstool = (s, rng, { x: cx, base, stalk, width, height }) => {
+const toadstool = (
+  s: Pixels,
+  rng: Rng,
+  { x: cx, base, stalk, width, height }: Toadstool
+) => {
   // Stalk: lit on the left, shaded on the right.
   const stalkWidth = width >= 9 ? 3 : 2;
   const stalkLeft = cx - Math.floor(stalkWidth / 2);
@@ -270,7 +306,7 @@ const toadstool = (s, rng, { x: cx, base, stalk, width, height }) => {
   }
 };
 
-const mushroomPlant = (rng, toadstools) => {
+const mushroomPlant = (rng: Rng, toadstools: readonly Toadstool[]) => {
   const s = blank();
   for (const details of toadstools) toadstool(s, rng, details);
   return outlined(s);
@@ -333,20 +369,16 @@ const FERN_LOOKS = [
   ],
 ];
 
-const fernPlant = (_rng, rows) => {
+const fernPlant = (_rng: Rng, rows: readonly string[]) => {
   const s = blank();
   const [edge, a, b, c] = fern;
   stamp(s, rows, { a, b, c }, [1, TILE - 1 - rows.length]);
   return outlined(s, edge);
 };
 
-/** A structure with one interchangeable look per design, each drawn by `draw`. */
-const looks = (name, designs, draw) =>
-  variants(name, (rng, i) => draw(rng, designs[i]), designs.length);
-
 export const structures = [
-  looks("tree", TREE_LOOKS, tree),
-  looks("cactus", CACTUS_LOOKS, cactusPlant),
-  looks("mushroom", MUSHROOM_LOOKS, mushroomPlant),
-  looks("fern", FERN_LOOKS, fernPlant),
+  variants("tree", TREE_LOOKS, tree),
+  variants("cactus", CACTUS_LOOKS, cactusPlant),
+  variants("mushroom", MUSHROOM_LOOKS, mushroomPlant),
+  variants("fern", FERN_LOOKS, fernPlant),
 ];

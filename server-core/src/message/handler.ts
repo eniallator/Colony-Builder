@@ -37,7 +37,7 @@ export const messageHandler = (
       break;
     }
 
-    case "place": {
+    case "placeTile": {
       state.world.terrain.addTile(
         message.position.x(),
         message.position.y(),

@@ -24,6 +24,7 @@ export type ClickableTarget =
 export interface ClickDetails {
   target: ClickableTarget | null;
   worldPos: Vector<2>;
+  clicked: boolean;
 }
 
 export interface SelectOption<V> {

@@ -1,7 +1,14 @@
 import { mkdirSync, writeFileSync } from "node:fs";
+import type { TypeFromGuard } from "deep-guards";
+import { raise } from "niall-utils/core";
 
-import { TILE, tilesTall } from "./core.mjs";
-import { blit, encodePng } from "./png.mjs";
+import type { Cell, isAtlasJson } from "../../client/src/render/atlas.ts";
+import { byteAt, TILE, tilesTall, type Pixels } from "./core.ts";
+import { blit, encodePng } from "./png.ts";
+import type { Sprite } from "./sprites/define.ts";
+
+/** What `atlas.json` holds, as the client checks it. */
+type AtlasJson = TypeFromGuard<typeof isAtlasJson>;
 
 export const COLUMNS = 16;
 export const OUT_DIR = new URL(
@@ -10,9 +17,13 @@ export const OUT_DIR = new URL(
 );
 
 /** How many tiles tall a sprite is (all of its frames are the same height). */
-const heightOf = ({ name, frames }) => {
+const heightOf = ({ name, frames }: Sprite): number => {
   const [tall, ...rest] = frames.map(tilesTall);
-  if (!Number.isInteger(tall) || rest.some(other => other !== tall))
+  if (
+    tall == null ||
+    !Number.isInteger(tall) ||
+    rest.some(other => other !== tall)
+  )
     throw new Error(
       `"${name}" frames must all be 16px wide and a whole number of tiles tall`
     );
@@ -27,12 +38,14 @@ const heightOf = ({ name, frames }) => {
  * tall sprite's cell is followed by the cells beneath it.
  * Returns `{ name: [[col, row], ...] }` (one cell per frame/variant).
  */
-export const layout = sprites => {
+export const layout = (
+  sprites: readonly Sprite[]
+): { cells: Record<string, Cell[]>; rows: number } => {
   let col = 0;
   let row = 0;
   let bandRows = 1;
-  const cells = {};
-  const place = sprite => {
+  const cells: Record<string, Cell[]> = {};
+  const place = (sprite: Sprite) => {
     const { name, frames } = sprite;
     const tall = heightOf(sprite);
     if (frames.length > COLUMNS)
@@ -44,12 +57,12 @@ export const layout = sprites => {
       row += bandRows;
       bandRows = 1;
     }
-    cells[name] = frames.map((_, i) => [col + i, row]);
+    cells[name] = frames.map((_, i): Cell => [col + i, row]);
     col += frames.length;
     bandRows = Math.max(bandRows, tall);
   };
 
-  const isTall = sprite => heightOf(sprite) > 1;
+  const isTall = (sprite: Sprite) => heightOf(sprite) > 1;
   sprites.filter(sprite => !isTall(sprite)).forEach(place);
   // Taller sprites start a fresh band so they never overlap the rows above.
   col = COLUMNS;
@@ -64,13 +77,15 @@ export const layout = sprites => {
  * matches how a box-filter downscale looks; pixels are weighted by alpha so
  * transparent areas of items and entities don't dilute it.
  */
-export const averageColour = frames => {
-  const sum = [0, 0, 0];
+export const averageColour = (frames: readonly Pixels[]): string => {
+  const sum: [r: number, g: number, b: number] = [0, 0, 0];
   let weight = 0;
   for (const frame of frames) {
     for (let i = 0; i < frame.length; i += 4) {
-      const alpha = frame[i + 3];
-      for (let c = 0; c < 3; c++) sum[c] += frame[i + c] * alpha;
+      const alpha = byteAt(frame, i + 3);
+      for (const c of [0, 1, 2] as const) {
+        sum[c] += byteAt(frame, i + c) * alpha;
+      }
       weight += alpha;
     }
   }
@@ -89,12 +104,12 @@ export const averageColour = frames => {
  * lowest visible pixel across all its frames: where it rests on the ground.
  * The renderer lines shadows up with it. 0 for a fully transparent sprite.
  */
-const lowestLine = frames => {
+const lowestLine = (frames: readonly Pixels[]): number => {
   let line = 0;
   for (const frame of frames) {
     for (let y = frame.length / (TILE * 4) - 1; y >= line; y--) {
       for (let x = 0; x < TILE; x++) {
-        if (frame[(y * TILE + x) * 4 + 3] > 0) {
+        if (byteAt(frame, (y * TILE + x) * 4 + 3) > 0) {
           line = y + 1;
           break;
         }
@@ -104,11 +119,12 @@ const lowestLine = frames => {
   return line;
 };
 
-/** The `atlas.json` entry for one sprite (see define.mjs for the metadata). */
+/** The `atlas.json` entry for one sprite (see define.ts for the metadata). */
 const describe = (
-  { name, frames, mode = "frames", ground, frameSec, stepPx, raise },
-  cells
-) => {
+  sprite: Sprite,
+  cells: Cell[]
+): AtlasJson["sprites"][string] => {
+  const { name, frames, mode = "frames", ground, frameSec, stepPx } = sprite;
   if (
     mode === "frames" &&
     frames.length > 1 &&
@@ -118,7 +134,7 @@ const describe = (
     throw new Error(
       `"${name}" has ${frames.length} animation frames but no frameSec or stepPx`
     );
-  const tall = heightOf({ name, frames });
+  const tall = heightOf(sprite);
   return {
     mode,
     cells,
@@ -128,18 +144,22 @@ const describe = (
     ...(tall > 1 && { rows: tall }),
     ...(frameSec != null && { frameSec }),
     ...(stepPx != null && { stepPx }),
-    ...(raise != null && { raise }),
+    ...(sprite.raise != null && { raise: sprite.raise }),
   };
 };
 
-export const writeAtlas = sprites => {
+export const writeAtlas = (
+  sprites: readonly Sprite[]
+): { cells: Record<string, Cell[]>; rows: number } => {
   const { cells, rows } = layout(sprites);
   const width = COLUMNS * TILE;
   const height = rows * TILE;
   const pixels = new Uint8Array(width * height * 4);
+  const cellsOf = (name: string): Cell[] =>
+    cells[name] ?? raise(new Error(`"${name}" was not laid out`));
   for (const { name, frames } of sprites) {
-    frames.forEach((frame, i) => {
-      const [col, row] = cells[name][i];
+    cellsOf(name).forEach(([col, row], i) => {
+      const frame = frames[i] ?? raise(new Error(`"${name}" lost a frame`));
       blit(pixels, width, frame, col * TILE, row * TILE, { copy: true });
     });
   }
@@ -153,16 +173,19 @@ export const writeAtlas = sprites => {
   // tall each frame is (left out when 1); a cell is the frame's top-left tile.
   // `mode`: "variants" = pick one per tile; "frames" = animation (or a single
   // frame). Sprites that don't say are "frames".
-  const described = Object.fromEntries(
-    sprites.map(sprite => [sprite.name, describe(sprite, cells[sprite.name])])
-  );
+  const json: AtlasJson = {
+    tileSize: TILE,
+    columns: COLUMNS,
+    sprites: Object.fromEntries(
+      sprites.map(sprite => [
+        sprite.name,
+        describe(sprite, cellsOf(sprite.name)),
+      ])
+    ),
+  };
   writeFileSync(
     new URL("atlas.json", OUT_DIR),
-    JSON.stringify(
-      { tileSize: TILE, columns: COLUMNS, sprites: described },
-      null,
-      2
-    ) + "\n"
+    JSON.stringify(json, null, 2) + "\n"
   );
   return { cells, rows };
 };

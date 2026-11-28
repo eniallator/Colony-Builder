@@ -437,7 +437,7 @@ describe("changed regions", () => {
   const requestPlace = (client: Client, position: [number, number]) => {
     client.session.receive(
       encClientMessage.encode({
-        type: "place",
+        type: "placeTile",
         position: Vector.create(...position),
         tile: tileToId(changedTile),
       })

@@ -39,12 +39,12 @@ export type UnloadEntitiesMessage = EncodableType<
   typeof encUnloadEntitiesMessage
 >;
 
-export const encPlaceMessage = encObjectOf({
-  type: encExact("place"),
+export const encPlaceTileMessage = encObjectOf({
+  type: encExact("placeTile"),
   tile: encTileId,
   position: encVec2,
 });
-export type PlaceMessage = EncodableType<typeof encPlaceMessage>;
+export type PlaceTileMessage = EncodableType<typeof encPlaceTileMessage>;
 
 export const encGatherTileMessage = encObjectOf({
   type: encExact("gatherTile"),
@@ -65,7 +65,7 @@ export const encClientMessage = encUnionOf(
   encMoveMessage,
   encUnloadMessage,
   encUnloadEntitiesMessage,
-  encPlaceMessage,
+  encPlaceTileMessage,
   encGatherTileMessage,
   encGatherStructureMessage
 );

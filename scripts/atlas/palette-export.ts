@@ -1,13 +1,21 @@
 import { mkdirSync, writeFileSync } from "node:fs";
 
-import { hex } from "./core.mjs";
-import { PALETTE } from "./palette.mjs";
+import { hex } from "./core.ts";
+import { PALETTE } from "./palette.ts";
 
 const ART_DIR = new URL("../../art/", import.meta.url);
 
+/** A ramp, or a named set of colours and ramps. */
+type PaletteGroup =
+  | readonly (string | PaletteGroup)[]
+  | { readonly [name: string]: string | PaletteGroup };
+
 /** Flattens PALETTE into [name, hex] pairs, e.g. ["grass-0", "#35693a"]. */
-const flatten = (value = PALETTE, prefix = "") =>
-  Object.entries(value).flatMap(([key, v]) => {
+const flatten = (
+  group: PaletteGroup = PALETTE,
+  prefix = ""
+): [name: string, colour: string][] =>
+  Object.entries<string | PaletteGroup>(group).flatMap(([key, v]) => {
     const name = prefix === "" ? key : `${prefix}-${key}`;
     return typeof v === "string" ? [[name, v]] : flatten(v, name);
   });
@@ -17,7 +25,7 @@ const flatten = (value = PALETTE, prefix = "") =>
  *  - palette.gpl: GIMP palette (Aseprite, LibreSprite, Pixelorama, Krita import it)
  *  - palette.hex: plain hex list (Lospec / most pixel editors)
  */
-export const writePalette = () => {
+export const writePalette = (): number => {
   const entries = flatten();
   const gpl = [
     "GIMP Palette",

@@ -3,18 +3,18 @@
 // panel or button of any size. The client cuts them out of the atlas at runtime
 // (client/src/ui/ui-textures.ts) and exposes them as `--ui-<name>` variables.
 
-import { blank, fromAscii, put, roundBox } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
-import { still } from "./define.mjs";
+import { blank, fromAscii, put, roundBox, type Point } from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import { still } from "./define.ts";
 
-const CORNERS = [
+const CORNERS: Point[] = [
   [0, 0],
   [15, 0],
   [0, 15],
   [15, 15],
 ];
 
-const box = ({ fill, hi, lo }) => {
+const box = ({ fill, hi, lo }: { fill: string; hi: string; lo: string }) => {
   const s = blank();
   roundBox(s, 0, 0, 16, 16, { fillC: fill, hi, lo, outline: PALETTE.outline });
   // `roundBox` leaves the corner pixels out. Drawn at 2x each is a visible 2x2
@@ -29,16 +29,14 @@ const BLANK_ROW = ".".repeat(16);
 
 // Button glyphs. They sit in the middle 12px of the tile (the CSS crops to it),
 // so `centred` pads the rows to 16. O outline, t light, m shade.
-const icon = (name, rows) => {
+const blankRows = (count: number) =>
+  Array.from({ length: count }, () => BLANK_ROW);
+const icon = (name: string, rows: readonly string[]) => {
   const top = Math.floor((16 - rows.length) / 2);
   return still(
     `ui_icon_${name}`,
     fromAscii(
-      [
-        ...Array(top).fill(BLANK_ROW),
-        ...rows,
-        ...Array(16 - top - rows.length).fill(BLANK_ROW),
-      ],
+      [...blankRows(top), ...rows, ...blankRows(16 - top - rows.length)],
       { O: PALETTE.outline, t: PALETTE.ui.text, m: PALETTE.ui.panel.hi }
     )
   );

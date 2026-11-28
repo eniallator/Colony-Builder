@@ -226,7 +226,7 @@ describe("messageHandler", () => {
       const player = createPlayer(world);
 
       messageHandler(stateWith(world, [player, []]), player, {
-        type: "place",
+        type: "placeTile",
         position: Vector.create(3, 4),
         tile: tileToId(placed),
       });
@@ -241,7 +241,7 @@ describe("messageHandler", () => {
       const state = stateWith(world, [player, [origin, east, north]]);
 
       messageHandler(state, player, {
-        type: "place",
+        type: "placeTile",
         position: Vector.create(3, 4),
         tile: tileToId(placed),
       });

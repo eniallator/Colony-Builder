@@ -73,7 +73,10 @@ export const renderAboveGround: ClientSystem = ({
   const footOf = (pos: Vector<2>) => pos.copy().multiply(pxPerTile).add(origin);
   const aboveGround: AboveGround[] = [];
 
-  let clicked: [dist: number, target: ClickableTarget] | null = null;
+  const clicked: [dist: number, target: ClickableTarget | null] = [
+    Infinity,
+    null,
+  ];
   const hasClicked = mouse.clicked("left");
   const clickDist = (
     name: string,
@@ -84,8 +87,9 @@ export const renderAboveGround: ClientSystem = ({
       ? sqrDistToSpriteMiddle(painter, name, footOf(pos), size, mouse.pos)
       : null;
   const considerTarget = (target: ClickableTarget, dist: number | null) => {
-    if (dist != null && (clicked == null || clicked[0] > dist)) {
-      clicked = [dist, target];
+    if (dist != null && clicked[0] > dist) {
+      clicked[0] = dist;
+      clicked[1] = target;
     }
   };
 
@@ -224,10 +228,9 @@ export const renderAboveGround: ClientSystem = ({
   // Forget entities that no longer exist.
   for (const id of new Set(facings.keys()).difference(seen)) facings.delete(id);
 
-  if (hasClicked) {
-    // Where the click landed in the world: the inverse of `footOf`.
-    const clickPos = mouse.pos.copy().sub(origin).divide(pxPerTile);
-    // oxlint-disable-next-line typescript/no-unnecessary-condition
-    clickDetails.setValue({ target: clicked?.[1] ?? null, worldPos: clickPos });
-  }
+  clickDetails.setValue({
+    target: clicked[1],
+    worldPos: mouse.pos.copy().sub(origin).divide(pxPerTile),
+    clicked: hasClicked,
+  });
 };

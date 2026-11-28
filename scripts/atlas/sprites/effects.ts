@@ -1,8 +1,8 @@
 // Non-gameplay sprites the renderer composes with others (shadows, later
 // selection highlights, particles, ...).
 
-import { blank, put, TILE } from "../core.mjs";
-import { still } from "./define.mjs";
+import { blank, put, TILE } from "../core.ts";
+import { still } from "./define.ts";
 
 // Row the shadows' ellipses are centred on (pixel centre, so the line through
 // it is CENTRE_ROW + 0.5). The renderer lines this line up with the ground line
@@ -10,7 +10,7 @@ import { still } from "./define.mjs";
 const CENTRE_ROW = 13.5;
 
 /** Soft ellipse of half-width `rx` and half-height `ry`. */
-const ellipse = (rx, ry) => {
+const ellipse = (rx: number, ry: number) => {
   const s = blank();
   for (let y = 0; y < TILE; y++) {
     for (let x = 0; x < TILE; x++) {
@@ -22,7 +22,7 @@ const ellipse = (rx, ry) => {
 };
 
 /** Soft contact shadow sprite. */
-const shadow = (name, rx, ry) =>
+const shadow = (name: string, rx: number, ry: number) =>
   // Its ground line is the middle of the ellipse, not its lowest pixel.
   still(name, ellipse(rx, ry), { ground: CENTRE_ROW + 0.5 });
 

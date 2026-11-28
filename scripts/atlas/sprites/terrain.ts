@@ -4,13 +4,16 @@
 // with the water. To add a tile: draw its shapes, lay them out and add one line
 // to the `terrain` list at the bottom. Sprite name must equal the Tile id.
 
-import { fill, putWrap } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
-import { stamp } from "./compose.mjs";
-import { animated, variants } from "./define.mjs";
+import { fill, putWrap, type Legend, type Rng } from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import { stamp, type Placement } from "./compose.ts";
+import { animated, variants } from "./define.ts";
+
+type Layout = readonly Placement[];
+type Ramp = readonly [dark: string, mid: string, light: string, high: string];
 
 /** A `base` tile with shapes on it. `layout` is [[rows, x, y], ...]. */
-const scatter = (base, legend, layout) => {
+const scatter = (base: string, legend: Legend, layout: Layout) => {
   const s = fill(base);
   for (const [rows, x, y] of layout)
     stamp(s, rows, legend, [x, y], { plot: putWrap });
@@ -18,11 +21,14 @@ const scatter = (base, legend, layout) => {
 };
 
 /** A tile with one variant per layout, using a ramp's usual shading letters. */
-const scattered = (name, [d, m, l, h], layouts, extras = {}) =>
-  variants(
-    name,
-    (_rng, i) => scatter(m, { d, m, l, h, ...extras }, layouts[i]),
-    layouts.length
+const scattered = (
+  name: string,
+  [d, m, l, h]: Ramp,
+  layouts: readonly Layout[],
+  extras: Legend = {}
+) =>
+  variants(name, layouts, (_rng, layout) =>
+    scatter(m, { d, m, l, h, ...extras }, layout)
   );
 
 // Broad, soft patches of a tone close to the base. Terrain is mostly these,
@@ -36,17 +42,21 @@ const BROAD = [
 ];
 const SMALL = ["..qqqq..", "qqqqqqq.", ".qqqqqqq", "..qqqq.."];
 /** The same patch in the lighter tone. */
-const lighter = rows => rows.map(row => row.replaceAll("q", "r"));
+const lighter = (rows: readonly string[]) =>
+  rows.map(row => row.replaceAll("q", "r"));
 const BROAD_LIGHT = lighter(BROAD);
 const SMALL_LIGHT = lighter(SMALL);
 /** The legend letters of a terrain's [darker, lighter] patch tones. */
-const patches = ([q, r]) => ({ q, r });
+const patches = ([q, r]: readonly [darker: string, lighter: string]) => ({
+  q,
+  r,
+});
 
 // Grass: patches, with an occasional tuft and a rare flower.
 const TUFT = ["l...l", ".l.l.", ".dld."];
 const SPRIG = ["l.l", ".d."];
 const FLOWER = [".f.", "fhf", ".d."];
-const GRASS_LAYOUTS = [
+const GRASS_LAYOUTS: readonly Layout[] = [
   [
     [BROAD, 1, 3],
     [SPRIG, 10, 11],
@@ -83,7 +93,7 @@ const GRASS_LAYOUTS = [
 const RIPPLE = ["..llll..", "llddddll", "dd....dd"];
 const SHORT_RIPPLE = [".lll.", "ldddl", "d...d"];
 const SHELL = ["hh.", ".dd"];
-const SAND_LAYOUTS = [
+const SAND_LAYOUTS: readonly Layout[] = [
   [
     [BROAD, 1, 3],
     [SHORT_RIPPLE, 9, 11],
@@ -127,7 +137,7 @@ const SLAB = [".llll..", "llllmd.", "lmmmmdd", ".ddddd."];
 const PEBBLE = [".ll.", "lmmd", ".dd."];
 // A crack catches the light on its lower lip.
 const CRACK = ["dd....", "lld...", "..ld..", "...ldd", "....ll"];
-const STONE_LAYOUTS = [
+const STONE_LAYOUTS: readonly Layout[] = [
   [
     [BOULDER, 2, 3],
     [SMALL, 7, 10],
@@ -171,7 +181,7 @@ const PUDDLE = [
   "..bbbbbb..",
 ];
 const REED = ["l...l", "l.l.l", ".lll.", "..d.."];
-const MARSH_LAYOUTS = [
+const MARSH_LAYOUTS: readonly Layout[] = [
   [
     [PUDDLE, 2, 3],
     [SMALL, 7, 11],
@@ -213,7 +223,7 @@ const FROND = [
   "..ddd..",
 ];
 const LEAF = [".ll.", "llld", ".dd."];
-const MOSS_LAYOUTS = [
+const MOSS_LAYOUTS: readonly Layout[] = [
   [
     [FROND, 2, 2],
     [SMALL, 7, 10],
@@ -260,7 +270,7 @@ const ORE_BOULDER = [
 ];
 const ORE_SLAB = [".hhhl..", "hAAlmd.", "lBCSAAd", ".ddBCd."];
 const ORE_PEBBLE = [".AB.", "lBCd", ".dd."];
-const ORE_LAYOUTS = [
+const ORE_LAYOUTS: readonly Layout[] = [
   [
     [SMALL, 1, 8],
     [SMALL_LIGHT, 8, 2],
@@ -290,7 +300,16 @@ const ORE_LAYOUTS = [
 ];
 
 /** A deposit of an ore, bedded in the same ground as plain stone. */
-const deposit = (name, { ore: [C, B, A], stain: S }) =>
+const deposit = (
+  name: string,
+  {
+    ore: [C, B, A],
+    stain: S,
+  }: {
+    ore: readonly [dark: string, mid: string, light: string];
+    stain: string;
+  }
+) =>
   scattered(name, PALETTE.stone, ORE_LAYOUTS, {
     ...patches(PALETTE.patch.stone),
     A,
@@ -302,21 +321,21 @@ const deposit = (name, { ore: [C, B, A], stain: S }) =>
 // Water: still patches of depth, with one wave and its glint drifting over them.
 const WAVE = [".llll.", "ll..ll"];
 const GLINT = ["ll"];
-const WATER_PATCHES = [
+const WATER_PATCHES: Layout = [
   [BROAD, 0, 9],
   [SMALL_LIGHT, 8, 1],
 ];
-const WATER_WAVES = [
+const WATER_WAVES: Layout = [
   [WAVE, 1, 3],
   [GLINT, 11, 12],
 ];
 
 /** Waves slide 4px per frame -> a seamless 4-frame loop. */
-const water = (_rng, frame) => {
+const water = (_rng: Rng, frame: number) => {
   const [d, m, l] = PALETTE.water;
   return scatter(m, { d, l, ...patches(PALETTE.patch.water) }, [
     ...WATER_PATCHES,
-    ...WATER_WAVES.map(([rows, x, y]) => [rows, x + frame * 4, y]),
+    ...WATER_WAVES.map(([rows, x, y]): Placement => [rows, x + frame * 4, y]),
   ]);
 };
 

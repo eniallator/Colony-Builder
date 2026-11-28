@@ -2,13 +2,19 @@
 // (cohesion matters more than any single sprite).
 
 import { writeFileSync } from "node:fs";
+import { raise } from "niall-utils/core";
 
 import { variantIndex } from "../../client/src/render/sprite.ts";
 import { conveyorSpriteName } from "../../client/src/render/structure-sprites.ts";
-import { TILE } from "./core.mjs";
-import { blit, encodePng } from "./png.mjs";
+import type { Tile } from "../../shared/src/world/terrain/types.ts";
+import { TILE, tilesTall, type Pixels } from "./core.ts";
+import { blit, encodePng } from "./png.ts";
+import type { Sprite } from "./sprites/define.ts";
 
-const SCENE = [
+/** A sprite placed on a tile of the scene, showing its first frame unless told. */
+type Placed = [tx: number, ty: number, name: string, frame?: number];
+
+const SCENE: [string, ...string[]] = [
   "oooooggggggggggsswww",
   "ooooggggggggggsswwww",
   "ooogggggggggggsswwww",
@@ -22,7 +28,7 @@ const SCENE = [
   "tttttttggggggggggggg",
   "ttttttgggggggggggggg",
 ];
-const SCENE_TILES = {
+const SCENE_TILES: Partial<Record<string, Tile>> = {
   g: "grass",
   s: "sand",
   w: "water",
@@ -31,7 +37,7 @@ const SCENE_TILES = {
   o: "moss",
   m: "marsh",
 };
-const SCENE_ENTITIES = [
+const SCENE_ENTITIES: Placed[] = [
   [9, 6, "robot_right"],
   [11, 6, "player_down"],
   [4, 6, "player_left"],
@@ -41,13 +47,13 @@ const SCENE_ENTITIES = [
   [9, 5, "item_iron_ore"],
   // The gather swing, one frame per tile: a robot and a player for each facing.
   ...["up", "down", "left", "right"].flatMap((dir, row) =>
-    [0, 1, 2, 3].flatMap(frame => [
+    [0, 1, 2, 3].flatMap((frame): Placed[] => [
       [6 + frame, 8 + row, `robot_gather_${dir}`, frame],
       [11 + frame, 8 + row, `player_gather_${dir}`, frame],
     ])
   ),
 ];
-const SCENE_STRUCTURES = [
+const SCENE_STRUCTURES: Placed[] = [
   [6, 8, "tree"],
   [9, 9, "tree"],
   [2, 3, "cactus"],
@@ -58,29 +64,41 @@ const SCENE_STRUCTURES = [
   [1, 5, "item_fibre"],
 ];
 // A belt going right that turns up, and one going left that turns up.
-const SCENE_BELTS = [
-  ...[7, 8, 9, 10, 11, 12].map(x => [x, 5, conveyorSpriteName("right")]),
+const SCENE_BELTS: Placed[] = [
+  ...[7, 8, 9, 10, 11, 12].map((x): Placed => [
+    x,
+    5,
+    conveyorSpriteName("right"),
+  ]),
   [13, 5, conveyorSpriteName("up", "anticlockwise")],
-  ...[4, 3, 2].map(y => [13, y, conveyorSpriteName("up")]),
-  ...[17, 16, 15, 14, 13].map(x => [x, 10, conveyorSpriteName("left")]),
+  ...[4, 3, 2].map((y): Placed => [13, y, conveyorSpriteName("up")]),
+  ...[17, 16, 15, 14, 13].map((x): Placed => [
+    x,
+    10,
+    conveyorSpriteName("left"),
+  ]),
   [12, 10, conveyorSpriteName("up", "clockwise")],
-  ...[9, 8].map(y => [12, y, conveyorSpriteName("up")]),
+  ...[9, 8].map((y): Placed => [12, y, conveyorSpriteName("up")]),
 ];
 const SCALE = 4;
 
-export const writePreview = (path, sprites) => {
+export const writePreview = (
+  path: string,
+  sprites: readonly Sprite[]
+): void => {
   const frames = new Map(sprites.map(({ name, frames }) => [name, frames]));
-  const frameOf = (name, index) => {
+  const frameOf = (name: string, index: number): Pixels => {
     const found = frames.get(name);
-    if (found == null)
-      throw new Error(`preview needs missing sprite "${name}"`);
-    return found[index % found.length];
+    return (
+      found?.[index % found.length] ??
+      raise(new Error(`preview needs missing sprite "${name}"`))
+    );
   };
 
   const width = SCENE[0].length * TILE * SCALE;
   const height = SCENE.length * TILE * SCALE;
   const pixels = new Uint8Array(width * height * 4);
-  const draw = (name, index, tx, ty) =>
+  const draw = (name: string, index: number, tx: number, ty: number) => {
     blit(
       pixels,
       width,
@@ -91,22 +109,24 @@ export const writePreview = (path, sprites) => {
         scale: SCALE,
       }
     );
+  };
 
   SCENE.forEach((line, ty) => {
     if (line.length !== SCENE[0].length)
       throw new Error(`scene row ${ty} is ragged`);
-    [...line].forEach((ch, tx) => {
+    Array.from(line).forEach((ch, tx) => {
       const name = SCENE_TILES[ch];
       if (name == null) throw new Error(`unknown scene char "${ch}"`);
       // Variants are picked by position as the game does it, to show variety.
-      draw(name, variantIndex(tx, ty, frames.get(name).length), tx, ty);
+      const looks = frames.get(name)?.length ?? 0;
+      draw(name, variantIndex(tx, ty, looks), tx, ty);
     });
   });
   // Belts lie on the ground, so they have no shadow.
   for (const [tx, ty, name] of SCENE_BELTS) draw(name, 1, tx, ty);
   // Structures stand on their tile; a taller sprite reaches up from its foot.
   for (const [tx, ty, name] of SCENE_STRUCTURES) {
-    const tall = frameOf(name, 0).length / (TILE * TILE * 4);
+    const tall = tilesTall(frameOf(name, 0));
     draw("shadow_small", 0, tx, ty);
     draw(name, 0, tx, ty + 1 - tall);
   }

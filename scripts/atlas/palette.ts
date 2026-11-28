@@ -105,4 +105,4 @@ export const PALETTE = {
 
   // --- Accents ---
   flower: "#e8d870",
-};
+} as const;

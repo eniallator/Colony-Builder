@@ -190,7 +190,7 @@ canvas {
    a 16px tile drawn at 2x and 9-sliced, so its 3px corners become 6px.
    `--ui-*` image variables are set from the atlas (ui/ui-textures.ts); the
    solid borders and backgrounds are what show until it has loaded.
-   These colours are the `ui` group in scripts/atlas/palette.mjs, which CSS
+   These colours are the `ui` group in scripts/atlas/palette.ts, which CSS
    can't read, so keep them in step with it. */
 :root {
   --px-outline: #1b1a22;

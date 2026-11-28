@@ -12,10 +12,45 @@
 import {
   conveyorBends,
   conveyorSpriteName,
+  type ConveyorBend,
 } from "../../../client/src/render/structure-sprites.ts";
-import { FACINGS } from "../../../shared/src/facing.ts";
-import { blank, fill, put, putWrap, remap, ROTATE, TILE } from "../core.mjs";
-import { PALETTE } from "../palette.mjs";
+import { FACINGS, type Facing } from "../../../shared/src/facing.ts";
+import {
+  blank,
+  fill,
+  put,
+  putWrap,
+  remap,
+  ROTATE,
+  TILE,
+  type Dot,
+  type Mapping,
+  type Pixels,
+  type Point,
+} from "../core.ts";
+import { PALETTE } from "../palette.ts";
+import type { Sprite } from "./define.ts";
+
+/** A pixel of one of a belt's beams. */
+interface Beam {
+  at: Point;
+  /** How deep into the beam from the bed, which faces roller rows. */
+  depth?: number;
+  /** The way the beam faces, if it can show rollers. */
+  faces?: Point;
+  /** The way the belt moves there. */
+  travels?: Point;
+}
+
+/** How a shape of belt is drawn, going up. */
+interface Belt {
+  draw: (frame: number) => Pixels;
+  beams: readonly Beam[];
+  /** Whether it goes on past the tile, so its bed's top row wraps round. */
+  wraps: boolean;
+  /** A turn's chevrons for a frame. */
+  curve?: (frame: number) => Dot[];
+}
 
 // Chevrons shift this many px per frame. Published to the client as `stepPx`,
 // which derives the animation speed from it and the game's CONVEYOR_SPEED so
@@ -51,7 +86,7 @@ const ROLLER_PX = 2;
 const ROLLER_PHASES = [0, 2, 1, 3];
 // A roller's pixels, clockwise from its top left. A dark one going round them
 // turns the way the top of a roller under a belt moving right does.
-const ROLLER_RIM = [
+const ROLLER_RIM: readonly Point[] = [
   [0, 0],
   [1, 0],
   [1, 1],
@@ -64,18 +99,20 @@ const ROLLER_RIM = [
  * with a row of rollers sandwiched between them. The dark pixel on each roller
  * moves a place a frame, so the loop closes after a turn.
  */
-const rollerAt = (column, row, frame, clockwise) => {
+const rollerAt = (
+  column: number,
+  row: number,
+  frame: number,
+  clockwise: boolean
+) => {
   if (row === 0 || row === RAIL_PX - 1) return base;
 
   const x = column % ROLLER_SPACING_PX;
   if (x >= ROLLER_PX) return rail;
 
   const place = ROLLER_RIM.findIndex(([rx, ry]) => rx === x && ry === row - 1);
-  const turned =
-    frame +
-    ROLLER_PHASES[
-      Math.floor(column / ROLLER_SPACING_PX) % ROLLER_PHASES.length
-    ];
+  const roller = Math.floor(column / ROLLER_SPACING_PX) % ROLLER_PHASES.length;
+  const turned = frame + (ROLLER_PHASES[roller] ?? 0);
   const marked =
     (((clockwise ? turned : -turned) % ROLLER_RIM.length) + ROLLER_RIM.length) %
     ROLLER_RIM.length;
@@ -83,7 +120,7 @@ const rollerAt = (column, row, frame, clockwise) => {
 };
 
 /** A belt going up: a plain bed between two beams, and a chevron pointing up it. */
-const straight = frame => {
+const straight = (frame: number) => {
   const s = fill(base);
   for (let y = 0; y < TILE; y++) {
     BEAM.forEach((colour, i) => {
@@ -107,7 +144,7 @@ const straight = frame => {
  * bed. The belt is a quarter ring round the top left corner, so it is as wide
  * round the turn as it is on either side.
  */
-const turningPixelAt = (x, y) => {
+const turningPixelAt = (x: number, y: number) => {
   const radius = Math.hypot(x + 0.5, y + 0.5);
   if (radius >= TILE) return null;
   if (radius < RAIL_PX) return { beam: "inner", fromEdge: Math.floor(radius) };
@@ -129,7 +166,8 @@ const turning = () => {
       const pixel = turningPixelAt(x, y);
       if (pixel == null) continue;
 
-      put(s, x, y, pixel.beam != null ? BEAM[pixel.fromEdge] : base);
+      const beam = pixel.beam != null ? BEAM[pixel.fromEdge] : undefined;
+      put(s, x, y, beam ?? base);
     }
   }
   return s;
@@ -142,26 +180,27 @@ const turning = () => {
  * either side. As on a straight tile, a tip starts on the last pixel before
  * this one, and the chevron ahead still trails into it.
  */
-const turningChevrons = frame => {
+const turningChevrons = (frame: number) => {
   const middle = TILE / 2;
   return [-0.5, SPACING_PX - 0.5].flatMap(lead => {
     const progress = (((frame * STEP_PX + lead) / TILE) * Math.PI) / 2;
     const angle = Math.PI / 2 - progress;
-    const ahead = [Math.sin(angle), -Math.cos(angle)];
-    const outward = [Math.cos(angle), Math.sin(angle)];
+    const ahead: Point = [Math.sin(angle), -Math.cos(angle)];
+    const outward: Point = [Math.cos(angle), Math.sin(angle)];
     return [-1, 1].flatMap(side => {
       // The pixel `i` along one arm, counting from the tip.
-      const along = i =>
-        [0, 1].map(axis =>
+      const along = (i: number): Point => {
+        const on = (axis: 0 | 1) =>
           Math.floor(
             (middle + side * (0.5 + i)) * outward[axis] - i * ahead[axis]
-          )
-        );
+          );
+        return [on(0), on(1)];
+      };
       const [tipX, tipY] = along(0);
       const [endX, endY] = along(ARM_PX - 1);
       // Joined up from end to end, so a slanted arm never breaks apart.
       const steps = Math.max(Math.abs(endX - tipX), Math.abs(endY - tipY));
-      return Array.from({ length: steps + 1 }, (_, i) => [
+      return Array.from({ length: steps + 1 }, (_, i): Dot => [
         Math.round(tipX + ((endX - tipX) * i) / steps),
         Math.round(tipY + ((endY - tipY) * i) / steps),
         i === 0 ? arrowHi : arrow,
@@ -175,8 +214,8 @@ const turningChevrons = frame => {
  * the beam from the bed (0 next to it, `RAIL_PX - 1` at the ground), which way
  * the beam faces, and which way the belt moves there.
  */
-const STRAIGHT_BEAMS = Array.from({ length: TILE }, (_, y) =>
-  Array.from({ length: RAIL_PX }, (_, i) => [
+const STRAIGHT_BEAMS: Beam[] = Array.from({ length: TILE }, (_, y) =>
+  Array.from({ length: RAIL_PX }, (_, i): Beam[] => [
     {
       at: [i, y],
       depth: RAIL_PX - 1 - i,
@@ -194,10 +233,10 @@ const STRAIGHT_BEAMS = Array.from({ length: TILE }, (_, y) =>
 
 // A turn's beams show no rollers: `shadeCurvedFace` draws the side of a curve
 // that faces the viewer.
-const TURNING_BEAMS = Array.from({ length: TILE * TILE }, (_, i) => [
+const TURNING_BEAMS = Array.from({ length: TILE * TILE }, (_, i): Point => [
   i % TILE,
   Math.floor(i / TILE),
-]).flatMap(([x, y]) =>
+]).flatMap(([x, y]): Beam[] =>
   turningPixelAt(x, y)?.beam != null ? [{ at: [x, y] }] : []
 );
 
@@ -207,9 +246,9 @@ const TURNING_BEAMS = Array.from({ length: TILE * TILE }, (_, i) => [
  * beam going away to the lip above the front face of the belt going sideways,
  * with that face in shadow under it.
  */
-const shadeCurvedFace = (s, centreX) => {
+const shadeCurvedFace = (s: Pixels, centreX: number) => {
   // Whether a pixel, `across` and `down` from the centre, is on top of the belt.
-  const onTop = (across, down) =>
+  const onTop = (across: number, down: number) =>
     Math.hypot(across / (TILE - 1), down / (TILE - RAIL_PX)) <= 1;
 
   for (let y = 0; y < TILE; y++) {
@@ -228,23 +267,32 @@ const shadeCurvedFace = (s, centreX) => {
   }
 };
 
-const MIRROR = (x, y) => [TILE - 1 - x, y];
-const FACING_ROTATIONS = {
+const MIRROR: Mapping = (x, y) => [TILE - 1 - x, y];
+const FACING_ROTATIONS: Record<Facing, Mapping> = {
   up: (x, y) => [x, y],
   right: ROTATE.cw,
   down: ROTATE.half,
   left: ROTATE.ccw,
 };
-const BEND_ORIENTATIONS = {
+const BEND_ORIENTATIONS: Record<ConveyorBend, Mapping> = {
   anticlockwise: (x, y) => [x, y],
   clockwise: MIRROR,
 };
 
-const compose = mappings => (x, y) =>
-  mappings.reduce(([px, py], mapping) => mapping(px, py), [x, y]);
+const compose =
+  (mappings: readonly Mapping[]): Mapping =>
+  (x, y) =>
+    mappings.reduce<Point>(([px, py], mapping) => mapping(px, py), [x, y]);
 
-const pixelAt = (x, y) => (y * TILE + x) * 4;
-const copyPixel = (from, fromX, fromY, to, toX, toY) => {
+const pixelAt = (x: number, y: number) => (y * TILE + x) * 4;
+const copyPixel = (
+  from: Pixels,
+  fromX: number,
+  fromY: number,
+  to: Pixels,
+  toX: number,
+  toY: number
+) => {
   to.set(
     from.subarray(pixelAt(fromX, fromY), pixelAt(fromX, fromY) + 4),
     pixelAt(toX, toY)
@@ -272,11 +320,15 @@ const TURNING = {
  * moves, so that what comes in from the next tile is not lost. A turn whose
  * inner corner ends up at the top also has its outer side towards the viewer.
  */
-const sprite = (name, { draw, beams, wraps, curve }, ...mappings) => {
+const sprite = (
+  name: string,
+  { draw, beams, wraps, curve }: Belt,
+  ...mappings: Mapping[]
+): Sprite => {
   const place = compose(mappings);
   const [originX, originY] = place(0, 0);
   // Where a direction points once placed, so without moving it.
-  const direction = (x, y) => {
+  const direction = (x: number, y: number): Point => {
     const [placedX, placedY] = place(x, y);
     return [placedX - originX, placedY - originY];
   };
@@ -287,7 +339,7 @@ const sprite = (name, { draw, beams, wraps, curve }, ...mappings) => {
     front: faces != null && direction(...faces)[1] > 0.5,
     clockwise: travels != null && direction(...travels)[0] >= 0,
   }));
-  const keyOf = (x, y) => y * TILE + x;
+  const keyOf = (x: number, y: number) => y * TILE + x;
   const beamAt = new Set(placedBeams.map(({ at }) => keyOf(...at)));
   const frontAt = new Set(
     placedBeams.filter(({ front }) => front).map(({ at }) => keyOf(...at))
@@ -299,7 +351,7 @@ const sprite = (name, { draw, beams, wraps, curve }, ...mappings) => {
       const placed = remap(draw(frame), place);
       const out = blank();
 
-      const bed = [];
+      const bed: Point[] = [];
       for (let y = 0; y < TILE; y++) {
         for (let x = 0; x < TILE; x++) {
           if (placed[pixelAt(x, y) + 3] === 0) continue;
@@ -329,7 +381,7 @@ const sprite = (name, { draw, beams, wraps, curve }, ...mappings) => {
         front,
         clockwise,
       } of placedBeams) {
-        if (front) put(out, x, y, rollerAt(x, depth, frame, clockwise));
+        if (front) put(out, x, y, rollerAt(x, depth ?? 0, frame, clockwise));
       }
       if (curve != null) {
         if (originY === 0) shadeCurvedFace(out, originX === 0 ? 0 : TILE);

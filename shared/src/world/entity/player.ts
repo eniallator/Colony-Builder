@@ -12,6 +12,6 @@ export const createPlayer = (
     type: "player",
     position,
     speed: PLAYER_SPEED,
-    inventory: {},
+    inventory: { robot: { count: 1, data: true } },
     taskList: { tasks: [], repeat: true },
   });

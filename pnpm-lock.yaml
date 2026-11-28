@@ -169,9 +169,18 @@ importers:
       '@ianvs/prettier-plugin-sort-imports':
         specifier: ^4.7.1
         version: 4.7.1(prettier@3.10.1)(supports-color@8.1.1)
+      '@types/node':
+        specifier: ^26.6.6
+        version: 26.6.6
       '@vitest/coverage-v8':
         specifier: ^5.1.1
         version: 5.1.1(vitest@5.1.1)
+      deep-guards:
+        specifier: ^2.0.0
+        version: 2.0.0
+      niall-utils:
+        specifier: ^4.1.0
+        version: 4.1.0
       oxlint:
         specifier: ^1.94.0
         version: 1.94.0(oxlint-tsgolint@7.0.2007)

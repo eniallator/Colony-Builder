@@ -40,7 +40,6 @@ import {
   codUnionOf,
   type ArrayOptions,
   type BinaryCodec,
-  type BinaryFormat,
   type CodecValue,
   type NumberCodec,
   type Precision,
@@ -49,8 +48,9 @@ import {
 // oxlint-disable-next-line typescript/no-explicit-any
 export type BinaryEncodable<T extends CodecValue = any> = Encodable<
   T,
-  BinaryFormat,
-  BinaryCodec<T>
+  BinaryCodec<T>,
+  Uint8Array<ArrayBuffer>,
+  Uint8Array
 >;
 
 export type EncodableType<E extends BinaryEncodable> =

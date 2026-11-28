@@ -11,7 +11,7 @@ import {
 } from "./codec.ts";
 
 const roundTrip = <T>(codec: JsonCodec<T>, value: T) =>
-  codec.fromJson(JSON.parse(JSON.stringify(codec.toJson(value))));
+  codec.read(JSON.parse(JSON.stringify(codec.write(value))));
 
 describe("primitives", () => {
   it("round trip", () => {
@@ -21,9 +21,9 @@ describe("primitives", () => {
   });
 
   it("reject the wrong type", () => {
-    expect(() => jsonString.fromJson(1)).toThrow("Expected a string");
-    expect(() => jsonNumber.fromJson("1")).toThrow("Expected a number");
-    expect(() => jsonBoolean.fromJson(0)).toThrow("Expected a boolean");
+    expect(() => jsonString.read(1)).toThrow("Expected a string");
+    expect(() => jsonNumber.read("1")).toThrow("Expected a number");
+    expect(() => jsonBoolean.read(0)).toThrow("Expected a boolean");
   });
 });
 
@@ -31,14 +31,14 @@ describe("jsonOptional", () => {
   const codec = jsonOptional(jsonNumber);
 
   it("keeps a value", () => {
-    expect(codec.toJson(3)).toBe(3);
-    expect(codec.fromJson(3)).toBe(3);
+    expect(codec.write(3)).toBe(3);
+    expect(codec.read(3)).toBe(3);
   });
 
   it("maps undefined and null to undefined", () => {
-    expect(codec.toJson(undefined)).toBeUndefined();
-    expect(codec.fromJson(undefined)).toBeUndefined();
-    expect(codec.fromJson(null)).toBeUndefined();
+    expect(codec.write(undefined)).toBeUndefined();
+    expect(codec.read(undefined)).toBeUndefined();
+    expect(codec.read(null)).toBeUndefined();
   });
 });
 
@@ -50,8 +50,8 @@ describe("jsonArrayOf", () => {
   });
 
   it("rejects a non-array and a bad item", () => {
-    expect(() => codec.fromJson({})).toThrow("Expected an array");
-    expect(() => codec.fromJson([1, "2"])).toThrow("Expected a number");
+    expect(() => codec.read({})).toThrow("Expected an array");
+    expect(() => codec.read([1, "2"])).toThrow("Expected a number");
   });
 });
 
@@ -62,7 +62,7 @@ describe("jsonObjectOf", () => {
   });
 
   it("writes fields by name", () => {
-    expect(codec.toJson({ name: "a", age: 2 })).toEqual({ name: "a", age: 2 });
+    expect(codec.write({ name: "a", age: 2 })).toEqual({ name: "a", age: 2 });
   });
 
   it("round trips and omits absent optional fields", () => {
@@ -70,7 +70,7 @@ describe("jsonObjectOf", () => {
       name: "a",
       age: 2,
     });
-    expect(JSON.stringify(codec.toJson({ name: "a", age: undefined }))).toBe(
+    expect(JSON.stringify(codec.write({ name: "a", age: undefined }))).toBe(
       '{"name":"a"}'
     );
     expect(roundTrip(codec, { name: "a", age: undefined })).toEqual({
@@ -80,8 +80,8 @@ describe("jsonObjectOf", () => {
 
   it("rejects non-objects and bad fields", () => {
     for (const json of [null, [], "x", 1]) {
-      expect(() => codec.fromJson(json)).toThrow("Expected an object");
+      expect(() => codec.read(json)).toThrow("Expected an object");
     }
-    expect(() => codec.fromJson({ name: 1 })).toThrow("Expected a string");
+    expect(() => codec.read({ name: 1 })).toThrow("Expected a string");
   });
 });
